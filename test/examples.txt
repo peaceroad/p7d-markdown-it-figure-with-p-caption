@@ -246,3 +246,12 @@ A paragraph.
 <figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 <p>A paragraph.</p>
+
+
+[Markdown]
+![Figure](figure.jpg)
+
+[HTML]
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+</figure>

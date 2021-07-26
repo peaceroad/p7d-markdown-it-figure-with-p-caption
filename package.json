@@ -1,17 +1,15 @@
 {
-  "name": "p7d-markdown-it-figure-with-p-caption",
+  "name": "@peaceroad/markdown-it-figure-with-p-caption",
   "version": "0.1.0",
-  "description": "",
+  "description": "A markdown-it plugin. This generate a figure element with a figcaption element.",
   "main": "index.js",
   "scripts": {
     "test": "node test/test.js"
   },
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
-  "dependencies": {
-    "p7d-markdown-it-p-captions": "^0.4.1"
-  },
   "devDependencies": {
-    "markdown-it": "^12.1.0"
+    "markdown-it": "^12.1.0",
+    "p7d-markdown-it-p-captions": "^0.4.1"
   }
 }

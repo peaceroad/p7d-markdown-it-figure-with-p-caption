@@ -133,7 +133,7 @@ module.exports = function figure_with_caption_plugin(md) {
       let hasCloseTag = false;
       let tagName = '';
 
-      const checkTags = ['table', 'video', 'pre'];
+      const checkTags = ['table', 'video', 'audio', 'pre'];
       let cti = 0;
       while (cti < checkTags.length) {
         if (token.type === checkTags[cti] + '_open') {
