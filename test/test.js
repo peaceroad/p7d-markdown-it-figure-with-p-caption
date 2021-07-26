@@ -4,8 +4,7 @@ const md = require('markdown-it')();
 const mdPCaption = require('p7d-markdown-it-p-captions');
 const mdFigureWithCaption = require('../index.js');
 
-//md.use(mdFigure).use(mdPCaption).use(mdFigureWithCaption);
-md.use(mdPCaption).use(mdFigureWithCaption);
+md.use(mdPCaption, {'classPrefix': 'f'}).use(mdFigureWithCaption);
 
 const exampleCont = fs.readFileSync(__dirname + '/examples.txt', 'utf-8').trim();
 let ms = [];

@@ -9,7 +9,7 @@
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "p7d-markdown-it-p-captions": "^0.3.1"
+    "p7d-markdown-it-p-captions": "^0.4.1"
   },
   "devDependencies": {
     "markdown-it": "^12.1.0"

@@ -22,7 +22,7 @@ module.exports = function figure_with_caption_plugin(md) {
     let captionName = '';
     if (captionStartToken.attrs) {
       captionStartToken.attrs.forEach(attr => {
-        let hasCaptionName = attr[1].match(/^caption-(.+)$/);
+        let hasCaptionName = attr[1].match(/^f-(.+)$/);
         if (attr[0] === 'class' && hasCaptionName) {
           captionName = hasCaptionName[1];
         }
@@ -31,7 +31,7 @@ module.exports = function figure_with_caption_plugin(md) {
     if(!captionName) { return false; }
     captionStartToken.attrs.forEach(attr => {
       if (attr[0] === 'class') {
-        attr[1] = attr[1].replace(new RegExp(' *?caption-' + captionName), '').trim();
+        attr[1] = attr[1].replace(new RegExp(' *?f-' + captionName), '').trim();
         if(attr[1] === '') {
           captionStartToken.attrs.splice(captionStartToken.attrIndex('class'), 1);
         }
@@ -39,17 +39,6 @@ module.exports = function figure_with_caption_plugin(md) {
     });
     captionStartToken.type = 'figcaption_open';
     captionStartToken.tag = 'figcaption';
-
-    captionInlineToken.children[1].attrs.forEach(attr => {
-      if(attr[0] ==='class') {
-        attr[1] = attr[1].replace(/(?:^|( +?))caption-/, '$1f-');
-      }
-    });
-    captionInlineToken.children[3].attrs.forEach(attr => {
-      if(attr[0] ==='class') {
-        attr[1] = attr[1].replace(/(?:^|( +?))caption-/, '$1f-');
-      }
-    });
 
     captionEndToken.type = 'figcaption_close';
     captionEndToken.tag = 'figcaption';
@@ -72,7 +61,7 @@ module.exports = function figure_with_caption_plugin(md) {
     let captionName = '';
     if (captionStartToken.attrs) {
       captionStartToken.attrs.forEach(attr => {
-        let hasCaptionName = attr[1].match(/^caption-(.+)$/);
+        let hasCaptionName = attr[1].match(/^f-(.+)$/);
         if (attr[0] === 'class' && hasCaptionName) {
           captionName = hasCaptionName[1];
         }
@@ -81,7 +70,7 @@ module.exports = function figure_with_caption_plugin(md) {
     if(!captionName) { return false; }
     captionStartToken.attrs.forEach(attr => {
       if (attr[0] === 'class') {
-        attr[1] = attr[1].replace(new RegExp(' *?caption-' + captionName), '').trim();
+        attr[1] = attr[1].replace(new RegExp(' *?f-' + captionName), '').trim();
         if(attr[1] === '') {
           captionStartToken.attrs.splice(captionStartToken.attrIndex('class'), 1);
         }
@@ -89,17 +78,6 @@ module.exports = function figure_with_caption_plugin(md) {
     });
     captionStartToken.type = 'figcaption_open';
     captionStartToken.tag = 'figcaption';
-
-    captionInlineToken.children[1].attrs.forEach(attr => {
-      if(attr[0] ==='class') {
-        attr[1] = attr[1].replace(/(?:^|( +?))caption-/, '$1f-');
-      }
-    });
-    captionInlineToken.children[3].attrs.forEach(attr => {
-      if(attr[0] ==='class') {
-        attr[1] = attr[1].replace(/(?:^|( +?))caption-/, '$1f-');
-      }
-    });
 
     captionEndToken.type = 'figcaption_close';
     captionEndToken.tag = 'figcaption';
