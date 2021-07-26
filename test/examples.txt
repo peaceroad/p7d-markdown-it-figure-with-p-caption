@@ -1,0 +1,248 @@
+[Markdown]
+Figure. A Caption.
+
+![Figure](figure.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="figure.jpg" alt="Figure">
+</figure>
+
+[Markdown]
+Figure. A Caption.
+
+![Figure](figure.jpg)
+
+Figure. A Caption.
+
+![Figure](figure.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="figure.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="figure.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+![Figure](figure.jpg)
+
+Figure. A Caption.
+[HTML]
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+
+[Markdown]
+![Figure](figure.jpg)
+
+Figure. A Caption.
+
+![Figure](figure.jpg)
+
+Figure. A Caption.
+[HTML]
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+
+
+[Markdown]
+![Figure](figure.jpg)
+
+Figure. A Caption.
+
+Figure. A Caption.
+
+![Figure](figure.jpg)
+
+[HTML]
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="figure.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+Figure. A Caption.
+
+![Figure](figure.jpg)
+
+![Figure](figure.jpg)
+
+Figure. A Caption.
+
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="figure.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<img src="figure.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+
+
+[Markdown]
+A paragraph.
+
+Table. A Caption.
+
+| Tokyo | Osaka |
+| ----- | ----- |
+| Sushi | Takoyaki |
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table<span class="f-table-label-joint">.</span></span> A Caption.</figcaption>
+<table>
+<thead>
+<tr>
+<th>Tokyo</th>
+<th>Osaka</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sushi</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+| Tokyo | Osaka |
+| ----- | ----- |
+| Sushi | Takoyaki |
+
+
+Table. A Caption.
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-table">
+<table>
+<thead>
+<tr>
+<th>Tokyo</th>
+<th>Osaka</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sushi</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
+<figcaption><span class="f-table-label">Table<span class="f-table-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+Code. A Caption.
+
+```js
+console.log('Hello World!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
+<pre><code class="language-js">console.log('Hello World!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+```js
+console.log('Hello World!');
+```
+
+Code. A Caption.
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<pre><code class="language-js">console.log('Hello World!');
+</code></pre>
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Terminal. A Caption.
+
+```samp
+$ pwd
+/home/user
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-samp" role="doc-example">
+<figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
+<pre><samp>$ pwd
+/home/user
+</samp></pre>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+```samp
+$ pwd
+/home/user
+```
+
+Terminal. A Caption.
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-samp" role="doc-example">
+<pre><samp>$ pwd
+/home/user
+</samp></pre>
+<figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<p>A paragraph.</p>
