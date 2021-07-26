@@ -12,9 +12,9 @@ Use it as follows.
 ```js
 const md = require('markdown-it')();
 const mdPCaption = require('p7d-markdown-it-p-captions');
-const mdFigureWithCaption = require('@peaceroad/markdown-it-figure-with-p-caption');
+const mdFigureWithPCaption = require('@peaceroad/markdown-it-figure-with-p-caption');
 
-md.use(mdPCaption, {'classPrefix': 'f'}).use(mdFigureWithCaption);
+md.use(mdPCaption, {'classPrefix': 'f'}).use(mdFigureWithPCaption);
 
 console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
 // <figure class="f-img">
