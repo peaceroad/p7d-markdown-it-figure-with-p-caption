@@ -2,7 +2,7 @@
 
 This is a markdown-it plugin. The behavior of this plugin depends on [markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
-By using this plugin, you can generate a figure element with a figcaption element.
+For a paragraph with only one image, a table or code block, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
 1. A Paragraph with only one image are converted to figure element.
 2. The caption paragraph immediately before or after this figure element is converted to be inside the figure element.
