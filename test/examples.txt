@@ -1,87 +1,98 @@
 [Markdown]
 Figure. A Caption.
 
-![Figure](figure.jpg)
+![Figure](cat.jpg)
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
 </figure>
 
 [Markdown]
 Figure. A Caption.
 
-![Figure](figure.jpg)
-
-Figure. A Caption.
-
-![Figure](figure.jpg)
+![Figure](dog.jpg)
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
-</figure>
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
-</figure>
-
-
-[Markdown]
-![Figure](figure.jpg)
-
-Figure. A Caption.
-[HTML]
-<figure class="f-img">
-<img src="figure.jpg" alt="Figure">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-</figure>
-
-[Markdown]
-![Figure](figure.jpg)
-
-Figure. A Caption.
-
-![Figure](figure.jpg)
-
-Figure. A Caption.
-[HTML]
-<figure class="f-img">
-<img src="figure.jpg" alt="Figure">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-</figure>
-<figure class="f-img">
-<img src="figure.jpg" alt="Figure">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-</figure>
-
-
-[Markdown]
-![Figure](figure.jpg)
-
-Figure. A Caption.
-
-Figure. A Caption.
-
-![Figure](figure.jpg)
-
-[HTML]
-<figure class="f-img">
-<img src="figure.jpg" alt="Figure">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-</figure>
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
+<img src="dog.jpg" alt="Figure">
 </figure>
 
 
 [Markdown]
 Figure. A Caption.
 
-![Figure](figure.jpg)
+![Figure](cat.jpg)
 
-![Figure](figure.jpg)
+Figure. A Caption.
+
+![Figure](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+</figure>
+
+
+[Markdown]
+![Figure](cat.jpg)
+
+Figure. A Caption.
+[HTML]
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+
+[Markdown]
+![Figure](cat.jpg)
+
+Figure. A Caption.
+
+![Figure](cat.jpg)
+
+Figure. A Caption.
+[HTML]
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+
+
+[Markdown]
+![Figure](cat.jpg)
+
+Figure. A Caption.
+
+Figure. A Caption.
+
+![Figure](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure" width="600" height="450">
+</figure>
+
+
+[Markdown]
+Figure. A Caption.
+
+![Figure](cat.jpg)
+
+![Figure](cat.jpg)
 
 Figure. A Caption.
 
@@ -89,10 +100,10 @@ Figure. A Caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
 </figure>
 <figure class="f-img">
-<img src="figure.jpg" alt="Figure">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 
@@ -249,9 +260,9 @@ A paragraph.
 
 
 [Markdown]
-![Figure](figure.jpg)
+![Figure](cat.jpg)
 
 [HTML]
 <figure class="f-img">
-<img src="figure.jpg" alt="Figure">
+<img src="cat.jpg" alt="Figure" width="600" height="450">
 </figure>

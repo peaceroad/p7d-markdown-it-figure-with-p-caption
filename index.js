@@ -1,12 +1,22 @@
 'use strict';
 
 
-module.exports = function figure_with_caption_plugin(md) {
+const fs = require('fs');
+const path = require('path');
+const mdPCaption = require('p7d-markdown-it-p-captions');
+const sizeOf = require('image-size');
+
+module.exports = function figure_with_caption_plugin(md, option) {
 
   let opt = {
-    noFigcaptionBeforeFigure: false,
-    noFigcaptionAfterFigure: false,
+    classPrefix: 'f',
+    scaleSuffix: false,
   };
+  if (option !== undefined) {
+    for (let o in option) {
+        opt[o] = option[o];
+    }
+  }
 
   function changePositionOfPrevCaption(state, n, en, tagName) {
     if(n < 3) {return false;}
@@ -115,6 +125,31 @@ module.exports = function figure_with_caption_plugin(md) {
     return range;
   }
 
+  function setImgSize(imgToken, img) {
+    if (imgToken.attrIndex('src') === undefined) return;
+    const imgSize = sizeOf(img);
+    let w = imgSize.width;
+    let h = imgSize.height;
+    if (imgSize === undefined) return;
+    const imgName = path.basename(img, path.extname(img));
+    if (opt.scaleSuffix) {
+      const reg = /[._-@]([0-9]+)(x|dpi|ppi)$/;
+      if (imgName.match(reg)) {
+        if (rs[2] === 'x') {
+          w = Math.round(w / rs[1]);
+          h = Math.round(h / rs[1]);
+        }
+        if (rs[2] === ('dpi' || 'ppi')) {
+          w = Math.round(w / rs[1] / 96);
+          h = Math.round(h / rs[1] / 96);
+        }
+      }
+    }
+    imgToken.attrJoin('width', w);
+    imgToken.attrJoin('height', h);
+    return;
+  }
+
 
   function figureWithCaption(state) {
 
@@ -181,7 +216,7 @@ module.exports = function figure_with_caption_plugin(md) {
         en = n + 2;
         range.end = en;
         tagName = 'img';
-        //console.log(range);
+        nextToken.children[0].type = 'image';
         range = wrapWithFigure(state, range, tagName, true);
         //console.log(range);
       }
@@ -202,11 +237,27 @@ module.exports = function figure_with_caption_plugin(md) {
     return;
   }
 
-
+  md.use(mdPCaption, {'classPrefix': opt.classPrefix});
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
-  md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) { 
+  md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
     const token = tokens[idx];
     return  '<pre><samp>' + token.content + '</samp></pre>\n';
   };
-  
+  md.renderer.rules['image'] = function (tokens, idx, options, env, slf) {
+    const token = tokens[idx];
+    let imgCont = '<img src="' + token.attrGet('src') + '" alt="' + token.content + '">';
+    if (token.attrGet('title')) {
+      imgCont = imgCont.replace(/>$/, ' title="' + token.attrGet('title') + '">');
+    }
+    let img = '';
+    if (env === undefined) return imgCont;
+    if (env.md === undefined) return imgCont;
+    img = path.dirname(env.md) + path.sep + token.attrGet('src');
+    if(!fs.existsSync(img)) return imgCont;
+    setImgSize(token, img);
+    if (!token.attrGet('width')) token.attrSet('width', '');
+    if (!token.attrGet('height')) token.attrSet('height', '');
+    imgCont = imgCont.replace(/>$/, ' width="' + token.attrGet('width') + '" height="' + token.attrGet('height') + '">');
+    return imgCont;
+  }
 };
