@@ -5,7 +5,7 @@ Figure. A Caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>
 
 [Markdown]
@@ -30,11 +30,11 @@ Figure. A Caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>
 
 
@@ -44,7 +44,7 @@ Figure. A Caption.
 Figure. A Caption.
 [HTML]
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 
@@ -58,11 +58,11 @@ Figure. A Caption.
 Figure. A Caption.
 [HTML]
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 
@@ -78,12 +78,12 @@ Figure. A Caption.
 
 [HTML]
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>
 
 
@@ -100,10 +100,10 @@ Figure. A Caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 
@@ -264,5 +264,5 @@ A paragraph.
 
 [HTML]
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure" width="600" height="450">
+<img src="cat.jpg" alt="Figure">
 </figure>

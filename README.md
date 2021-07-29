@@ -1,17 +1,18 @@
 # p7d-markdown-it-figure-with-p-caption
 
-This is a markdown-it plugin. The behavior of this plugin depends on [markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+This is a markdown-it plugin.
 
 For a paragraph with only one image, a table or code block, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
 1. A Paragraph with only one image are converted to figure element.
 2. The caption paragraph immediately before or after this figure element is converted to be inside the figure element.
 
+The figcaption behavior of this plugin depends on [markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+
 Use it as follows.
 
 ```js
 const md = require('markdown-it')();
-const mdPCaption = require('p7d-markdown-it-p-captions');
 const mdFigureWithPCaption = require('@peaceroad/markdown-it-figure-with-p-caption');
 
 md.use(mdPCaption, {'classPrefix': 'f'}).use(mdFigureWithPCaption);
@@ -23,7 +24,9 @@ console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
 // </figure>
 ```
 
-It could be applied to table, codeblock(pre > code), video, audio as well.
+Also, It is recommended to set the width and height attributes of the images at the same time. See: <https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image>
+
+It could be applied to table, codeblock(pre > code, pre > samp), video, audio as well.
 
 Example:
 

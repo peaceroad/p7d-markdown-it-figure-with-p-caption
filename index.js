@@ -1,12 +1,8 @@
 'use strict';
 
-
-const fs = require('fs');
-const path = require('path');
-const mdPCaption = require('p7d-markdown-it-p-captions');
-const sizeOf = require('image-size');
-
 module.exports = function figure_with_caption_plugin(md, option) {
+
+  const mdPCaption = require('p7d-markdown-it-p-captions');
 
   let opt = {
     classPrefix: 'f',
@@ -67,7 +63,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
       && captionEndToken.type !== 'paragraph_close') {
       return false;
     }
-    //console.log(captionInlineToken);
     let captionName = '';
     if (captionStartToken.attrs) {
       captionStartToken.attrs.forEach(attr => {
@@ -125,38 +120,12 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return range;
   }
 
-  function setImgSize(imgToken, img) {
-    if (imgToken.attrIndex('src') === undefined) return;
-    const imgSize = sizeOf(img);
-    let w = imgSize.width;
-    let h = imgSize.height;
-    if (imgSize === undefined) return;
-    const imgName = path.basename(img, path.extname(img));
-    if (opt.scaleSuffix) {
-      const reg = /[._-@]([0-9]+)(x|dpi|ppi)$/;
-      if (imgName.match(reg)) {
-        if (rs[2] === 'x') {
-          w = Math.round(w / rs[1]);
-          h = Math.round(h / rs[1]);
-        }
-        if (rs[2] === ('dpi' || 'ppi')) {
-          w = Math.round(w / rs[1] / 96);
-          h = Math.round(h / rs[1] / 96);
-        }
-      }
-    }
-    imgToken.attrJoin('width', w);
-    imgToken.attrJoin('height', h);
-    return;
-  }
-
 
   function figureWithCaption(state) {
 
     let n = 0;
     while (n < state.tokens.length) {
       const token = state.tokens[n];
-      //console.log(token.type);
       const nextToken = state.tokens[n+1];
       let en = n + 1;
       let range = {
@@ -218,7 +187,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
         tagName = 'img';
         nextToken.children[0].type = 'image';
         range = wrapWithFigure(state, range, tagName, true);
-        //console.log(range);
       }
 
       if (!checkToken) {n++; continue;}
@@ -243,21 +211,4 @@ module.exports = function figure_with_caption_plugin(md, option) {
     const token = tokens[idx];
     return  '<pre><samp>' + token.content + '</samp></pre>\n';
   };
-  md.renderer.rules['image'] = function (tokens, idx, options, env, slf) {
-    const token = tokens[idx];
-    let imgCont = '<img src="' + token.attrGet('src') + '" alt="' + token.content + '">';
-    if (token.attrGet('title')) {
-      imgCont = imgCont.replace(/>$/, ' title="' + token.attrGet('title') + '">');
-    }
-    let img = '';
-    if (env === undefined) return imgCont;
-    if (env.md === undefined) return imgCont;
-    img = path.dirname(env.md) + path.sep + token.attrGet('src');
-    if(!fs.existsSync(img)) return imgCont;
-    setImgSize(token, img);
-    if (!token.attrGet('width')) token.attrSet('width', '');
-    if (!token.attrGet('height')) token.attrSet('height', '');
-    imgCont = imgCont.replace(/>$/, ' width="' + token.attrGet('width') + '" height="' + token.attrGet('height') + '">');
-    return imgCont;
-  }
 };
