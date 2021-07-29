@@ -7,7 +7,7 @@ For a paragraph with only one image, a table or code block, and by writing a cap
 1. A Paragraph with only one image are converted to figure element.
 2. The caption paragraph immediately before or after this figure element is converted to be inside the figure element.
 
-The figcaption behavior of this plugin depends on [markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
 Use it as follows.
 
@@ -24,7 +24,7 @@ console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
 // </figure>
 ```
 
-Also, It is recommended to set the width and height attributes of the images at the same time. See: <https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image>
+Also, It is recommended to set the width and height attributes of the images at the same time. See: [@peaceroad/markdown-it-renderer-image](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image).
 
 It could be applied to table, codeblock(pre > code, pre > samp), video, audio as well.
 
