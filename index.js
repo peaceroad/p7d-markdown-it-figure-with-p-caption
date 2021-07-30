@@ -103,7 +103,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
     const figureEndToken = new state.Token('figure_close', 'figure', -1);
     const breakToken = new state.Token('text', '', 0);
     breakToken.content = '\n';
-
+    ///Add for vsce
+    if(state.tokens[n].attrs) {
+      for (let attr of state.tokens[n].attrs) {
+        figureStartToken.attrJoin(attr[0], attr[1]);
+      }
+    }
+    ///
     if (replaceInsteadOfWrap) {
       state.tokens.splice(en, 1, breakToken, figureEndToken, breakToken);
       state.tokens.splice(n, 1, figureStartToken, breakToken);
@@ -200,7 +206,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
         n = en + 4;
         continue;
       }
-      n++;
+      n = en + 1;
     }
     return;
   }
@@ -209,6 +215,14 @@ module.exports = function figure_with_caption_plugin(md, option) {
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
     const token = tokens[idx];
-    return  '<pre><samp>' + token.content + '</samp></pre>\n';
+    let sampStartTag = '<samp>';
+    if (token.attrs) {
+      sampStartTag = sampStartTag.replace('>', '');
+      for(let attr of token.attrs) {
+        sampStartTag += ' ' + attr[0] + '="' + attr[1] + '"';
+      }
+      sampStartTag += '>';
+    }
+    return  '<pre>' + sampStartTag + token.content + '</samp></pre>\n';
   };
 };
