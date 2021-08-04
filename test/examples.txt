@@ -266,3 +266,29 @@ A paragraph.
 <figure class="f-img">
 <img src="cat.jpg" alt="Figure">
 </figure>
+
+
+
+[Markdown]
+Figure. A cat.
+
+![Figure](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+Figure 12. A cat.
+
+![Figure](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
