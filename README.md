@@ -4,8 +4,9 @@ This is a markdown-it plugin.
 
 For a paragraph with only one image, a table or code block, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
-1. A Paragraph with only one image are converted to figure element.
-2. The caption paragraph immediately before or after this figure element is converted to be inside the figure element.
+1. Check that the element: one image only paragraph, table, code block, samp block ,and video.
+2. Check if this element has a caption paragraph immediately before or after it
+3. If there is the caption paragraph, convert them to figure and figcaption element.
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
@@ -36,9 +37,7 @@ Example:
 ![Figure](figure.jpg)
 
 [HTML]
-<figure class="f-img">
-<img src="figure.jpg" alt="Figure">
-</figure>
+<p><img src="figure.jpg" alt="Figure"></p>
 
 
 [Markdown]

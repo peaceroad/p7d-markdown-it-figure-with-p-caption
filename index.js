@@ -14,16 +14,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
     }
   }
 
-  function changePositionOfPrevCaption(state, n, en, tagName) {
-    if(n < 3) {return false;}
-
+  function checkPrevCaption(state, n, en, tagName, caption) {
+    if(n < 3) {return caption;}
     const captionStartToken = state.tokens[n-3];
-    const captionInlineToken = state.tokens[n-2];
     const captionEndToken = state.tokens[n-1];
-
     if (captionStartToken.type !== 'paragraph_open'
       && captionEndToken.type !== 'paragraph_close') {
-      return false;
+      return caption;
     }
     let captionName = '';
     if (captionStartToken.attrs) {
@@ -34,10 +31,19 @@ module.exports = function figure_with_caption_plugin(md, option) {
         }
       });
     }
-    if(!captionName) { return false; }
+    if(!captionName) {return caption;}
+    caption.name = captionName;
+    caption.hasPrev = true;
+    return caption;
+  }
+
+  function changePrevCaptionPosition(state, n, en, tagName, caption) {
+    const captionStartToken = state.tokens[n-3];
+    const captionInlineToken = state.tokens[n-2];
+    const captionEndToken = state.tokens[n-1];
     captionStartToken.attrs.forEach(attr => {
       if (attr[0] === 'class') {
-        attr[1] = attr[1].replace(new RegExp(' *?f-' + captionName), '').trim();
+        attr[1] = attr[1].replace(new RegExp(' *?f-' + caption.name), '').trim();
         if(attr[1] === '') {
           captionStartToken.attrs.splice(captionStartToken.attrIndex('class'), 1);
         }
@@ -54,14 +60,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return true;
   }
 
-  function changePositionOfNextCaption(state, n, en, tagName) {
-    if (en + 3 > state.tokens.length) { return false; }
-    const captionStartToken = state.tokens[en+2];
-    const captionInlineToken = state.tokens[en+3];
-    const captionEndToken = state.tokens[en+4];
+  function checkNextCaption(state, n, en, tagName, caption) {
+    if (en + 2 > state.tokens.length) { return caption; }
+    const captionStartToken = state.tokens[en+1];
+    const captionEndToken = state.tokens[en+3];
     if (captionStartToken.type !== 'paragraph_open'
       && captionEndToken.type !== 'paragraph_close') {
-      return false;
+      return caption;
     }
     let captionName = '';
     if (captionStartToken.attrs) {
@@ -72,10 +77,19 @@ module.exports = function figure_with_caption_plugin(md, option) {
         }
       });
     }
-    if(!captionName) { return false; }
+    if(!captionName) { return caption; }
+    caption.name = captionName;
+    caption.hasNext = true;
+    return caption;
+  }
+
+  function changeNextCaptionPosition(state, n, en, tagName, caption) {
+    const captionStartToken = state.tokens[en+2]; // +1: text node for figure.
+    const captionInlineToken = state.tokens[en+3];
+    const captionEndToken = state.tokens[en+4];
     captionStartToken.attrs.forEach(attr => {
       if (attr[0] === 'class') {
-        attr[1] = attr[1].replace(new RegExp(' *?f-' + captionName), '').trim();
+        attr[1] = attr[1].replace(new RegExp(' *?f-' + caption.name), '').trim();
         if(attr[1] === '') {
           captionStartToken.attrs.splice(captionStartToken.attrIndex('class'), 1);
         }
@@ -126,22 +140,30 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return range;
   }
 
+  function checkCaption(state, n, en, tagName, caption) {
+    caption = checkPrevCaption(state, n, en, tagName, caption);
+    caption = checkNextCaption(state, n, en, tagName, caption);
+    return caption;
+  }
 
   function figureWithCaption(state) {
-
     let n = 0;
     while (n < state.tokens.length) {
       const token = state.tokens[n];
       const nextToken = state.tokens[n+1];
-      let en = n + 1;
+      let en = n;
       let range = {
         start: n,
         end: en,
       }
       let checkToken = false;
-
       let hasCloseTag = false;
       let tagName = '';
+      let caption = {
+        name: '',
+        hasPrev: false,
+        hasNext: false,
+      };
 
       const checkTags = ['table', 'video', 'audio', 'pre'];
       let cti = 0;
@@ -162,22 +184,29 @@ module.exports = function figure_with_caption_plugin(md, option) {
             en++;
           }
           range.end = en;
-          range = wrapWithFigure(state, range, tagName, false);
+          caption = checkCaption(state, n, en, tagName, caption);
+          if (caption.hasPrev || caption.hasNext) {
+            range = wrapWithFigure(state, range, tagName, false);
+            break;
+          }
           break;
         }
+
         if(token.type === 'fence') {
           if (token.tag === 'code' && token.block) {
             checkToken = true;
-            en = n;
-            range.end = en;
             if (token.info === 'samp') {
               token.type = 'fence_samp';
               token.tag = 'samp';
             }
             tagName = 'pre-' + token.tag;
-            range = wrapWithFigure(state, range, tagName, false);
-            break;
+            caption = checkCaption(state, n, en, tagName, caption);
+            if (caption.hasPrev || caption.hasNext) {
+              range = wrapWithFigure(state, range, tagName, false);
+              break;
+            }
           }
+          break;
         }
         cti++;
       }
@@ -192,17 +221,23 @@ module.exports = function figure_with_caption_plugin(md, option) {
         range.end = en;
         tagName = 'img';
         nextToken.children[0].type = 'image';
-        range = wrapWithFigure(state, range, tagName, true);
+        caption = checkCaption(state, n, en, tagName, caption);
+        if (caption.hasPrev || caption.hasNext) {
+          range = wrapWithFigure(state, range, tagName, true);
+        }
       }
 
-      if (!checkToken) {n++; continue;}
+      if (!checkToken || !caption.name) {n++; continue;}
+
       n = range.start;
       en = range.end;
-      if (changePositionOfPrevCaption(state, n, en, tagName)) {
+      if (caption.hasPrev) {
+        changePrevCaptionPosition(state, n, en, tagName, caption);
         n = en + 1;
         continue;
       }
-      if (changePositionOfNextCaption(state, n, en, tagName)) {
+      if (caption.hasNext) {
+        changeNextCaptionPosition(state, n, en, tagName, caption);
         n = en + 4;
         continue;
       }
@@ -223,6 +258,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
       }
       sampStartTag += '>';
     }
-    return  '<pre>' + sampStartTag + token.content + '</samp></pre>\n';
+    return '<pre>' + sampStartTag + md.utils.escapeHtml(token.content) + '</samp></pre>\n';
   };
 };

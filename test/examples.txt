@@ -263,9 +263,7 @@ A paragraph.
 ![Figure](cat.jpg)
 
 [HTML]
-<figure class="f-img">
-<img src="cat.jpg" alt="Figure">
-</figure>
+<p><img src="cat.jpg" alt="Figure"></p>
 
 
 
@@ -292,3 +290,39 @@ Figure 12. A cat.
 <img src="cat.jpg" alt="Figure">
 </figure>
 
+
+[Markdown]
+A paragraph.
+
+```js
+console.log('Hello World!');
+```
+
+[HTML]
+<p>A paragraph.</p>
+<pre><code class="language-js">console.log('Hello World!');
+</code></pre>
+
+[Markdown]
+A paragraph.
+
+| Tokyo | Osaka |
+| ----- | ----- |
+| Sushi | Takoyaki |
+
+[HTML]
+<p>A paragraph.</p>
+<table>
+<thead>
+<tr>
+<th>Tokyo</th>
+<th>Osaka</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sushi</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
