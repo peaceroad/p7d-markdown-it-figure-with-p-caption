@@ -16,7 +16,7 @@ Use it as follows.
 const md = require('markdown-it')();
 const mdFigureWithPCaption = require('@peaceroad/markdown-it-figure-with-p-caption');
 
-md.use(mdPCaption, {'classPrefix': 'f'}).use(mdFigureWithPCaption);
+md.use(mdFigureWithPCaption);
 
 console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
 // <figure class="f-img">

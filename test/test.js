@@ -36,10 +36,7 @@ while(n < ms.length) {
   //console.log(ms[n].markdown);
 
   const m = ms[n].markdown;
-  const renderEnv = {
-    'md': mdPath,
-  }
-  const h = md.render(m, renderEnv);
+  const h = md.render(m);
   try {
     assert.strictEqual(h, ms[n].html);
   } catch(e) {
