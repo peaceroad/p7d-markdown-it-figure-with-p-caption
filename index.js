@@ -165,7 +165,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
         hasNext: false,
       };
 
-      const checkTags = ['table', 'video', 'audio', 'pre'];
+      const checkTags = ['table', 'video', 'audio', 'pre', 'blockquote'];
       let cti = 0;
       while (cti < checkTags.length) {
         if (token.type === checkTags[cti] + '_open') {

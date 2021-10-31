@@ -326,3 +326,50 @@ A paragraph.
 </tr>
 </tbody>
 </table>
+
+
+[Markdown]
+A paragraph.
+
+Quote. A Caption.
+
+> A quoted paragraph.
+>
+> A quoted paragraph.
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-blockquote">
+<figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
+<blockquote>
+<p>A quoted paragraph.</p>
+<p>A quoted paragraph.</p>
+</blockquote>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+> A quoted paragraph.
+>
+> A quoted paragraph.
+
+Quote. A Caption.
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-blockquote">
+<blockquote>
+<p>A quoted paragraph.</p>
+<p>A quoted paragraph.</p>
+</blockquote>
+<figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
+</figure>
+<p>A paragraph.</p>
+

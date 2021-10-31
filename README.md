@@ -2,9 +2,9 @@
 
 This is a markdown-it plugin.
 
-For a paragraph with only one image, a table or code block, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
+For a paragraph with only one image, a table or code block or a blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
-1. Check that the element: one image only paragraph, table, code block, samp block ,and video.
+1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video.
 2. Check if this element has a caption paragraph immediately before or after it
 3. If there is the caption paragraph, convert them to figure and figcaption element.
 
@@ -112,6 +112,26 @@ A paragraph.
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
 <pre><code class="language-js">console.log('Hello World!');
 </code></pre>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+Quote. A Caption.
+
+> A quoted paragraph.
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-blockquote">
+<figcaption><span class="f-blockquote-label">Code<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
+<blockquote>
+<p>A quoted paragraph.</p>
+</blockquote>
 </figure>
 <p>A paragraph.</p>
 
