@@ -373,3 +373,38 @@ A paragraph.
 </figure>
 <p>A paragraph.</p>
 
+[Markdown]
+A paragraph.
+
+Video. A mp4.
+
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A mp4.</figcaption>
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Video. A youtube.
+
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</figure>
+<p>A paragraph.</p>

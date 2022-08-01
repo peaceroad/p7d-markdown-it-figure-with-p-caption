@@ -165,7 +165,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
         hasNext: false,
       };
 
-      const checkTags = ['table', 'video', 'audio', 'pre', 'blockquote'];
+      const checkTags = ['table', 'pre', 'blockquote'];
       let cti = 0;
       while (cti < checkTags.length) {
         if (token.type === checkTags[cti] + '_open') {
@@ -209,6 +209,31 @@ module.exports = function figure_with_caption_plugin(md, option) {
           break;
         }
         cti++;
+      }
+
+      if (token.type === 'html_block') {
+        const tags = ['video', 'audio', 'iframe'];
+        let ctj = 0;
+        while (ctj < tags.length) {
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>\\n'))
+          if (!hasTag) {
+            ctj++;
+            continue;
+          }
+          tagName = tags[ctj];
+          if (tags[ctj] === 'iframe') {
+            if(/^<[^>]*? title="YouTube video player"/i.test(token.content)) {
+              tagName = 'video';
+            }
+          }
+          checkToken = true;
+          caption = checkCaption(state, n, en, tagName, caption);
+          if (caption.hasPrev || caption.hasNext) {
+            range = wrapWithFigure(state, range, tagName, false);
+            break;
+          }
+        }
+        ctj++
       }
 
       if (token.type === 'paragraph_open'

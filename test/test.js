@@ -1,6 +1,8 @@
 const assert = require('assert');
 const fs = require('fs');
-const md = require('markdown-it')();
+const md = require('markdown-it')({
+  html: true,
+});
 const mdFigureWithPCaption = require('../index.js');
 
 md.use(mdFigureWithPCaption);
@@ -31,7 +33,7 @@ while(n < ms0.length) {
 
 n = 1;
 while(n < ms.length) {
-  //if (n !== 1) { n++; continue };
+  //if (n !== 21) { n++; continue };
   console.log('Test: ' + n + ' >>>');
   //console.log(ms[n].markdown);
 
