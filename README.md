@@ -158,3 +158,67 @@ A paragraph.
 </figure>
 <p>A paragraph.</p>
 ~~~
+
+
+## Option: Specify file name
+
+Specify the file name before writing the caption.
+Note that a space is required between the file name and caption.
+
+### Use double quote
+
+```js
+
+md.use(mdFigureWithPCaption, {dquoteFilename: true});
+```
+
+~~~
+[Markdown]
+A paragraph.
+
+Code. "filename.js" Call a cat.
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
+<pre><code class="language-js">console.log('Nyaan!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+~~~
+
+### Use strong mark
+
+```js
+md.use(mdFigureWithPCaption, {dquoteFilename: true});
+```
+
+~~~
+
+[Markdown]
+A paragraph.
+
+Code. **filename.js** Call a cat.
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
+<pre><code class="language-js">console.log('Nyaan!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+~~~

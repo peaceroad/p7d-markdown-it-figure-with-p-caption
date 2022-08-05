@@ -1,5 +1,7 @@
 'use strict';
 
+const { has } = require('markdown-it/lib/common/utils');
+
 module.exports = function figure_with_caption_plugin(md, option) {
 
   const mdPCaption = require('p7d-markdown-it-p-captions');
@@ -12,7 +14,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
   };
   if (option !== undefined) {
     for (let o in option) {
-      opt[o] = option[o];
+        opt[o] = option[o];
     }
   }
 
@@ -217,7 +219,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
         const tags = ['video', 'audio', 'iframe'];
         let ctj = 0;
         while (ctj < tags.length) {
-          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>\\n'))
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>\\n'));
           if (!hasTag) {
             ctj++;
             continue;
@@ -234,8 +236,8 @@ module.exports = function figure_with_caption_plugin(md, option) {
             range = wrapWithFigure(state, range, tagName, false);
             break;
           }
+          ctj++
         }
-        ctj++
       }
 
       if (token.type === 'paragraph_open'
