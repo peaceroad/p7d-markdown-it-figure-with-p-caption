@@ -408,3 +408,79 @@ A paragraph.
 <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </figure>
 <p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Figure. A twitter post.
+
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="ja" dir="ltr">XXXXXXXXXXXXXXX</p>&mdash; user (@user) <a href="https://twitter.com/user/status/YYYYYY">July 11, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-twitter">
+<figcaption><span class="f-twitter-label">Figure<span class="f-twitter-label-joint">.</span></span> A twitter post.</figcaption>
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="ja" dir="ltr">XXXXXXXXXXXXXXX</p>&mdash; user (@user) <a href="https://twitter.com/user/status/YYYYYY">July 11, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+Code. "filename.js" Call a cat.
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<p class="caption-pre-code"><span class="caption-pre-code-label">Code<span class="caption-pre-code-label-joint">.</span></span> <strong class="caption-pre-code-filename">Filename.js</strong> Call a cat.</p>
+<pre><code class="language-js">console.log('Nyann!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Code. **filename.js** Call a cat.
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<p class="caption-pre-code"><span class="caption-pre-code-label">Code<span class="caption-pre-code-label-joint">.</span></span> <strong class="caption-pre-code-filename">Filename.js</strong> Call a cat.</p>
+<pre><code class="language-js">console.log('Nyann!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+Figure. A twitter post.
+
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="ja" dir="ltr">XXXXXXXXXXXXXXX</p>&mdash; user (@user) <a href="https://twitter.com/user/status/YYYYYY">July 11, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-twitter">
+<figcaption><span class="f-twitter-label">Figure<span class="f-twitter-label-joint">.</span></span> A twitter post.</figcaption>
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="ja" dir="ltr">XXXXXXXXXXXXXXX</p>&mdash; user (@user) <a href="https://twitter.com/user/status/YYYYYY">July 11, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+<p>A paragraph.</p>
+
+

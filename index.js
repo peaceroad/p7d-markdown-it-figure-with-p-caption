@@ -7,10 +7,12 @@ module.exports = function figure_with_caption_plugin(md, option) {
   let opt = {
     classPrefix: 'f',
     scaleSuffix: false,
+    dquoteFilename: false,
+    strongFilename: false,
   };
   if (option !== undefined) {
     for (let o in option) {
-        opt[o] = option[o];
+      opt[o] = option[o];
     }
   }
 
@@ -271,7 +273,11 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return;
   }
 
-  md.use(mdPCaption, {'classPrefix': opt.classPrefix});
+  md.use(mdPCaption, {
+    classPrefix: opt.classPrefix,
+    dquoteFilename: opt.dquoteFilename,
+    strongFilename: opt.strongFilename,
+  });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
     const token = tokens[idx];
