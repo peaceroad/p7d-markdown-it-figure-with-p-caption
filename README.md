@@ -197,7 +197,7 @@ A paragraph.
 ### Use strong mark
 
 ```js
-md.use(mdFigureWithPCaption, {dquoteFilename: true});
+md.use(mdFigureWithPCaption, {strongFilename: true});
 ```
 
 ~~~
