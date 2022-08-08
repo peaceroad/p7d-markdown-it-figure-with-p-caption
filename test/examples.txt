@@ -449,3 +449,43 @@ A paragraph.
 </code></pre>
 </figure>
 <p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Code. "filename.js"
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong></figcaption>
+<pre><code class="language-js">console.log('Nyaan!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Code. **filename.js**
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong></figcaption>
+<pre><code class="language-js">console.log('Nyaan!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
