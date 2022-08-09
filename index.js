@@ -1,7 +1,5 @@
 'use strict';
 
-const { has } = require('markdown-it/lib/common/utils');
-
 module.exports = function figure_with_caption_plugin(md, option) {
 
   const mdPCaption = require('p7d-markdown-it-p-captions');
