@@ -9,6 +9,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     scaleSuffix: false,
     dquoteFilename: false,
     strongFilename: false,
+    oneImageWithoutCaption: false,
   };
   if (option !== undefined) {
     for (let o in option) {
@@ -249,7 +250,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
         tagName = 'img';
         nextToken.children[0].type = 'image';
         caption = checkCaption(state, n, en, tagName, caption);
-        if (caption.hasPrev || caption.hasNext) {
+        if (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext) {
           range = wrapWithFigure(state, range, tagName, true);
         }
       }

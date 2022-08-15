@@ -266,7 +266,6 @@ A paragraph.
 <p><img src="cat.jpg" alt="Figure"></p>
 
 
-
 [Markdown]
 Figure. A cat.
 
@@ -487,5 +486,24 @@ A paragraph.
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong></figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+![Figure](cat.jpg)
+
+A paragraph.
+
+![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
+</figure>
+<p>A paragraph.</p>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
 </figure>
 <p>A paragraph.</p>

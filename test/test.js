@@ -5,10 +5,13 @@ const md = require('markdown-it')({
 });
 const mdFigureWithPCaption = require('../index.js');
 
+
 md.use(mdFigureWithPCaption, {
   dquoteFilename: true,
   strongFilename: true,
+  oneImageWithoutCaption: true,
 });
+
 
 const example = __dirname + '/examples.txt';
 const mdPath = __dirname + '/examples.md';

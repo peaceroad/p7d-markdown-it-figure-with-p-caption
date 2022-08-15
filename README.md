@@ -7,6 +7,7 @@ For a paragraph with only one image, a table or code block or a blockquote, and 
 1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video.
 2. Check if this element has a caption paragraph immediately before or after it
 3. If there is the caption paragraph, convert them to figure and figcaption element.
+4. If code block language setting is "samp", change it to use samp element instead of code elements.
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
@@ -27,10 +28,10 @@ console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
 
 Also, It is recommended to set the width and height attributes of the images at the same time. See: [@peaceroad/markdown-it-renderer-image](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image).
 
-It could be applied to table, codeblock(pre > code, pre > samp), video, audio as well.
+It could be applied to table, codeblock(pre > code, pre > samp), video as well.
 
-Example:
 
+## Example
 
 ~~~
 [Markdown]
@@ -157,6 +158,43 @@ A paragraph.
 </samp></pre>
 </figure>
 <p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+Video. A mp4.
+
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A mp4.</figcaption>
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph.
+
+Video. A youtube.
+
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</figure>
+<p>A paragraph.</p>
 ~~~
 
 
@@ -219,6 +257,30 @@ A paragraph.
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
+</figure>
+<p>A paragraph.</p>
+~~~
+
+## Option: Convert one image paragraph without caption
+
+Convert one image paragraph without a caption paragraph to figure elements.
+
+```js
+md.use(mdFigureWithPCaption, {oneImageWithoutCaption: true});
+```
+
+~~~
+[Markdown]
+A paragraph.
+
+![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
 </figure>
 <p>A paragraph.</p>
 ~~~
