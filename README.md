@@ -7,9 +7,10 @@ For a paragraph with only one image, a table or code block or a blockquote, and 
 1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video.
 2. Check if this element has a caption paragraph immediately before or after it
 3. If there is the caption paragraph, convert them to figure and figcaption element.
-4. If code block language setting is "samp", change it to use samp element instead of code elements.
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+
+Note. If code block language setting is "samp", change it to use samp element instead of code element.
 
 Use it as follows.
 
@@ -263,7 +264,7 @@ A paragraph.
 
 ## Option: Convert one image paragraph without caption
 
-Convert one image paragraph without a caption paragraph to figure elements.
+Convert one image paragraph without a caption paragraph to figure element.
 
 ```js
 md.use(mdFigureWithPCaption, {oneImageWithoutCaption: true});
