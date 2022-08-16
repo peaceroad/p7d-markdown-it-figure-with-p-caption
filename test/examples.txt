@@ -285,7 +285,7 @@ Figure 12. A cat.
 
 [HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<figcaption><span class="f-img-label label-has-num">Figure 12<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
 <img src="cat.jpg" alt="Figure">
 </figure>
 
@@ -507,3 +507,25 @@ A paragraph.
 <img src="cat.jpg" alt="Figure">
 </figure>
 <p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+リスト1 キャプション
+
+```js
+console.log('Nyaan!');
+```
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-pre-code" role="doc-example">
+<figcaption><span class="f-pre-code-label label-has-num">リスト1</span> キャプション</figcaption>
+<pre><code class="language-js">console.log('Nyaan!');
+</code></pre>
+</figure>
+<p>A paragraph.</p>
+

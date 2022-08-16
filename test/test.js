@@ -10,6 +10,7 @@ md.use(mdFigureWithPCaption, {
   dquoteFilename: true,
   strongFilename: true,
   oneImageWithoutCaption: true,
+  hasNumClass: true,
 });
 
 
