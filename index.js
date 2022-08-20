@@ -110,11 +110,16 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return true;
   }
 
-  function wrapWithFigure(state, range, tagName, replaceInsteadOfWrap) {
+  function wrapWithFigure(state, range, tagName, replaceInsteadOfWrap, sp) {
     let n = range.start;
     let en = range.end;
     const figureStartToken = new state.Token('figure_open', 'figure', 1);
     figureStartToken.attrSet('class', 'f-' + tagName);
+    if (sp) {
+      if (sp.isTwitterBlock && sp.hasImgCaption) {
+        figureStartToken.attrSet('class', 'f-img');
+      }
+    }
     if(/pre-(?:code|samp)/.test(tagName)) {
       figureStartToken.attrSet('role', 'doc-example');
     }
@@ -216,24 +221,52 @@ module.exports = function figure_with_caption_plugin(md, option) {
       }
 
       if (token.type === 'html_block') {
-        const tags = ['video', 'audio', 'iframe'];
+        const tags = ['video', 'audio', 'iframe', 'blockquote'];
         let ctj = 0;
+        let sp = {};
         while (ctj < tags.length) {
-          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>\\n'));
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '> *?(?:<script [^>]*?>(?:</script>)?)?\\n'));
           if (!hasTag) {
             ctj++;
             continue;
           }
           tagName = tags[ctj];
-          if (tags[ctj] === 'iframe') {
+          if (tagName === 'iframe') {
             if(/^<[^>]*? title="YouTube video player"/i.test(token.content)) {
-              tagName = 'video';
+              tagName = 'video'; // figure.f-video used.
+            }
+            // Non Youtube iframe currently use figure.f-iframe.
+            // Class in caption uses actual caption identifier.
+          }
+          if (tagName === 'blockquote') {
+            if(/^<[^>]*? class="twitter-tweet"/.test(token.content)) {
+              sp.isTwitterBlock = true;
+              if (n > 2) {
+                if (state.tokens[n-2].children.length > 1) {
+                  if (state.tokens[n-2].children[1].attrs.length > 0) {
+                    if (state.tokens[n-2].children[1].attrs[0][0] === 'class' &&
+                      state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
+                      sp.hasImgCaption = true;
+                    }
+                  }
+                }
+              }
+              if (n + 2 < state.tokens.length) {
+                if (state.tokens[n+2].children.length > 1) {
+                  if (state.tokens[n+2].children[1].attrs.length > 0) {
+                    if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
+                      state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
+                      sp.hasImgCaption = true;
+                    }
+                  }
+                }
+              }
             }
           }
           checkToken = true;
           caption = checkCaption(state, n, en, tagName, caption);
           if (caption.hasPrev || caption.hasNext) {
-            range = wrapWithFigure(state, range, tagName, false);
+            range = wrapWithFigure(state, range, tagName, false, sp);
             break;
           }
           ctj++
