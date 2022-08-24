@@ -589,6 +589,21 @@ A paragraph.
 [Markdown]
 A paragraph.
 
+- ![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<ul>
+<li><img src="cat.jpg" alt="Figure"></li>
+</ul>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
 リスト1 キャプション
 
 ```js

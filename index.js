@@ -284,6 +284,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
         tagName = 'img';
         nextToken.children[0].type = 'image';
         caption = checkCaption(state, n, en, tagName, caption);
+        if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
+          if (state.tokens[n-1].type === 'list_item_open') {n++; continue;}
+        }
         if (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext) {
           range = wrapWithFigure(state, range, tagName, true);
         }
