@@ -10,6 +10,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
     scaleSuffix: false,
     dquoteFilename: false,
     strongFilename: false,
+    bLabel: false,
+    strongLabel: false,
+    jointSpaceUseHalfWidth: false,
     oneImageWithoutCaption: false,
   };
   if (option !== undefined) {
@@ -316,6 +319,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
     dquoteFilename: opt.dquoteFilename,
     strongFilename: opt.strongFilename,
     hasNumClass: opt.hasNumClass,
+    bLabel: opt.bLabel,
+    strongLabel: opt.strongLabel,
+    jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
   });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
