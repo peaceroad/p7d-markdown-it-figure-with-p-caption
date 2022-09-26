@@ -14,6 +14,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     strongLabel: false,
     jointSpaceUseHalfWidth: false,
     oneImageWithoutCaption: false,
+    removeUnnumberedLabel: false,
   };
   if (option !== undefined) {
     for (let o in option) {
@@ -25,6 +26,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
     if(n < 3) {return caption;}
     const captionStartToken = state.tokens[n-3];
     const captionEndToken = state.tokens[n-1];
+    if (captionStartToken === undefined || captionEndToken === undefined) {
+      return caption;
+    }
     if (captionStartToken.type !== 'paragraph_open'
       && captionEndToken.type !== 'paragraph_close') {
       return caption;
@@ -71,6 +75,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
     if (en + 2 > state.tokens.length) { return caption; }
     const captionStartToken = state.tokens[en+1];
     const captionEndToken = state.tokens[en+3];
+    if (captionStartToken === undefined || captionEndToken === undefined) {
+      return caption;
+    }
     if (captionStartToken.type !== 'paragraph_open'
       && captionEndToken.type !== 'paragraph_close') {
       return caption;
@@ -154,6 +161,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
 
   function checkCaption(state, n, en, tagName, caption) {
     caption = checkPrevCaption(state, n, en, tagName, caption);
+    if (caption.hasPrev) return caption;
     caption = checkNextCaption(state, n, en, tagName, caption);
     return caption;
   }
@@ -322,6 +330,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     bLabel: opt.bLabel,
     strongLabel: opt.strongLabel,
     jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
+    removeUnnumberedLabel: opt.removeUnnumberedLabel,
   });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {

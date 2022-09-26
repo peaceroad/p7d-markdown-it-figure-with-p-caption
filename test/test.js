@@ -1,12 +1,18 @@
 const assert = require('assert');
 const fs = require('fs');
-const md = require('markdown-it')({
-  html: true,
-});
+const md = require('markdown-it')({ html: true });
+const mdOneImage = require('markdown-it')({ html: true });
 const mdFigureWithPCaption = require('../index.js');
 
 
 md.use(mdFigureWithPCaption, {
+  dquoteFilename: true,
+  strongFilename: true,
+  oneImageWithoutCaption: false,
+  hasNumClass: true,
+});
+
+mdOneImage.use(mdFigureWithPCaption, {
   dquoteFilename: true,
   strongFilename: true,
   oneImageWithoutCaption: true,
@@ -40,12 +46,18 @@ while(n < ms0.length) {
 
 n = 1;
 while(n < ms.length) {
-  //if (n !== 24) { n++; continue };
+  //if (n !== 22) { n++; continue };
   console.log('Test: ' + n + ' >>>');
   //console.log(ms[n].markdown);
 
   const m = ms[n].markdown;
-  const h = md.render(m);
+  let h = ''
+  if (n > 20) {
+    h = mdOneImage.render(m);
+  } else {
+    h = md.render(m);
+  }
+
   try {
     assert.strictEqual(h, ms[n].html);
   } catch(e) {
