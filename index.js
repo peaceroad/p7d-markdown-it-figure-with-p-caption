@@ -284,11 +284,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
         }
       }
 
-      if (token.type === 'paragraph_open'
-        && nextToken.type === 'inline'
-        && nextToken.children[0].type === 'image'
-        && nextToken.children.length === 1
-        && state.tokens[n+2].type === 'paragraph_close') {
+
+      if (token.type === 'paragraph_open' && nextToken.type === 'inline' && nextToken.children[0].type === 'image' && state.tokens[n+2].type === 'paragraph_close' && nextToken.children.length < 3) {
+        if (nextToken.children.length === 2) {
+          if (!nextToken.children[nextToken.children.length - 1].type === 'text' || !/^ *?\{.*?\}$/.test(nextToken.children[nextToken.children.length - 1].content)) {
+            n++; continue;
+          }
+        }
         checkToken = true;
         en = n + 2;
         range.end = en;
@@ -296,9 +298,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
         nextToken.children[0].type = 'image';
         caption = checkCaption(state, n, en, tagName, caption);
         if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
-          if (state.tokens[n-1].type === 'list_item_open') {n++; continue;}
+          if (state.tokens[n-1].type === 'list_item_open') {checkToken = false;}
         }
-        if (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext) {
+        if (checkToken && (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext)) {
           range = wrapWithFigure(state, range, tagName, true);
         }
       }

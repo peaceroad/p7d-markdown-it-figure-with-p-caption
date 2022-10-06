@@ -666,3 +666,20 @@ A paragraph.
 <p>A paragraph.</p>
 
 
+[Markdown]
+Figure. A Caption.
+
+![Figure](cat.jpg) {.style}
+[HTML]
+<figure class="f-img style">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+[Markdown]
+Figure. A Caption.
+
+![Figure](cat.jpg) Text {.style}
+[HTML]
+<p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</p>
+<p class="style"><img src="cat.jpg" alt="Figure"> Text</p>

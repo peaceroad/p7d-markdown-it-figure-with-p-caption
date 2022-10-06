@@ -4,6 +4,7 @@ const md = require('markdown-it')({ html: true });
 const mdOneImage = require('markdown-it')({ html: true });
 const mdFigureWithPCaption = require('../index.js');
 
+const attrs = require('../node_modules/markdown-it-attrs');
 
 md.use(mdFigureWithPCaption, {
   dquoteFilename: true,
@@ -17,8 +18,7 @@ mdOneImage.use(mdFigureWithPCaption, {
   strongFilename: true,
   oneImageWithoutCaption: true,
   hasNumClass: true,
-});
-
+}).use(attrs);
 
 const example = __dirname + '/examples.txt';
 const mdPath = __dirname + '/examples.md';
