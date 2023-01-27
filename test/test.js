@@ -2,6 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const md = require('markdown-it')({ html: true });
 const mdOneImage = require('markdown-it')({ html: true });
+const mdWithoutCaption = require('markdown-it')({ html: true });
+
 const mdFigureWithPCaption = require('../index.js');
 
 const attrs = require('../node_modules/markdown-it-attrs');
@@ -17,6 +19,14 @@ mdOneImage.use(mdFigureWithPCaption, {
   dquoteFilename: true,
   strongFilename: true,
   oneImageWithoutCaption: true,
+  hasNumClass: true,
+}).use(attrs);
+
+mdWithoutCaption.use(mdFigureWithPCaption, {
+  dquoteFilename: true,
+  strongFilename: true,
+  oneImageWithoutCaption: true,
+  iframeWithoutCaption: true,
   hasNumClass: true,
 }).use(attrs);
 
@@ -52,7 +62,9 @@ while(n < ms.length) {
 
   const m = ms[n].markdown;
   let h = ''
-  if (n > 20) {
+  if (n > 37) {
+    h = mdWithoutCaption.render(m);
+  } else if (n > 20) {
     h = mdOneImage.render(m);
   } else {
     h = md.render(m);

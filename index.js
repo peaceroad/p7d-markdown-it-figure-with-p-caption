@@ -14,6 +14,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     strongLabel: false,
     jointSpaceUseHalfWidth: false,
     oneImageWithoutCaption: false,
+    iframeWithoutCaption: false,
     removeUnnumberedLabel: false,
   };
   if (option !== undefined) {
@@ -236,10 +237,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
         let ctj = 0;
         let sp = {};
         while (ctj < tags.length) {
-          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '> *?(?:<script [^>]*?>(?:</script>)?)?\\n'));
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '> *?(?:<script [^>]*?>(?:</script>)?)?(\\n|$)'));
           if (!hasTag) {
             ctj++;
             continue;
+          }
+          if (hasTag[hasTag.length - 1] !== '\n') {
+            token.content += '\n'
           }
           tagName = tags[ctj];
           if (tagName === 'iframe') {
@@ -276,8 +280,11 @@ module.exports = function figure_with_caption_plugin(md, option) {
           }
           checkToken = true;
           caption = checkCaption(state, n, en, tagName, caption);
-          if (caption.hasPrev || caption.hasNext) {
+          if (opt.iframeWithoutCaption || caption.hasPrev || caption.hasNext) {
             range = wrapWithFigure(state, range, tagName, false, sp);
+            if (opt.iframeWithoutCaption && (!caption.hasPrev || !caption.hasNext)) {
+              n = en + 2;
+            }
             break;
           }
           ctj++
