@@ -317,7 +317,9 @@ A paragraph.
 <p>A paragraph.</p>
 ~~~
 
-## Option: Convert one image paragraph without caption
+## Option
+
+### Convert one image paragraph without caption
 
 Convert one image paragraph without a caption paragraph to figure element.
 
@@ -337,6 +339,29 @@ A paragraph.
 <p>A paragraph.</p>
 <figure class="f-img">
 <img src="cat.jpg" alt="Figure">
+</figure>
+<p>A paragraph.</p>
+~~~
+
+#### Convert one iframe without caption
+
+Convert one iframe without a caption paragraph to figure element.
+
+```js
+md.use(mdFigureWithPCaption, {iframeWithoutCaption: true});
+```
+
+~~~
+[Markdown]
+A paragraph.
+
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<figure class="f-video">
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </figure>
 <p>A paragraph.</p>
 ~~~
