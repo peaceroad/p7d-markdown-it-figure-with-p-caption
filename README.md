@@ -121,7 +121,7 @@ A paragraph.
 [Markdown]
 A paragraph.
 
-Quote. A Caption.
+Source. A Caption.
 
 > A quoted paragraph.
 
@@ -130,7 +130,7 @@ A paragraph.
 [HTML]
 <p>A paragraph.</p>
 <figure class="f-blockquote">
-<figcaption><span class="f-blockquote-label">Code<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
+<figcaption><span class="f-blockquote-label">Source<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
 <blockquote>
 <p>A quoted paragraph.</p>
 </blockquote>
@@ -212,23 +212,6 @@ A paragraph.
 <figure class="f-video">
 <figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
 <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</figure>
-<p>A paragraph.</p>
-
-
-[Markdown]
-A paragraph.
-
-Quote. Twitter Post.
-
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-A paragraph.
-[HTML]
-<p>A paragraph.</p>
-<figure class="f-blockquote">
-<figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> Twitter Post.</figcaption>
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </figure>
 <p>A paragraph.</p>
 
@@ -345,13 +328,20 @@ A paragraph.
 
 #### Convert one iframe without caption
 
-Convert one iframe without a caption paragraph to figure element.
+Convert one iframe without a caption paragraph to iframe element. (adn twitter blockquote embed eelment.)
 
 ```js
 md.use(mdFigureWithPCaption, {iframeWithoutCaption: true});
 ```
 
 ~~~
+[Markdown]
+<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+[HTML]
+<figure class="f-iframe">
+<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+</figure>
+
 [Markdown]
 A paragraph.
 
@@ -364,4 +354,38 @@ A paragraph.
 <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </figure>
 <p>A paragraph.</p>
+
+[Markdown]
+<iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+[HTML]
+<figure class="f-video">
+<iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+</figure>
+
+[Markdown]
+A paragraph. iframeWithoutCaption: true.
+
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+A paragraph.
+[HTML]
+<p>A paragraph. iframeWithoutCaption: true.</p>
+<figure class="f-iframe">
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+[HTML]
+<figure class="f-iframe">
+<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+</figure>
+
+[Markdown]
+<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
+[HTML]
+<figure class="f-iframe">
+<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
+</figure>
 ~~~

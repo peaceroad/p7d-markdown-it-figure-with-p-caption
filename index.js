@@ -127,8 +127,12 @@ module.exports = function figure_with_caption_plugin(md, option) {
     const figureStartToken = new state.Token('figure_open', 'figure', 1);
     figureStartToken.attrSet('class', 'f-' + tagName);
     if (sp) {
-      if (sp.isTwitterBlock && sp.hasImgCaption) {
-        figureStartToken.attrSet('class', 'f-img');
+      if (sp.isTwitterBlock) {
+        if (sp.hasImgCaption) {
+          figureStartToken.attrSet('class', 'f-img');
+        } else {
+        figureStartToken.attrSet('class', 'f-iframe');
+        }
       }
     }
     if(/pre-(?:code|samp)/.test(tagName)) {
@@ -247,11 +251,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
           }
           tagName = tags[ctj];
           if (tagName === 'iframe') {
-            if(/^<[^>]*? title="YouTube video player"/i.test(token.content)) {
+            if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
               tagName = 'video'; // figure.f-video used.
             }
-            // Non Youtube iframe currently use figure.f-iframe.
-            // Class in caption uses actual caption identifier.
           }
           if (tagName === 'blockquote') {
             if(/^<[^>]*? class="twitter-tweet"/.test(token.content)) {
@@ -259,9 +261,16 @@ module.exports = function figure_with_caption_plugin(md, option) {
               if (n > 2) {
                 if (state.tokens[n-2].children.length > 1) {
                   if (state.tokens[n-2].children[1].attrs.length > 0) {
-                    if (state.tokens[n-2].children[1].attrs[0][0] === 'class' &&
-                      state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
-                      sp.hasImgCaption = true;
+                    if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
+                      if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
+                        sp.hasImgCaption = true;
+                      /* under consideration. I think I should use figure instead of blockquoe for caption.
+                      } else {
+                        if (state.tokens[n-2].children[1].attrs[0][1] === 'f-blockquote-label') {
+                          state.tokens[n-2].children[1].attrs[0][1] = 'f-iframe-label'
+                          state.tokens[n-2].children[3].attrs[0][1] = 'f-iframe-label-joint'
+                        } */
+                      }
                     }
                   }
                 }
