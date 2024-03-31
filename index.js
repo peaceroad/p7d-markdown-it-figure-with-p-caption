@@ -428,7 +428,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
     strongLabel: opt.strongLabel,
     jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
     removeUnnumberedLabel: opt.removeUnnumberedLabel,
-    multipleImages: opt.multipleImages,
   });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
