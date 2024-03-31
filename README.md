@@ -2,7 +2,7 @@
 
 This is a markdown-it plugin.
 
-For a paragraph with only one image, a table or code block or a blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
+For a paragraph with one image/images only, a table or code block or a blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
 1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video.
 2. Check if this element has a caption paragraph immediately before or after it
@@ -10,7 +10,9 @@ For a paragraph with only one image, a table or code block or a blockquote, and 
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
-Note. If code block language setting is "samp", change it to use samp element instead of code element.
+Notice. If code block language setting is "samp", change it to use samp element instead of code element.
+
+Notice. It assumes simultaneous use of `markdown-it-attrs`. However, if there is `{.style}` at the end of the image-only paragraph, and the next paragraph is a caption, processing is not handled well with `markdown-it-attrs` alone, so in order to normalize it, {} The processing is written in this plugin. (This process can be turned off by specifying `{styleProcess: false}`.) [0.5.0]
 
 Use it as follows.
 
@@ -94,7 +96,6 @@ A paragraph.
 </table>
 </figure>
 <p>A paragraph.</p>
-
 
 
 [Markdown]
@@ -236,6 +237,68 @@ A paragraph.
 
 Note: External embedding supports Youtube and Twitter. Twitter embedding uses blockquote instead of iframe. Therefore, the caption identifier should use "Quote", but "Figure" is also acceptable.
 
+
+From version 0.5.0, it supports cases where a paragraph contains only multiple images. Instead of `f-img` as the figure class name, use the following class name. (This class name is unstable, but I probably won't change it.) 
+
+- `f-img-horizontal` if the image is written in one line on Markdown
+- `f-img-vertical` if images are written only vertically, one per line
+- `f-img-multiple` in other cases
+
+Notice. This process can be turned off by specifying `{multipleImages: false}`.
+
+```
+[Markdown]
+A paragraph. multipleImages: true. horizontal images only.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+
+Figure. Cats.
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.  horizontal images only</p>
+<figure class="f-img-horizontal">
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph. multipleImages: true. vertical images only.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) 
+     ![Two cat](cat2.jpg)
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true. vertical images only.</p>
+<figure class="f-img-vertical">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat">
+<img src="cat2.jpg" alt="Two cat">
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Three cat](cat3.jpg)
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-multiple">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat3.jpg" alt="Three cat">
+</figure>
+<p>A paragraph.</p>
+```
 
 ## Option: Specify file name
 

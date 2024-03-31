@@ -3,6 +3,7 @@ const fs = require('fs');
 const md = require('markdown-it')({ html: true });
 const mdOneImage = require('markdown-it')({ html: true });
 const mdWithoutCaption = require('markdown-it')({ html: true });
+const mdMultipleImages = require('markdown-it')({ html: true });
 
 const mdFigureWithPCaption = require('../index.js');
 
@@ -30,6 +31,15 @@ mdWithoutCaption.use(mdFigureWithPCaption, {
   hasNumClass: true,
 }).use(attrs);
 
+mdMultipleImages.use(attrs).use(mdFigureWithPCaption, {
+  dquoteFilename: true,
+  strongFilename: true,
+  oneImageWithoutCaption: true,
+  iframeWithoutCaption: true,
+  hasNumClass: true,
+  multipleImages: true,
+})
+
 const example = __dirname + '/examples.txt';
 const mdPath = __dirname + '/examples.md';
 const exampleCont = fs.readFileSync(example, 'utf-8').trim();
@@ -56,13 +66,15 @@ while(n < ms0.length) {
 
 n = 1;
 while(n < ms.length) {
-  //if (n !== 22) { n++; continue };
+  //if (n !== 37) { n++; continue };
   console.log('Test: ' + n + ' >>>');
   //console.log(ms[n].markdown);
 
   const m = ms[n].markdown;
   let h = ''
-  if (n > 37) {
+  if (n > 44) {
+    h = mdMultipleImages.render(m);
+  } else if (n > 37) {
     h = mdWithoutCaption.render(m);
   } else if (n > 20) {
     h = mdOneImage.render(m);

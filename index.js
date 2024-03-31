@@ -16,6 +16,8 @@ module.exports = function figure_with_caption_plugin(md, option) {
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,
     removeUnnumberedLabel: false,
+    multipleImages: true,
+    styleProcess: true,
   };
   if (option !== undefined) {
     for (let o in option) {
@@ -141,6 +143,13 @@ module.exports = function figure_with_caption_plugin(md, option) {
     const figureEndToken = new state.Token('figure_close', 'figure', -1);
     const breakToken = new state.Token('text', '', 0);
     breakToken.content = '\n';
+    if (sp) {
+      if (sp.attrs) {
+        for (let attr of sp.attrs) {
+          figureStartToken.attrJoin(attr[0], attr[1]);
+        }
+      }
+    }
     ///Add for vsce
     if(state.tokens[n].attrs) {
       for (let attr of state.tokens[n].attrs) {
@@ -186,9 +195,11 @@ module.exports = function figure_with_caption_plugin(md, option) {
       let tagName = '';
       let caption = {
         name: '',
+        nameSuffix: '',
         hasPrev: false,
         hasNext: false,
       };
+      let sp = {attrs: []};
 
       const checkTags = ['table', 'pre', 'blockquote'];
       let cti = 0;
@@ -239,7 +250,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
       if (token.type === 'html_block') {
         const tags = ['video', 'audio', 'iframe', 'blockquote'];
         let ctj = 0;
-        let sp = {};
         while (ctj < tags.length) {
           const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '> *?(?:<script [^>]*?>(?:</script>)?)?(\\n|$)'));
           if (!hasTag) {
@@ -301,13 +311,77 @@ module.exports = function figure_with_caption_plugin(md, option) {
       }
 
 
-      if (token.type === 'paragraph_open' && nextToken.type === 'inline' && nextToken.children[0].type === 'image' && state.tokens[n+2].type === 'paragraph_close' && nextToken.children.length < 3) {
-        if (nextToken.children.length === 2) {
-          if (!nextToken.children[nextToken.children.length - 1].type === 'text' || !/^ *?\{.*?\}$/.test(nextToken.children[nextToken.children.length - 1].content)) {
-            n++; continue;
+      if (token.type === 'paragraph_open' && nextToken.type === 'inline' && nextToken.children[0].type === 'image') {
+        let ntChildTokenIndex = 1
+        let imageNum = 1
+        let isMultipleImagesHorizontal = true
+        let isMultipleImagesVertical = true
+        checkToken = true
+        while (ntChildTokenIndex < nextToken.children.length) {
+          const ntChildToken = nextToken.children[ntChildTokenIndex]
+          if (ntChildTokenIndex === nextToken.children.length - 1) {
+             let imageAttrs = ntChildToken.content.match(/^ *\{(.*?)\} *$/)
+            if(ntChildToken.type === 'text' && imageAttrs) {
+              imageAttrs = imageAttrs[1].split(/ +/)
+              let iai = 0
+              while (iai < imageAttrs.length) {
+                if (/^\./.test(imageAttrs[iai])) {
+                  imageAttrs[iai] = imageAttrs[iai].replace(/^\./, "class=")
+                }
+                if (/^#/.test(imageAttrs[iai])) {
+                  imageAttrs[iai] = imageAttrs[iai].replace(/^\#/, "id=")
+                }
+                let imageAttr = imageAttrs[iai].match(/^(.*?)="?(.*)"?$/)
+                if (!imageAttr || !imageAttr[1]) {
+                  iai++
+                  continue
+                }
+                sp.attrs.push([imageAttr[1], imageAttr[2]])
+                iai++
+              }
+              break
+            }
+          }
+
+          if (!opt.multipleImages) {
+            checkToken = false
+            break
+          }
+          if (ntChildToken.type === 'image') {
+            imageNum += 1
+          } else if (ntChildToken.type === 'text' && /^ *$/.test(ntChildToken.content)) {
+            isMultipleImagesVertical = false
+            if (isMultipleImagesVertical) {
+              isMultipleImagesHorizontal = false
+            }
+          } else if (ntChildToken.type === 'softbreak') {
+            isMultipleImagesHorizontal = false
+            if (isMultipleImagesHorizontal) {
+              isMultipleImagesVertical = false
+            }
+          } else {
+            checkToken = false
+            break
+          }
+          ntChildTokenIndex++
+        }
+        if (checkToken && imageNum > 1 && opt.multipleImages) {
+          if (isMultipleImagesHorizontal) {
+            caption.nameSuffix = '-horizontal'
+          } else if (isMultipleImagesVertical) {
+            caption.nameSuffix = '-vertical'
+          } else {
+            caption.nameSuffix = '-multiple'
+          }
+          ntChildTokenIndex = 0
+          while (ntChildTokenIndex < nextToken.children.length) {
+            const ccToken = nextToken.children[ntChildTokenIndex]
+            if (ccToken.type === 'text' && /^ *$/.test(ccToken.content)) {
+              ccToken.content = ''
+            }
+            ntChildTokenIndex++
           }
         }
-        checkToken = true;
         en = n + 2;
         range.end = en;
         tagName = 'img';
@@ -317,7 +391,12 @@ module.exports = function figure_with_caption_plugin(md, option) {
           if (state.tokens[n-1].type === 'list_item_open') {checkToken = false;}
         }
         if (checkToken && (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext)) {
-          range = wrapWithFigure(state, range, tagName, true);
+          if (caption.nameSuffix) tagName += caption.nameSuffix
+          if (caption.hasNext && opt.styleProcess) {
+            range = wrapWithFigure(state, range, tagName, true, sp);
+          } else {
+            range = wrapWithFigure(state, range, tagName, true);
+          }
         }
       }
 
@@ -349,6 +428,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     strongLabel: opt.strongLabel,
     jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
     removeUnnumberedLabel: opt.removeUnnumberedLabel,
+    multipleImages: opt.multipleImages,
   });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
