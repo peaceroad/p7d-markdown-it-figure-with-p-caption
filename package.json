@@ -17,6 +17,6 @@
     "markdown-it-attrs": "^4.1.4"
   },
   "dependencies": {
-    "p7d-markdown-it-p-captions": "^0.9.1"
+    "p7d-markdown-it-p-captions": "^0.10.0"
   }
 }

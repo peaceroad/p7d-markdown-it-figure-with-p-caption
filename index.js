@@ -16,6 +16,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,
     removeUnnumberedLabel: false,
+    removeUnnumberedLabelExceptMarks: [],
     multipleImages: true,
     styleProcess: true,
   };
@@ -428,6 +429,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     strongLabel: opt.strongLabel,
     jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
     removeUnnumberedLabel: opt.removeUnnumberedLabel,
+    removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
   });
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
