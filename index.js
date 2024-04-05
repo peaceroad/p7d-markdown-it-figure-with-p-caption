@@ -301,7 +301,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
           checkToken = true;
           caption = checkCaption(state, n, en, tagName, caption);
           if (opt.iframeWithoutCaption || caption.hasPrev || caption.hasNext) {
-            if (caption.name === 'slide') tagName = 'slide'
             range = wrapWithFigure(state, range, tagName, false, sp);
             if (opt.iframeWithoutCaption && (!caption.hasPrev || !caption.hasNext)) {
               n = en + 2;

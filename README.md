@@ -2,7 +2,7 @@
 
 This is a markdown-it plugin.
 
-For a paragraph with one image/images only, a table or code block or a blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
+For a paragraph with one image/images only, a table or code block or a blockquote or a iframe, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
 1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video.
 2. Check if this element has a caption paragraph immediately before or after it
