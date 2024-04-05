@@ -263,7 +263,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
           tagName = tags[ctj];
           if (tagName === 'iframe') {
             if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
-              tagName = 'video'; // figure.f-video used.
+              tagName = 'video';
             }
           }
           if (tagName === 'blockquote') {
@@ -301,6 +301,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
           checkToken = true;
           caption = checkCaption(state, n, en, tagName, caption);
           if (opt.iframeWithoutCaption || caption.hasPrev || caption.hasNext) {
+            if (caption.name === 'slide') tagName = 'slide'
             range = wrapWithFigure(state, range, tagName, false, sp);
             if (opt.iframeWithoutCaption && (!caption.hasPrev || !caption.hasNext)) {
               n = en + 2;

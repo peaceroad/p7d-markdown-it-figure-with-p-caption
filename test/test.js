@@ -65,9 +65,9 @@ while(n < ms0.length) {
 }
 
 n = 1;
+let pass = true
 while(n < ms.length) {
   //if (n !== 37) { n++; continue };
-  console.log('Test: ' + n + ' >>>');
   //console.log(ms[n].markdown);
 
   const m = ms[n].markdown;
@@ -85,8 +85,12 @@ while(n < ms.length) {
   try {
     assert.strictEqual(h, ms[n].html);
   } catch(e) {
+    pass =false
+    console.log('Test: ' + n + ' >>>');
     console.log('incorrect: ');
     console.log('H: ' + h +'C: ' + ms[n].html);
   };
   n++;
 }
+
+if (pass) console.log('Passed all test.')
