@@ -4,44 +4,34 @@ const md = require('markdown-it')({ html: true });
 const mdOneImage = require('markdown-it')({ html: true });
 const mdWithoutCaption = require('markdown-it')({ html: true });
 const mdMultipleImages = require('markdown-it')({ html: true });
+const mdAllOptionTrue = require('markdown-it')({ html: true });
 
 const mdFigureWithPCaption = require('../index.js');
 
 const attrs = require('../node_modules/markdown-it-attrs');
-
-md.use(mdFigureWithPCaption, {
+let opt = {
   dquoteFilename: true,
   strongFilename: true,
   oneImageWithoutCaption: false,
   hasNumClass: true,
-});
+}
+md.use(mdFigureWithPCaption, opt);
 
-mdOneImage.use(mdFigureWithPCaption, {
-  dquoteFilename: true,
-  strongFilename: true,
-  oneImageWithoutCaption: true,
-  hasNumClass: true,
-}).use(attrs);
+opt.oneImageWithoutCaption = true
+mdOneImage.use(mdFigureWithPCaption, opt).use(attrs);
 
-mdWithoutCaption.use(mdFigureWithPCaption, {
-  dquoteFilename: true,
-  strongFilename: true,
-  oneImageWithoutCaption: true,
-  iframeWithoutCaption: true,
-  hasNumClass: true,
-}).use(attrs);
+opt.iframeWithoutCaption = true
+mdWithoutCaption.use(mdFigureWithPCaption, opt).use(attrs);
 
-mdMultipleImages.use(attrs).use(mdFigureWithPCaption, {
-  dquoteFilename: true,
-  strongFilename: true,
-  oneImageWithoutCaption: true,
-  iframeWithoutCaption: true,
-  hasNumClass: true,
-  multipleImages: true,
-})
+opt.multipleImages =  true
+mdMultipleImages.use(mdFigureWithPCaption, opt).use(attrs)
+
+opt.videoWithoutCaption = true
+mdAllOptionTrue.use(mdFigureWithPCaption, opt).use(attrs)
+
 
 const example = __dirname + '/examples.txt';
-const mdPath = __dirname + '/examples.md';
+
 const exampleCont = fs.readFileSync(example, 'utf-8').trim();
 let ms = [];
 let ms0 = exampleCont.split(/\n*\[Markdown\]\n/);
@@ -72,7 +62,9 @@ while(n < ms.length) {
 
   const m = ms[n].markdown;
   let h = ''
-  if (n > 44) {
+  if (n >= 56) {
+    h = mdAllOptionTrue.render(m);
+  } else if (n > 44) {
     h = mdMultipleImages.render(m);
   } else if (n > 37) {
     h = mdWithoutCaption.render(m);
@@ -87,7 +79,8 @@ while(n < ms.length) {
   } catch(e) {
     pass =false
     console.log('Test: ' + n + ' >>>');
-    console.log('incorrect: ');
+    console.log('incorrect:');
+    console.log(opt);
     console.log('H: ' + h +'C: ' + ms[n].html);
   };
   n++;

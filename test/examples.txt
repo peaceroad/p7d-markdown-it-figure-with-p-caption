@@ -909,3 +909,32 @@ A paragraph.
 <img src="cat3.jpg" alt="Three cat"><img src="cat4.jpg" alt="Four cat">
 </figure>
 <p>A paragraph.</p>
+
+
+[Markdown]
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+[HTML]
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+
+[Markdown]
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+[HTML]
+<figure class="f-video">
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+</figure>
+
+[Markdown]
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-iframe">
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+

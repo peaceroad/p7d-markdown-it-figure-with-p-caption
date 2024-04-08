@@ -389,6 +389,14 @@ A paragraph.
 <p>A paragraph.</p>
 ~~~
 
+### Convert one video element without caption
+
+Convert one video element without a caption paragraph to figure element.
+
+```js
+md.use(mdFigureWithPCaption, {videoWithoutCaption: true});
+```
+
 #### Convert one iframe without caption
 
 Convert one iframe without a caption paragraph to iframe element. (adn twitter blockquote embed eelment.)

@@ -15,6 +15,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     jointSpaceUseHalfWidth: false,
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,
+    videoWithoutCaption: false,
     removeUnnumberedLabel: false,
     removeUnnumberedLabelExceptMarks: [],
     multipleImages: true,
@@ -130,7 +131,10 @@ module.exports = function figure_with_caption_plugin(md, option) {
     const figureStartToken = new state.Token('figure_open', 'figure', 1);
     figureStartToken.attrSet('class', 'f-' + tagName);
     if (sp) {
-      if (sp.isTwitterBlock) {
+      if (sp.isYoutube) {
+        figureStartToken.attrSet('class', 'f-video');
+      }
+      if (sp.isTwitter) {
         if (sp.hasImgCaption) {
           figureStartToken.attrSet('class', 'f-img');
         } else {
@@ -263,12 +267,12 @@ module.exports = function figure_with_caption_plugin(md, option) {
           tagName = tags[ctj];
           if (tagName === 'iframe') {
             if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
-              tagName = 'video';
+              sp.isYoutube = true;
             }
           }
           if (tagName === 'blockquote') {
             if(/^<[^>]*? class="twitter-tweet"/.test(token.content)) {
-              sp.isTwitterBlock = true;
+              sp.isTwitter = true;
               if (n > 2) {
                 if (state.tokens[n-2].children.length > 1) {
                   if (state.tokens[n-2].children[1].attrs.length > 0) {
@@ -300,9 +304,11 @@ module.exports = function figure_with_caption_plugin(md, option) {
           }
           checkToken = true;
           caption = checkCaption(state, n, en, tagName, caption);
-          if (opt.iframeWithoutCaption || caption.hasPrev || caption.hasNext) {
+          if (caption.hasPrev || caption.hasNext ||
+            (opt.iframeWithoutCaption && (tagName === 'iframe' || sp.isTwitter)) ||
+            (opt.videoWithoutCaption && tagName === 'video')) {
             range = wrapWithFigure(state, range, tagName, false, sp);
-            if (opt.iframeWithoutCaption && (!caption.hasPrev || !caption.hasNext)) {
+            if ((opt.videoWithoutCaption || opt.iframeWithoutCaption) && (!caption.hasPrev || !caption.hasNext)) {
               n = en + 2;
             }
             break;
