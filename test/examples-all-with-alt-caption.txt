@@ -1,0 +1,61 @@
+[Markdown]
+![A caption.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+![Figure. A caption.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+![](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+Figure. A caption.
+
+![](cat.jpg)
+
+[HTML]
+<p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+
+[Markdown]
+![Figure 12. A caption.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="Figure 12">
+</figure>
+
+
+[Markdown]
+![図1　キャプション](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
+<img src="cat.jpg" alt="図1">
+</figure>
