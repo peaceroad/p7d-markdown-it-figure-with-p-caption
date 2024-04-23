@@ -398,16 +398,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
 
         if (opt.imgAltCaption) {
           setAltToLable(state, n, en, tagName, caption, opt)
-          /*
-          const hasAltLabel = changeImageAltToCaption(state, n, en, tagName, caption, opt)
-          n += 3
-          en += 3
-          range.start = n
-          range.end = en
-          */
         }
-        //console.log(state.tokens)
-        //console.log(state.tokens[4].children)
         caption = checkCaption(state, n, en, tagName, caption, opt);
 
         if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
@@ -461,62 +452,10 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return true
   }
 
-  const changeImageAltToCaption = (state, n, en, tagName, caption, opt) => {
-  //  console.log(state.tokens[1].children)
-  const cToken = {
-    pOpen: new state.Token('paragraph_open', 'p', 1),
-    pInline: new state.Token('inline', '', 0),
-    pClose: new state.Token('paragraph_close', 'p', -1),
-  };
-  const ciToken = {
-      labelOpen: new state.Token('span_open', 'span', 1),
-      labelContent: new state.Token('text', '', 0),
-      labelJointOpen: new state.Token('span_open', 'span', 1),
-      labelJointContent: new state.Token('text', '', 0),
-      labelJointClose: new state.Token('span_close', 'span', -1),
-      labelClose: new state.Token('span_close', 'span', -1),
-      labelAfterContent: new state.Token('text', '', 0),
-    }
-    cToken.pOpen.attrSet('class', 'f-img')
-    cToken.pOpen.block = true
-    cToken.pInline.block = true
-    cToken.pInline.level++
-    cToken.pClose.block = true
-    ciToken.labelOpen.attrSet('class', 'f-img-label')
-    if (opt.imgAltCaption) {
-      ciToken.labelContent.content = opt.imgAltCaption
-    }
-    ciToken.labelJointOpen.attrSet('class', 'f-img-label-joint')
-    ciToken.labelJointContent.content = '.'
-
-    const hasAltLabel = state.tokens[1].content.match(new RegExp ('^' + opt.imgAltCaption + '([.:] *|．：　] *)'))
-    if (hasAltLabel) {
-      if (/a-zA-Z/.test(opt.imgAltCaption)) {
-        ciToken.labelAfterContent.content = ' '
-      }
-      ciToken.labelAfterContent.content += state.tokens[1].content.replace(new RegExp('^' + opt.imgAltCaption + '([.:] *|．：　] *)'), '')
-    } else {
-      ciToken.labelAfterContent.content += state.tokens[1].children[0].content
-      state.tokens[1].children[0].content = ''
-      state.tokens[1].children[0].children[0] = ''
-      state.tokens[1].content = state.tokens[1].content.replace(/^!\[[^]*?\]/, '![]')
-    }
-
-    cToken.pInline.children = []
-    if (hasAltLabel) {
-      cToken.pInline.children.push(ciToken.labelOpen, ciToken.labelContent, ciToken.labelJointOpen, ciToken.labelJointContent, ciToken.labelJointClose, ciToken.labelClose, ciToken.labelAfterContent)
-    } else {
-      cToken.pInline.children.push(ciToken.labelAfterContent)
-    }
-    state.tokens.splice(0, 0, cToken.pOpen, cToken.pInline, cToken.pClose)
-    return hasAltLabel
-  }
-
   const imgAltCaption = (state, startLine) => {
     let pos = state.bMarks[startLine] + state.tShift[startLine]
     let max = state.eMarks[startLine]
     let inline = state.src.slice(pos, max)
-    
     const img = inline.match(/^( *!\[)(.*?)\]\( *?((.*?)(?: +?\"(.*?)\")?) *?\)( *?\{.*?\})? *$/)
     if (!img) return
 
@@ -547,6 +486,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     token.map = [startLine, startLine + 1]
     token.children = []
     token = state.push('paragraph_close', 'p', -1)
+    return
   }
 
 
