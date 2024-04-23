@@ -20,6 +20,8 @@ module.exports = function figure_with_caption_plugin(md, option) {
     removeUnnumberedLabelExceptMarks: [],
     multipleImages: true,
     styleProcess: true,
+    imgAltCaption: false,
+    autoFigNum: false
   };
   if (option !== undefined) {
     for (let o in option) {
@@ -70,7 +72,6 @@ module.exports = function figure_with_caption_plugin(md, option) {
 
     captionEndToken.type = 'figcaption_close';
     captionEndToken.tag = 'figcaption';
-
     state.tokens.splice(n + 2, 0, captionStartToken, captionInlineToken, captionEndToken);
     state.tokens.splice(n-3, 3);
     return true;
@@ -179,6 +180,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
   }
 
   function checkCaption(state, n, en, tagName, caption) {
+
     caption = checkPrevCaption(state, n, en, tagName, caption);
     if (caption.hasPrev) return caption;
     caption = checkNextCaption(state, n, en, tagName, caption);
@@ -393,7 +395,21 @@ module.exports = function figure_with_caption_plugin(md, option) {
         range.end = en;
         tagName = 'img';
         nextToken.children[0].type = 'image';
-        caption = checkCaption(state, n, en, tagName, caption);
+
+        if (opt.imgAltCaption) {
+          setAltToLable(state, n, en, tagName, caption, opt)
+          /*
+          const hasAltLabel = changeImageAltToCaption(state, n, en, tagName, caption, opt)
+          n += 3
+          en += 3
+          range.start = n
+          range.end = en
+          */
+        }
+        //console.log(state.tokens)
+        //console.log(state.tokens[4].children)
+        caption = checkCaption(state, n, en, tagName, caption, opt);
+
         if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
           if (state.tokens[n-1].type === 'list_item_open') {checkToken = false;}
         }
@@ -426,6 +442,117 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return;
   }
 
+  const setAltToLable = (state, n, en, tagName, caption, opt) => {
+    if (n < 2) return false
+    if (state.tokens[n+1].children[0].type === 'image') {
+      if (state.tokens[n-2].children[2]) {
+
+        state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[2].content + ']')
+        //console.log(state.tokens[n+1].children[0].children)
+        if (!state.tokens[n+1].children[0].children[0]) {
+          const textToken  = new state.Token('text', '', 0)
+          state.tokens[n+1].children[0].children.push(textToken)
+        }
+        //console.log(state.tokens[n+1].children[0])
+        state.tokens[n+1].children[0].content = state.tokens[n-2].children[2].content
+        state.tokens[n+1].children[0].children[0].content = state.tokens[n-2].children[2].content
+      }
+    }
+    return true
+  }
+
+  const changeImageAltToCaption = (state, n, en, tagName, caption, opt) => {
+  //  console.log(state.tokens[1].children)
+  const cToken = {
+    pOpen: new state.Token('paragraph_open', 'p', 1),
+    pInline: new state.Token('inline', '', 0),
+    pClose: new state.Token('paragraph_close', 'p', -1),
+  };
+  const ciToken = {
+      labelOpen: new state.Token('span_open', 'span', 1),
+      labelContent: new state.Token('text', '', 0),
+      labelJointOpen: new state.Token('span_open', 'span', 1),
+      labelJointContent: new state.Token('text', '', 0),
+      labelJointClose: new state.Token('span_close', 'span', -1),
+      labelClose: new state.Token('span_close', 'span', -1),
+      labelAfterContent: new state.Token('text', '', 0),
+    }
+    cToken.pOpen.attrSet('class', 'f-img')
+    cToken.pOpen.block = true
+    cToken.pInline.block = true
+    cToken.pInline.level++
+    cToken.pClose.block = true
+    ciToken.labelOpen.attrSet('class', 'f-img-label')
+    if (opt.imgAltCaption) {
+      ciToken.labelContent.content = opt.imgAltCaption
+    }
+    ciToken.labelJointOpen.attrSet('class', 'f-img-label-joint')
+    ciToken.labelJointContent.content = '.'
+
+    const hasAltLabel = state.tokens[1].content.match(new RegExp ('^' + opt.imgAltCaption + '([.:] *|．：　] *)'))
+    if (hasAltLabel) {
+      if (/a-zA-Z/.test(opt.imgAltCaption)) {
+        ciToken.labelAfterContent.content = ' '
+      }
+      ciToken.labelAfterContent.content += state.tokens[1].content.replace(new RegExp('^' + opt.imgAltCaption + '([.:] *|．：　] *)'), '')
+    } else {
+      ciToken.labelAfterContent.content += state.tokens[1].children[0].content
+      state.tokens[1].children[0].content = ''
+      state.tokens[1].children[0].children[0] = ''
+      state.tokens[1].content = state.tokens[1].content.replace(/^!\[[^]*?\]/, '![]')
+    }
+
+    cToken.pInline.children = []
+    if (hasAltLabel) {
+      cToken.pInline.children.push(ciToken.labelOpen, ciToken.labelContent, ciToken.labelJointOpen, ciToken.labelJointContent, ciToken.labelJointClose, ciToken.labelClose, ciToken.labelAfterContent)
+    } else {
+      cToken.pInline.children.push(ciToken.labelAfterContent)
+    }
+    state.tokens.splice(0, 0, cToken.pOpen, cToken.pInline, cToken.pClose)
+    return hasAltLabel
+  }
+
+  const imgAltCaption = (state, startLine) => {
+    let pos = state.bMarks[startLine] + state.tShift[startLine]
+    let max = state.eMarks[startLine]
+    let inline = state.src.slice(pos, max)
+    
+    const img = inline.match(/^( *!\[)(.*?)\]\( *?((.*?)(?: +?\"(.*?)\")?) *?\)( *?\{.*?\})? *$/)
+    if (!img) return
+
+    const hasLabel = img[2].match(new RegExp('^' + opt.imgAltCaption))
+
+    let token
+    token = state.push('paragraph_open', 'p', 1)
+    token.map = [startLine, startLine + 1]
+    token = state.push('inline', '', 0)
+    if (hasLabel) {
+      token.content = img[2]
+    } else {
+      if (img[2] === '') {
+        console.log(opt.imgAltCaption)
+        if (/a-zA-Z/.test(opt.imgAltCaption)) {
+          token.content = opt.imgAltCaption + '.'
+        } else {
+          token.content = opt.imgAltCaption + '　'
+        }
+      } else {
+        if (/a-zA-Z/.test(opt.imgAltCaption)) {
+          token.content = opt.imgAltCaption + '. ' + img[2]
+        } else {
+          token.content = opt.imgAltCaption + '　' + img[2]
+        }
+      }
+    }
+    token.map = [startLine, startLine + 1]
+    token.children = []
+    token = state.push('paragraph_close', 'p', -1)
+  }
+
+
+  if (opt.imgAltCaption) {
+    md.block.ruler.before('paragraph', 'img_alt_caption', imgAltCaption)
+  }
   md.use(mdPCaption, {
     classPrefix: opt.classPrefix,
     dquoteFilename: opt.dquoteFilename,
@@ -436,7 +563,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
     removeUnnumberedLabel: opt.removeUnnumberedLabel,
     removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
-  });
+  })
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
   md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
     const token = tokens[idx];
