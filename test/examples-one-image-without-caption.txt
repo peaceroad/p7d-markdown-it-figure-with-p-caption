@@ -1,0 +1,45 @@
+[Markdown]
+![Figure](cat.jpg)
+
+A paragraph.
+
+![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
+</figure>
+<p>A paragraph.</p>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+- ![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<ul>
+<li><img src="cat.jpg" alt="Figure"></li>
+</ul>
+<p>A paragraph.</p>
+
+[Markdown]
+Figure. A Caption.
+
+![Figure](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
+

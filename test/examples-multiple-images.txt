@@ -1,0 +1,140 @@
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-horizontal">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+
+Figure. Cats.
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-horizontal">
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg)![Two cat](cat2.jpg)![Three cat](cat3.jpg) {.style}
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-horizontal style">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat"><img src="cat3.jpg" alt="Three cat">
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) 
+     ![Two cat](cat2.jpg)
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-vertical">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat">
+<img src="cat2.jpg" alt="Two cat">
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Three cat](cat3.jpg)
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-multiple">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat3.jpg" alt="Three cat">
+</figure>
+<p>A paragraph.</p>
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+Figure. Cats.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Three cat](cat3.jpg) {.style}
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-multiple style">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat3.jpg" alt="Three cat">
+</figure>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Three cat](cat3.jpg)![Four cat](cat4.jpg) {.style #id}
+
+Figure. Cats.
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-multiple style" id="id">
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat3.jpg" alt="Three cat"><img src="cat4.jpg" alt="Four cat">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
+</figure>
+<p>A paragraph.</p>
+
+
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Three cat](cat3.jpg)![Four cat](cat4.jpg) {.style #id}
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<figure class="f-img-multiple style" id="id">
+<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat3.jpg" alt="Three cat"><img src="cat4.jpg" alt="Four cat">
+</figure>
+<p>A paragraph.</p>
+

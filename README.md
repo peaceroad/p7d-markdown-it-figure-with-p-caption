@@ -17,12 +17,14 @@ Notice. It assumes simultaneous use of `markdown-it-attrs`. However, if there is
 Use it as follows.
 
 ```js
-const md = require('markdown-it')();
-const mdFigureWithPCaption = require('@peaceroad/markdown-it-figure-with-p-caption');
+import mdit from 'markdown-it'
+import mditFigureWithPCaption from '@peaceroad/markdown-it-figure-with-p-caption'
+import mditAttrs from 'markdown-it-attrs' // Although it is not required.
 
-md.use(mdFigureWithPCaption);
+const md = mdit()
+md.use(mditFigureWithPCaption).use(mditAttrs)
 
-console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)');
+console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)'))
 // <figure class="f-img">
 // <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Cat.</figcaption>
 // <img src="cat.jpg" alt="Figure">
@@ -460,3 +462,47 @@ A paragraph.
 <iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
 </figure>
 ~~~
+
+## Option: imgAltCaption
+
+In Markdown documents, captions are often written in the alt attribute of images. If you follow the syntax of this plugin, the commit log will be cluttered. Therefore, as an option, the alt attribute is treated as a caption.
+Note that you cannot use this plugin's syntax and this option's syntax at the same time.
+
+Also (for now), this is translated into an actual HTML alt attribute with the caption label as its value.
+
+```js
+const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCaption: 'Figure'}).use(mditAttrs)
+```
+
+```
+[Markdown]
+![Figure. A caption.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+```
+
+## Option: imgTitleCaption
+
+The title attribute of the Markdown img element is used as the caption.
+Note that you cannot use this plugin's syntax and this option's syntax at the same time.
+
+Also(for now), the alt attribute is not specially modified during conversion; the Markdown alt attribute is used as is.
+
+```js
+const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitleCaption: 'Figure'}).use(mditAttrs)
+```
+
+```
+[Markdown]
+![A alt text.](cat.jpg "Figure. A caption.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="A alt text.">
+</figure>
+```

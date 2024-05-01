@@ -1,8 +1,6 @@
-'use strict';
+import mditPCaption from 'p7d-markdown-it-p-captions'
 
-module.exports = function figure_with_caption_plugin(md, option) {
-
-  const mdPCaption = require('p7d-markdown-it-p-captions');
+const mditFigureWithPCaption = (md, option) => {
 
   let opt = {
     classPrefix: 'f',
@@ -21,6 +19,7 @@ module.exports = function figure_with_caption_plugin(md, option) {
     multipleImages: true,
     styleProcess: true,
     imgAltCaption: false,
+    imgTitleCaption: false,
     autoFigNum: false
   };
   if (option !== undefined) {
@@ -396,9 +395,9 @@ module.exports = function figure_with_caption_plugin(md, option) {
         tagName = 'img';
         nextToken.children[0].type = 'image';
 
-        if (opt.imgAltCaption) {
-          setAltToLable(state, n, en, tagName, caption, opt)
-        }
+        if (opt.imgAltCaption) setAltToLabel(state, n, en, tagName, caption, opt)
+        if (opt.imgTitleCaption) setTitleToLabel(state, n, en, tagName, caption, opt)
+
         caption = checkCaption(state, n, en, tagName, caption, opt);
 
         if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
@@ -433,56 +432,92 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return;
   }
 
-  const setAltToLable = (state, n, en, tagName, caption, opt) => {
+  const setAltToLabel = (state, n, en, tagName, caption, opt) => {
     if (n < 2) return false
     if (state.tokens[n+1].children[0].type === 'image') {
       if (state.tokens[n-2].children[2]) {
-
         state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[2].content + ']')
-        //console.log(state.tokens[n+1].children[0].children)
         if (!state.tokens[n+1].children[0].children[0]) {
           const textToken  = new state.Token('text', '', 0)
           state.tokens[n+1].children[0].children.push(textToken)
         }
-        //console.log(state.tokens[n+1].children[0])
         state.tokens[n+1].children[0].content = state.tokens[n-2].children[2].content
         state.tokens[n+1].children[0].children[0].content = state.tokens[n-2].children[2].content
       }
     }
+    //console.log(state.tokens[n+1].children[0])
     return true
   }
 
-  const imgAltCaption = (state, startLine) => {
+  const setTitleToLabel = (state, n, en, tagName, caption, opt) => {
+    if (n < 2) return false
+    if (state.tokens[n+1].children[0].type === 'image') {
+      if (state.tokens[n-2].children[0]) {
+        state.tokens[n+1].children[0].attrSet('alt', state.tokens[n+1].children[0].content)
+        if (!state.tokens[n+1].children[0].children[0]) {
+          const textToken  = new state.Token('text', '', 0)
+          state.tokens[n+1].children[0].children.push(textToken)
+        }
+        let i = 0
+        while (0 < state.tokens[n+1].children[0].attrs.length) {
+          if (state.tokens[n+1].children[0].attrs[i][0] === 'title') {
+            state.tokens[n+1].children[0].attrs.splice(i, i + 1)
+            break
+          } else {
+            state.tokens[n+1].children[0].attrJoin('title', '')
+          }
+          i++
+        }
+      }
+    }
+    //console.log(state.tokens[n+1].children[0])
+    return true
+  }
+
+  const imgAttrToPCaption = (state, startLine) => {
     let pos = state.bMarks[startLine] + state.tShift[startLine]
     let max = state.eMarks[startLine]
     let inline = state.src.slice(pos, max)
+    let label = ''
+    if (opt.imgAltCaption && typeof opt.imgAltCaption === 'string') label = opt.imgAltCaption
+    if (opt.imgTitleCaption && typeof opt.imgTitleCaption === 'string') label = opt.imgTitleCaption
+    let caption = ''
+
     const img = inline.match(/^( *!\[)(.*?)\]\( *?((.*?)(?: +?\"(.*?)\")?) *?\)( *?\{.*?\})? *$/)
     if (!img) return
 
-    const hasLabel = img[2].match(new RegExp('^' + opt.imgAltCaption))
-
+    let hasLabel
+    if (opt.imgAltCaption) {
+      caption = img[2]
+      hasLabel = img[2].match(new RegExp('^' + opt.imgAltCaption))
+    }
+    if (opt.imgTitleCaption) {
+      if (!img[5]) img[5] = ''
+      caption = img[5]
+      hasLabel = img[5].match(new RegExp('^' + opt.imgTitleCaption))
+    }
     let token
     token = state.push('paragraph_open', 'p', 1)
     token.map = [startLine, startLine + 1]
     token = state.push('inline', '', 0)
+
     if (hasLabel) {
-      token.content = img[2]
+      token.content = caption
     } else {
-      if (img[2] === '') {
-        console.log(opt.imgAltCaption)
-        if (/a-zA-Z/.test(opt.imgAltCaption)) {
-          token.content = opt.imgAltCaption + '.'
+      if (label) {
+        token.content = label
+        if (/[a-zA-Z]/.test(label)) {
+          token.content += '.'
+          if (caption) token.content += ' '
         } else {
-          token.content = opt.imgAltCaption + '　'
+          token.content += '　'
         }
+        token.content += caption
       } else {
-        if (/a-zA-Z/.test(opt.imgAltCaption)) {
-          token.content = opt.imgAltCaption + '. ' + img[2]
-        } else {
-          token.content = opt.imgAltCaption + '　' + img[2]
-        }
+        token.content = caption
       }
     }
+    //console.log('token.content: ' + token.content)
     token.map = [startLine, startLine + 1]
     token.children = []
     token = state.push('paragraph_close', 'p', -1)
@@ -490,10 +525,10 @@ module.exports = function figure_with_caption_plugin(md, option) {
   }
 
 
-  if (opt.imgAltCaption) {
-    md.block.ruler.before('paragraph', 'img_alt_caption', imgAltCaption)
+  if (opt.imgAltCaption || opt.imgTitleCaption) {
+    md.block.ruler.before('paragraph', 'img_attr_caption', imgAttrToPCaption)
   }
-  md.use(mdPCaption, {
+  md.use(mditPCaption, {
     classPrefix: opt.classPrefix,
     dquoteFilename: opt.dquoteFilename,
     strongFilename: opt.strongFilename,
@@ -518,3 +553,5 @@ module.exports = function figure_with_caption_plugin(md, option) {
     return '<pre>' + sampStartTag + md.utils.escapeHtml(token.content) + '</samp></pre>\n';
   };
 };
+
+export default mditFigureWithPCaption

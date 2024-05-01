@@ -59,3 +59,18 @@ Figure. A caption.
 <figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
 <img src="cat.jpg" alt="図1">
 </figure>
+
+
+[Markdown]
+図 キャプション
+
+![図1　キャプション](cat.jpg)
+
+[HTML]
+<p class="f-img"><span class="f-img-label">図</span> キャプション</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
+<img src="cat.jpg" alt="図1">
+</figure>
+
+

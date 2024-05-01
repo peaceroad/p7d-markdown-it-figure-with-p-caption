@@ -3,6 +3,7 @@
   "version": "0.5.3",
   "description": "A markdown-it plugin. For a paragraph with only one image, a table or code block or blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "node test/test.js"
   },
@@ -17,6 +18,6 @@
     "markdown-it-attrs": "^4.1.6"
   },
   "dependencies": {
-    "p7d-markdown-it-p-captions": "^0.12.0"
+    "p7d-markdown-it-p-captions": "^0.13.0"
   }
 }

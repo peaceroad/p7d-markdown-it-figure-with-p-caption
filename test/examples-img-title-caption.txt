@@ -1,0 +1,92 @@
+[Markdown]
+![](cat.jpg "A caption.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![](cat.jpg "Figure. A caption.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![A alt text.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="cat.jpg" alt="A alt text.">
+</figure>
+
+[Markdown]
+![A alt text.](cat.jpg "Figure.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="cat.jpg" alt="A alt text.">
+</figure>
+
+
+[Markdown]
+Figure. A caption.
+
+![](cat.jpg)
+
+[HTML]
+<p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![](cat.jpg "Figure 12. A caption.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![猫](cat.jpg "図1　キャプション")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
+<img src="cat.jpg" alt="猫">
+</figure>
+
+[Markdown]
+![](cat.jpg "図 キャプション")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図</span> キャプション</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+図 キャプション
+
+![猫](cat.jpg "図23 Caption")
+
+[HTML]
+<p class="f-img"><span class="f-img-label">図</span> キャプション</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図23</span> Caption</figcaption>
+<img src="cat.jpg" alt="猫">
+</figure>
