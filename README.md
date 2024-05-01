@@ -19,10 +19,9 @@ Use it as follows.
 ```js
 import mdit from 'markdown-it'
 import mditFigureWithPCaption from '@peaceroad/markdown-it-figure-with-p-caption'
-import mditAttrs from 'markdown-it-attrs' // Although it is not required.
 
 const md = mdit()
-md.use(mditFigureWithPCaption).use(mditAttrs)
+md.use(mditFigureWithPCaption)
 
 console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)'))
 // <figure class="f-img">
@@ -471,7 +470,7 @@ Note that you cannot use this plugin's syntax and this option's syntax at the sa
 Also (for now), this is translated into an actual HTML alt attribute with the caption label as its value.
 
 ```js
-const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCaption: 'Figure'}).use(mditAttrs)
+const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCaption: 'Figure'})
 ```
 
 ```
@@ -493,7 +492,7 @@ Note that you cannot use this plugin's syntax and this option's syntax at the sa
 Also(for now), the alt attribute is not specially modified during conversion; the Markdown alt attribute is used as is.
 
 ```js
-const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitleCaption: 'Figure'}).use(mditAttrs)
+const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitleCaption: 'Figure'})
 ```
 
 ```

@@ -20,7 +20,6 @@ const mditFigureWithPCaption = (md, option) => {
     styleProcess: true,
     imgAltCaption: false,
     imgTitleCaption: false,
-    autoFigNum: false
   };
   if (option !== undefined) {
     for (let o in option) {
