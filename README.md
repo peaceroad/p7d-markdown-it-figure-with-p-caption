@@ -311,7 +311,7 @@ Note that a space is required between the file name and caption.
 
 ```js
 
-md.use(mdFigureWithPCaption, {dquoteFilename: true});
+md.use(mditFigureWithPCaption, {dquoteFilename: true});
 ```
 
 ~~~
@@ -339,7 +339,7 @@ A paragraph.
 ### Use strong mark
 
 ```js
-md.use(mdFigureWithPCaption, {strongFilename: true});
+md.use(mditFigureWithPCaption, {strongFilename: true});
 ```
 
 ~~~
@@ -372,7 +372,7 @@ A paragraph.
 Convert one image paragraph without a caption paragraph to figure element.
 
 ```js
-md.use(mdFigureWithPCaption, {oneImageWithoutCaption: true});
+md.use(mditFigureWithPCaption, {oneImageWithoutCaption: true});
 ```
 
 ~~~
@@ -396,7 +396,7 @@ A paragraph.
 Convert one video element without a caption paragraph to figure element.
 
 ```js
-md.use(mdFigureWithPCaption, {videoWithoutCaption: true});
+md.use(mditFigureWithPCaption, {videoWithoutCaption: true});
 ```
 
 #### Convert one iframe without caption
@@ -404,7 +404,7 @@ md.use(mdFigureWithPCaption, {videoWithoutCaption: true});
 Convert one iframe without a caption paragraph to iframe element. (adn twitter blockquote embed eelment.)
 
 ```js
-md.use(mdFigureWithPCaption, {iframeWithoutCaption: true});
+md.use(mditFigureWithPCaption, {iframeWithoutCaption: true});
 ```
 
 ~~~
