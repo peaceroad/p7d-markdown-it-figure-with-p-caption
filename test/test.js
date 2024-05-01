@@ -137,6 +137,8 @@ pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
 
 
+opt.oneImageWithoutCaption = false
+
 opt.imgAltCaption = 'Figure'
 const mdImgAltCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
 pass = runTest(mdImgAltCaption, testData.imgAltCaption, pass, [1, 5])
@@ -145,6 +147,7 @@ const mdImgAltCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(
 pass = runTest(mdImgAltCaptionJa, testData.imgAltCaption, pass, [6 , 99])
 
 opt.imgAltCaption = false
+
 opt.imgTitleCaption = 'Figure'
 const mdImgTitleCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
 pass = runTest(mdImgTitleCaption, testData.imgTitleCaption, pass, [1, 6])
