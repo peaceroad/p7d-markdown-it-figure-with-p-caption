@@ -4,7 +4,7 @@
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="Figure">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -14,7 +14,7 @@
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="Figure">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -23,8 +23,7 @@
 
 [HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
-<img src="cat.jpg" alt="Figure">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -36,8 +35,7 @@ Figure. A caption.
 [HTML]
 <p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</p>
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
-<img src="cat.jpg" alt="Figure">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -47,7 +45,7 @@ Figure. A caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="Figure 12">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -57,7 +55,7 @@ Figure. A caption.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
-<img src="cat.jpg" alt="図1">
+<img src="cat.jpg" alt="">
 </figure>
 
 
@@ -70,7 +68,22 @@ Figure. A caption.
 <p class="f-img"><span class="f-img-label">図</span> キャプション</p>
 <figure class="f-img">
 <figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
-<img src="cat.jpg" alt="図1">
+<img src="cat.jpg" alt="">
 </figure>
 
+
+[Markdown]
+![A caption.](cat.jpg)
+
+![図 A caption.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図</span> A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
 

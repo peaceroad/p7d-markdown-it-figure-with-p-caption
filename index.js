@@ -57,6 +57,19 @@ const mditFigureWithPCaption = (md, option) => {
     const captionStartToken = state.tokens[n-3];
     const captionInlineToken = state.tokens[n-2];
     const captionEndToken = state.tokens[n-1];
+    let isNoCaption = false
+    if (captionInlineToken.attrs) {
+      for (let attr of captionInlineToken.attrs) {
+        if (attr[0] === 'class' && attr[1] === 'nocaption') {
+          isNoCaption = true
+        }
+      }
+    }
+    if (isNoCaption) {
+      state.tokens.splice(n-3, 3)
+      return
+    }
+
     captionStartToken.attrs.forEach(attr => {
       if (attr[0] === 'class') {
         attr[1] = attr[1].replace(new RegExp(' *?f-' + caption.name), '').trim();
@@ -433,41 +446,44 @@ const mditFigureWithPCaption = (md, option) => {
 
   const setAltToLabel = (state, n, en, tagName, caption, opt) => {
     if (n < 2) return false
-    if (state.tokens[n+1].children[0].type === 'image') {
-      if (state.tokens[n-2].children[2]) {
-        state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[2].content + ']')
-        if (!state.tokens[n+1].children[0].children[0]) {
-          const textToken  = new state.Token('text', '', 0)
-          state.tokens[n+1].children[0].children.push(textToken)
-        }
-        state.tokens[n+1].children[0].content = state.tokens[n-2].children[2].content
-        state.tokens[n+1].children[0].children[0].content = state.tokens[n-2].children[2].content
+    if (state.tokens[n+1].children[0].type !== 'image' || !state.tokens[n-2].children) return false
+    if (state.tokens[n-2].children[2]) {
+      state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[2].content + ']')
+      if (!state.tokens[n+1].children[0].children[0]) {
+        const textToken  = new state.Token('text', '', 0)
+        state.tokens[n+1].children[0].children.push(textToken)
       }
+      // Set figure label:
+      //state.tokens[n+1].children[0].children[0].content = state.tokens[n-2].children[2].content
+      // Set img alt to empty value:
+      state.tokens[n+1].children[0].children[0].content = ''
     }
+    // Set figure label:
+    //state.tokens[n+1].children[0].content = state.tokens[n-2].children[2].content
+    // Set img alt to empty value:
+    state.tokens[n+1].children[0].content = ''
     //console.log(state.tokens[n+1].children[0])
     return true
   }
 
   const setTitleToLabel = (state, n, en, tagName, caption, opt) => {
     if (n < 2) return false
-    if (state.tokens[n+1].children[0].type === 'image') {
-      if (state.tokens[n-2].children[0]) {
-        state.tokens[n+1].children[0].attrSet('alt', state.tokens[n+1].children[0].content)
-        if (!state.tokens[n+1].children[0].children[0]) {
-          const textToken  = new state.Token('text', '', 0)
-          state.tokens[n+1].children[0].children.push(textToken)
-        }
-        let i = 0
-        while (0 < state.tokens[n+1].children[0].attrs.length) {
-          if (state.tokens[n+1].children[0].attrs[i][0] === 'title') {
-            state.tokens[n+1].children[0].attrs.splice(i, i + 1)
-            break
-          } else {
-            state.tokens[n+1].children[0].attrJoin('title', '')
-          }
-          i++
-        }
+    if (state.tokens[n+1].children[0].type !== 'image') return false
+    if (!state.tokens[n-2].children[0]) return false
+    state.tokens[n+1].children[0].attrSet('alt', state.tokens[n+1].children[0].content)
+    if (!state.tokens[n+1].children[0].children[0]) {
+      const textToken  = new state.Token('text', '', 0)
+      state.tokens[n+1].children[0].children.push(textToken)
+    }
+    let i = 0
+    while (0 < state.tokens[n+1].children[0].attrs.length) {
+      if (state.tokens[n+1].children[0].attrs[i][0] === 'title') {
+        state.tokens[n+1].children[0].attrs.splice(i, i + 1)
+        break
+      } else {
+        state.tokens[n+1].children[0].attrJoin('title', '')
       }
+      i++
     }
     //console.log(state.tokens[n+1].children[0])
     return true
@@ -481,6 +497,7 @@ const mditFigureWithPCaption = (md, option) => {
     if (opt.imgAltCaption && typeof opt.imgAltCaption === 'string') label = opt.imgAltCaption
     if (opt.imgTitleCaption && typeof opt.imgTitleCaption === 'string') label = opt.imgTitleCaption
     let caption = ''
+    let imgAttrUsedCaption = ''
 
     const img = inline.match(/^( *!\[)(.*?)\]\( *?((.*?)(?: +?\"(.*?)\")?) *?\)( *?\{.*?\})? *$/)
     if (!img) return
@@ -489,40 +506,47 @@ const mditFigureWithPCaption = (md, option) => {
     if (opt.imgAltCaption) {
       caption = img[2]
       hasLabel = img[2].match(new RegExp('^' + opt.imgAltCaption))
+      imgAttrUsedCaption = 'alt'
     }
     if (opt.imgTitleCaption) {
       if (!img[5]) img[5] = ''
       caption = img[5]
       hasLabel = img[5].match(new RegExp('^' + opt.imgTitleCaption))
+      imgAttrUsedCaption = 'title'
     }
     let token
     token = state.push('paragraph_open', 'p', 1)
     token.map = [startLine, startLine + 1]
     token = state.push('inline', '', 0)
-
     if (hasLabel) {
       token.content = caption
     } else {
-      if (label) {
-        token.content = label
-        if (/[a-zA-Z]/.test(label)) {
-          token.content += '.'
-          if (caption) token.content += ' '
-        } else {
-          token.content += '　'
+      if (!label) {
+        if (imgAttrUsedCaption === 'alt') {
+          label = opt.imgAltCaption
+        } else if (imgAttrUsedCaption === 'title') {
+          label = opt.imgTitleCaption
+        } else if (imgAttrUsedCaption) {
+          label = 'Figure'
         }
-        token.content += caption
-      } else {
-        token.content = caption
       }
+      token.content = label
+      if (/[a-zA-Z]/.test(label)) {
+        token.content += '.'
+        if (caption) token.content += ' '
+      } else {
+        token.content += '　'
+      }
+      token.content += caption
     }
-    //console.log('token.content: ' + token.content)
     token.map = [startLine, startLine + 1]
     token.children = []
+    if (caption.length === 0) {
+      token.attrs = [['class', 'nocaption']]
+    }
     token = state.push('paragraph_close', 'p', -1)
     return
   }
-
 
   if (opt.imgAltCaption || opt.imgTitleCaption) {
     md.block.ruler.before('paragraph', 'img_attr_caption', imgAttrToPCaption)

@@ -23,7 +23,6 @@
 
 [HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
 <img src="cat.jpg" alt="A alt text.">
 </figure>
 
@@ -45,7 +44,6 @@ Figure. A caption.
 [HTML]
 <p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</p>
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span></figcaption>
 <img src="cat.jpg" alt="">
 </figure>
 
