@@ -467,7 +467,7 @@ A paragraph.
 In Markdown documents, captions are often written in the alt attribute of images. If you follow the syntax of this plugin, the commit log will be cluttered. Therefore, as an option, the alt attribute is treated as a caption.
 Note that you cannot use this plugin's syntax and this option's syntax at the same time.
 
-Also (for now), this is translated into an actual HTML alt attribute with the caption label as its value.
+The img alt attribute have an empty value.
 
 ```js
 const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCaption: 'Figure'})
@@ -480,16 +480,16 @@ const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCa
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="Figure">
+<img src="cat.jpg" alt="">
 </figure>
 ```
 
 ## Option: imgTitleCaption
 
 The title attribute of the Markdown img element is used as the caption.
-Note that you cannot use this plugin's syntax and this option's syntax at the same time.
+Note that you cannot use this plugin's standard syntax and this option's syntax at the same time.
 
-Also(for now), the alt attribute is not specially modified during conversion; the Markdown alt attribute is used as is.
+The img alt attribute is not specially modified during conversion; the Markdown alt attribute is used as is.
 
 ```js
 const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitleCaption: 'Figure'})
