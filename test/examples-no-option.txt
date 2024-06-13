@@ -611,6 +611,16 @@ Figure. A Caption.
 <img src="cat.jpg" alt="Figure">
 </figure>
 
+[Markdown]
+Figure. A Caption.
+
+![Figure](cat.jpg) {.style #id}
+[HTML]
+<figure class="f-img style" id="id">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+
 
 [Markdown]
 ![Figure](cat.jpg) {.style}
@@ -629,7 +639,6 @@ Figure. A Caption.
 [HTML]
 <p class="f-img"><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</p>
 <p class="style"><img src="cat.jpg" alt="Figure"> Text</p>
-
 
 
 [Markdown]

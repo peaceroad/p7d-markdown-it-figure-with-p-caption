@@ -4,6 +4,7 @@ const mditFigureWithPCaption = (md, option) => {
 
   let opt = {
     classPrefix: 'f',
+    styleProcess : true,
     hasNumClass: false,
     scaleSuffix: false,
     dquoteFilename: false,
@@ -14,10 +15,10 @@ const mditFigureWithPCaption = (md, option) => {
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,
     videoWithoutCaption: false,
+    iframeTypeBlockquoteWithoutCaption: false,
     removeUnnumberedLabel: false,
     removeUnnumberedLabelExceptMarks: [],
     multipleImages: true,
-    styleProcess: true,
     imgAltCaption: false,
     imgTitleCaption: false,
   };
@@ -137,21 +138,19 @@ const mditFigureWithPCaption = (md, option) => {
     return true;
   }
 
-  function wrapWithFigure(state, range, tagName, replaceInsteadOfWrap, sp) {
+  const wrapWithFigure = (state, range, tagName, caption, replaceInsteadOfWrap, sp) => {
     let n = range.start;
     let en = range.end;
     const figureStartToken = new state.Token('figure_open', 'figure', 1);
     figureStartToken.attrSet('class', 'f-' + tagName);
-    if (sp) {
-      if (sp.isYoutube) {
-        figureStartToken.attrSet('class', 'f-video');
-      }
-      if (sp.isTwitter) {
-        if (sp.hasImgCaption) {
-          figureStartToken.attrSet('class', 'f-img');
-        } else {
+    if (sp.isVideoIframe) {
+      figureStartToken.attrSet('class', 'f-video');
+    }
+    if (sp.isIframeTypeBlockQuote) {
+      if (sp.hasImgCaption) {
+        figureStartToken.attrSet('class', 'f-img');
+      } else {
         figureStartToken.attrSet('class', 'f-iframe');
-        }
       }
     }
     if(/pre-(?:code|samp)/.test(tagName)) {
@@ -160,14 +159,12 @@ const mditFigureWithPCaption = (md, option) => {
     const figureEndToken = new state.Token('figure_close', 'figure', -1);
     const breakToken = new state.Token('text', '', 0);
     breakToken.content = '\n';
-    if (sp) {
-      if (sp.attrs) {
-        for (let attr of sp.attrs) {
-          figureStartToken.attrJoin(attr[0], attr[1]);
-        }
+    if (opt.styleProcess && caption.hasNext && sp.attrs.length > 0) {
+      for (let attr of sp.attrs) {
+        figureStartToken.attrJoin(attr[0], attr[1]);
       }
     }
-    ///Add for vsce
+   // For vsce
     if(state.tokens[n].attrs) {
       for (let attr of state.tokens[n].attrs) {
         figureStartToken.attrJoin(attr[0], attr[1]);
@@ -217,7 +214,12 @@ const mditFigureWithPCaption = (md, option) => {
         hasPrev: false,
         hasNext: false,
       };
-      let sp = {attrs: []};
+      const sp = {
+        attrs: [],
+        isVideoIframe: false,
+        isIframeTypeBlockQuote: false,
+        hasImgCaption: false,
+      }
 
       const checkTags = ['table', 'pre', 'blockquote'];
       let cti = 0;
@@ -240,7 +242,7 @@ const mditFigureWithPCaption = (md, option) => {
           range.end = en;
           caption = checkCaption(state, n, en, tagName, caption);
           if (caption.hasPrev || caption.hasNext) {
-            range = wrapWithFigure(state, range, tagName, false);
+            range = wrapWithFigure(state, range, tagName, caption, false, sp);
             break;
           }
           break;
@@ -249,14 +251,13 @@ const mditFigureWithPCaption = (md, option) => {
         if(token.type === 'fence') {
           if (token.tag === 'code' && token.block) {
             checkToken = true;
-            if (token.info === 'samp') {
-              token.type = 'fence_samp';
+            if (token.info === 'samp' || token.info === 'shell' || token.info === 'console') {
               token.tag = 'samp';
             }
             tagName = 'pre-' + token.tag;
             caption = checkCaption(state, n, en, tagName, caption);
             if (caption.hasPrev || caption.hasNext) {
-              range = wrapWithFigure(state, range, tagName, false);
+              range = wrapWithFigure(state, range, tagName, caption, false, sp);
               break;
             }
           }
@@ -269,64 +270,68 @@ const mditFigureWithPCaption = (md, option) => {
         const tags = ['video', 'audio', 'iframe', 'blockquote'];
         let ctj = 0;
         while (ctj < tags.length) {
-          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '> *?(?:<script [^>]*?>(?:</script>)?)?(\\n|$)'));
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)?(\\n|$)'));
           if (!hasTag) {
             ctj++;
             continue;
           }
-          if (hasTag[hasTag.length - 1] !== '\n') {
+          //console.log(hasTag)
+          if ((hasTag[2] && hasTag[3] !== '\n') ||
+            (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
             token.content += '\n'
           }
           tagName = tags[ctj];
-          if (tagName === 'iframe') {
-            if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
-              sp.isYoutube = true;
-            }
-          }
-          if (tagName === 'blockquote') {
-            if(/^<[^>]*? class="twitter-tweet"/.test(token.content)) {
-              sp.isTwitter = true;
-              if (n > 2) {
-                if (state.tokens[n-2].children.length > 1) {
-                  if (state.tokens[n-2].children[1].attrs.length > 0) {
-                    if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
-                      if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
-                        sp.hasImgCaption = true;
-                      /* under consideration. I think I should use figure instead of blockquoe for caption.
-                      } else {
-                        if (state.tokens[n-2].children[1].attrs[0][1] === 'f-blockquote-label') {
-                          state.tokens[n-2].children[1].attrs[0][1] = 'f-iframe-label'
-                          state.tokens[n-2].children[3].attrs[0][1] = 'f-iframe-label-joint'
-                        } */
-                      }
-                    }
-                  }
-                }
-              }
-              if (n + 2 < state.tokens.length) {
-                if (state.tokens[n+2].children.length > 1) {
-                  if (state.tokens[n+2].children[1].attrs.length > 0) {
-                    if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
-                      state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
-                      sp.hasImgCaption = true;
-                    }
-                  }
-                }
-              }
-            }
-          }
           checkToken = true;
-          caption = checkCaption(state, n, en, tagName, caption);
-          if (caption.hasPrev || caption.hasNext ||
-            (opt.iframeWithoutCaption && (tagName === 'iframe' || sp.isTwitter)) ||
-            (opt.videoWithoutCaption && tagName === 'video')) {
-            range = wrapWithFigure(state, range, tagName, false, sp);
-            if ((opt.videoWithoutCaption || opt.iframeWithoutCaption) && (!caption.hasPrev || !caption.hasNext)) {
-              n = en + 2;
+          if (tagName === 'blockquote') {
+            //text-post-media: threads
+            if(/^<[^>]*? class="(?:twitter-tweet|instagram-media|text-post-media|bluesky-embed)"/.test(token.content)) {
+              sp.isIframeTypeBlockQuote = true
+            } else {
+              ctj++;
+              continue;
             }
-            break;
           }
-          ctj++
+          break;
+        }
+        if (!checkToken) {n++; continue;}
+        if (tagName === 'iframe') {
+          if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
+            sp.isVideoIframe = true
+          }
+        }
+        if(sp.isIframeTypeBlockQuote) {
+          if(n > 2) {
+            if (state.tokens[n-2].children.length > 1) {
+              if (state.tokens[n-2].children[1].attrs.length > 0) {
+                if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
+                  if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
+                    sp.hasImgCaption = true;
+                    /* For now, I think I should use figure instead of blockquoe for caption. */
+                  }
+                }
+              }
+            }
+          }
+          if (n + 2 < state.tokens.length) {
+            if (state.tokens[n+2].children.length > 1) {
+              if (state.tokens[n+2].children[1].attrs.length > 0) {
+                if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
+                  state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
+                  sp.hasImgCaption = true;
+                }
+              }
+            }
+          }
+        }
+        caption = checkCaption(state, n, en, tagName, caption);
+        if (caption.hasPrev || caption.hasNext) {
+          range = wrapWithFigure(state, range, tagName, caption, false, sp);
+          n = en + 2;
+        } else if ((opt.iframeWithoutCaption && (tagName === 'iframe')) ||
+          (opt.videoWithoutCaption && (tagName === 'video')) ||
+          (opt.iframeTypeBlockquoteWithoutCaption && (tagName === 'blockquote'))) {
+          range = wrapWithFigure(state, range, tagName, caption, false, sp);
+          n = en + 2;
         }
       }
 
@@ -417,11 +422,7 @@ const mditFigureWithPCaption = (md, option) => {
         }
         if (checkToken && (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext)) {
           if (caption.nameSuffix) tagName += caption.nameSuffix
-          if (caption.hasNext && opt.styleProcess) {
-            range = wrapWithFigure(state, range, tagName, true, sp);
-          } else {
-            range = wrapWithFigure(state, range, tagName, true);
-          }
+          range = wrapWithFigure(state, range, tagName, caption, true, sp)
         }
       }
 
@@ -563,18 +564,111 @@ const mditFigureWithPCaption = (md, option) => {
     removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
   })
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
-  md.renderer.rules['fence_samp'] = function (tokens, idx, options, env, slf) {
+
+  md.renderer.rules['fence'] = (tokens, idx, options, env, slf) => {
     const token = tokens[idx];
-    let sampStartTag = '<samp>';
-    if (token.attrs) {
-      sampStartTag = sampStartTag.replace('>', '');
-      for(let attr of token.attrs) {
-        sampStartTag += ' ' + attr[0] + '="' + attr[1] + '"';
+    //console.log(token)
+
+    const startTag = (token, tagName) => {
+      let idAttr = [], classAttr = [], dataAttrs = [], styleAttr = [], otherAttrs = []
+      let hasClass = false
+      if (token.attrs) {
+        //console.log('start: ' +token.attrs)
+        for (let attr of token.attrs) {
+          if (attr[0] === 'id') {
+            idAttr.push(attr);
+          } else if (attr[0] === 'class') {
+            hasClass = true
+            classAttr.push([attr[0], 'language-' + token.info + ' ' + attr[1]])
+          } else if (attr[0].startsWith('data-')) {
+            dataAttrs.push(attr);
+          } else if (attr[0] === 'style') {
+            styleAttr.push(attr);
+          } else {
+            otherAttrs.push(attr);
+          }
+        }
       }
-      sampStartTag += '>';
+      if (!hasClass) classAttr.push(['class', 'language-' + token.info])
+      let orderedAttrs = [...idAttr, ...classAttr, ...dataAttrs, ...styleAttr, ...otherAttrs]
+      //console.log(orderedAttrs)
+      let tag = '<' + tagName;
+      for (let attr of orderedAttrs) {
+        tag += ' ' + attr[0] + '="' + attr[1] + '"'
+      }
+      return tag + '>';
+    };
+
+    const splitToLines = (content) => {
+      const br = content.match(/\r?\n/)
+      const lines = content.split(/r?\n/)
+      let hasCodeLineStart = false
+      let styleIndex = -1
+      let setNumber = -1
+      if (token.attrs) {
+        token.attrs.forEach((attr, i) => {
+          if (attr[i][0] === 'style') styleIndex = i
+          hasCodeLineStart = (/^(?:(?:data-)?code-)?start$/.test(attr[0]))
+          if (hasCodeLineStart) {
+            token.attrs[i][0] = 'data-code-start'
+            setNumber = token.attrs[i][1]
+          }
+        })
+      }
+      if (setNumber !== -1) {
+        if (styleIndex === -1) {
+          token.attrs.push(['style', 'counter-set: code-line ' + setNumber + ';'])
+        } else {
+          token.attrs[styleIndex][1] = token.attrs[styleIndex][1].replace(/;?$/, '; counter-set: code-line ' + setNumber + ';')
+        }
+      }
+      //console.log('hasCodeLineStart: ' + hasCodeLineStart)
+      if (!hasCodeLineStart) return content
+      lines.map((line, n) => {
+        const lastElementTag = line.match(/<(\w+)( +[^>]*?)>[^>]*?(<\/\1>)?[^>]*?$/)
+        if (lastElementTag && !lastElementTag[3]) {
+          line += '</span>'
+          if (n < lines.length - 2) {
+            lines[n + 1] = `<${lastElementTag[1]}${lastElementTag[2]}>` + lines[n + 1]
+          }
+        }
+        if (n < lines.length - 1) {
+          lines[n] = '<span class="code-line">' + line + '</span>'
+        }
+      })
+      return lines.join(br)
     }
-    return '<pre>' + sampStartTag + md.utils.escapeHtml(token.content) + '</samp></pre>\n';
+
+    let content = token.content
+    if (md.options.highlight) {
+      if (token.info === 'samp') {
+        content = md.utils.escapeHtml(token.content)
+      } else {
+        content = md.options.highlight(token.content, token.info)
+      }
+    } else {
+      content = md.utils.escapeHtml(token.content)
+    }
+    content = splitToLines(content)
+
+    let fenceHtml = '<pre>';
+    if (token.info === 'samp') {
+      fenceHtml += '<samp>';
+    } else if (token.info === 'shell' || token.info === 'console') {
+      fenceHtml += startTag(token, 'samp');
+    } else {
+      fenceHtml += startTag(token, 'code');
+    }
+    fenceHtml += content
+    if (token.info === 'samp') {
+      fenceHtml += '</samp>';
+    } else if (token.info === 'shell' || token.info === 'console') {
+      fenceHtml += '</samp>';
+    } else {
+      fenceHtml += '</code>';
+    }
+    return fenceHtml + '</pre>\n';
   };
-};
+}
 
 export default mditFigureWithPCaption

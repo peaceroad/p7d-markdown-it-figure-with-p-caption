@@ -1,0 +1,94 @@
+[Markdown]
+```js
+import mdit from 'markdonw-it'
+```
+[HTML]
+<pre><code class="language-js"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span>
+</code></pre>
+
+
+[Markdown]
+```html
+<p>I draw <span class="style">cats</span>.</p>
+```
+[HTML]
+<pre><code class="language-html"><span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>I draw <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;style&quot;</span>&gt;</span>cats<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>.<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+</code></pre>
+
+
+[Markdown]
+```js
+import mdit from 'markdonw-it'
+const md = mdit()
+md.render('Nyaan')
+```
+[HTML]
+<pre><code class="language-js"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span>
+<span class="hljs-keyword">const</span> md = <span class="hljs-title function_">mdit</span>()
+md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#x27;Nyaan&#x27;</span>)
+</code></pre>
+
+
+[Markdown]
+```js {.style}
+import mdit from 'markdonw-it'
+const md = mdit()
+md.render('Nyaan')
+```
+[HTML]
+<pre><code class="language-js style"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span>
+<span class="hljs-keyword">const</span> md = <span class="hljs-title function_">mdit</span>()
+md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#x27;Nyaan&#x27;</span>)
+</code></pre>
+
+
+[Markdown]
+```html {start="2"}
+<p>I draw <span class="style">cats</span>.</p>
+```
+[HTML]
+<pre><code class="language-html" data-code-start="2" style="counter-set: code-line 2;"><span class="code-line"><span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>I draw <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;style&quot;</span>&gt;</span>cats<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>.<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span></span>
+</code></pre>
+
+[Markdown]
+```js {start="1"}
+import mdit from 'markdonw-it'
+```
+[HTML]
+<pre><code class="language-js" data-code-start="1" style="counter-set: code-line 1;"><span class="code-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
+</code></pre>
+
+
+[Markdown]
+```js {.style start="1"}
+import mdit from 'markdonw-it'
+const md = mdit()
+md.render('Nyaan')
+```
+[HTML]
+<pre><code class="language-js style" data-code-start="1" style="counter-set: code-line 1;"><span class="code-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
+<span class="code-line"><span class="hljs-keyword">const</span> md = <span class="hljs-title function_">mdit</span>()</span>
+<span class="code-line">md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#x27;Nyaan&#x27;</span>)</span>
+</code></pre>
+
+[Markdown]
+```shell
+$ pwd
+/home/User
+```
+[HTML]
+<pre><samp class="language-shell"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">pwd</span></span>
+/home/User
+</samp></pre>
+
+
+[Markdown]
+```samp
+$ pwd
+/home/User
+```
+[HTML]
+<pre><samp>$ pwd
+/home/User
+</samp></pre>
+

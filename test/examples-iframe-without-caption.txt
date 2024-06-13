@@ -1,11 +1,11 @@
 [Markdown]
-A paragraph.
+A YouTube paragraph.
 
 <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 A paragraph.
 [HTML]
-<p>A paragraph.</p>
+<p>A YouTube paragraph.</p>
 <figure class="f-video">
 <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </figure>
@@ -53,7 +53,8 @@ Slide. A caption.
 [HTML]
 <figure class="f-video">
 <iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-<p><a href="https://vimeo.com/xxxx">Title</a> from <a href="https://vimeo.com/yyy">User</a> on <a href="https://vimeo.com">Vimeo</a>.</p></figure>
+<p><a href="https://vimeo.com/xxxx">Title</a> from <a href="https://vimeo.com/yyy">User</a> on <a href="https://vimeo.com">Vimeo</a>.</p>
+</figure>
 
 [Markdown]
 <iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
@@ -61,26 +62,4 @@ Slide. A caption.
 <figure class="f-video">
 <iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
 </figure>
-
-[Markdown]
-A paragraph. iframeWithoutCaption: true.
-
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-A paragraph.
-[HTML]
-<p>A paragraph. iframeWithoutCaption: true.</p>
-<figure class="f-iframe">
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-</figure>
-<p>A paragraph.</p>
-
-
-[Markdown]
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-[HTML]
-<figure class="f-iframe">
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-</figure>
-
 

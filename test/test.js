@@ -5,6 +5,7 @@ import mdit from 'markdown-it'
 
 import mdFigureWithPCaption from '../index.js'
 import attrs from 'markdown-it-attrs'
+import highlightjs from 'highlight.js'
 
 let opt = {
   dquoteFilename: true,
@@ -13,6 +14,7 @@ let opt = {
   iframeWithoutCaption: false,
   videoWithoutCaption: false,
   hasNumClass: false,
+  iframeTypeBlockquoteWithoutCaption: false,
 }
 
 const md = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
@@ -28,11 +30,28 @@ opt.iframeWithoutCaption = true
 opt.hasNumClass = false
 const mdIframeWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
 
+opt.iframeTypeBlockquoteWithoutCaption = true
+const mdIframeTypeBlockquoteWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+
 opt.multipleImages =  true
 const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs)
 
 opt.videoWithoutCaption = true
 const mdVideoWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs)
+
+const mdConsole = mdit({
+  html: true,
+  langPrefix: 'language-',
+  typographer: false,
+  highlight: (str, lang) => {
+    if (lang && highlightjs.getLanguage(lang)) {
+      try {
+        return highlightjs.highlight(str, { language: lang }).value
+      } catch (__) {}
+    }
+    return ''
+  }
+}).use(mdFigureWithPCaption, opt).use(attrs)
 
 
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
@@ -47,11 +66,13 @@ const testData = {
   hasNumClass: __dirname + path.sep +  'examples-has-num-class.txt',
   oneImageWithoutCaption: __dirname + path.sep + 'examples-one-image-without-caption.txt',
   iframeWithoutCaption: __dirname + path.sep + 'examples-iframe-without-caption.txt',
+  iframeTypeBlockquoteWithoutCaption: __dirname + path.sep + 'examples-iframe-type-blockquote-without-caption.txt',
   multipleImages: __dirname + path.sep + 'examples-multiple-images.txt',
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
   mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
   imgAltCaption: __dirname + path.sep + 'examples-img-alt-caption.txt',
   imgTitleCaption: __dirname + path.sep + 'examples-img-title-caption.txt',
+  console: __dirname + path.sep + 'examples-console.txt',
 }
 
 const getTestData = (pat) => {
@@ -133,8 +154,10 @@ pass = runTest(md, testData.noOption, pass)
 pass = runTest(mdHasNumClass, testData.hasNumClass, pass)
 pass = runTest(mdOneImage, testData.oneImageWithoutCaption, pass)
 pass = runTest(mdIframeWithoutCaption, testData.iframeWithoutCaption, pass)
+pass = runTest(mdIframeTypeBlockquoteWithoutCaption, testData.iframeTypeBlockquoteWithoutCaption, pass)
 pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
+pass = runTest(mdConsole, testData.console, pass)
 
 
 opt.oneImageWithoutCaption = false
