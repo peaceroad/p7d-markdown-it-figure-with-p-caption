@@ -4,21 +4,23 @@ This is a markdown-it plugin.
 
 For a paragraph with one image/images only, a table or code block or a blockquote or a iframe, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
 
-1. Check that the element: one image only paragraph, table, code block, samp block, blockquote, and video, iframe.
+1. Check that the element: one image only paragraph, table, code(samp) block, blockquote, and video, iframe.
 2. Check if this element has a caption paragraph immediately before or after it
 3. If there is the caption paragraph, convert them to figure and figcaption element.
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
-Notice. If code block language setting is "samp", change it to use samp element instead of code element.
+**Notice.** Starting with version 0.7, the process changing from code to samp tag has been migrated to [@peaceroad/markdown-it-renderer-fence](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence). If you want to continue processing as before, please use this plugin at the same time.
+(The tests for this plugin and this Readme output used the plugins together.)
 
-Notice. It assumes simultaneous use of `markdown-it-attrs`. However, if there is `{.style}` at the end of the image-only paragraph, and the next paragraph is a caption, processing is not handled well with `markdown-it-attrs` alone, so in order to normalize it, {} The processing is written in this plugin. (This process can be turned off by specifying `{styleProcess: false}`.) [0.5.0]
+**Notice.** You can also use `markdown-it-attrs` at the same time. However, if there is `{.style}` at the end of a paragraph with only an image, and the next paragraph is a caption, `markdown-it-attrs` alone does not handle it well, so this plugin takes care of that. (This processing is optional `{styleProcess: true}` and can be turned off.) [0.5.0]
 
 Use it as follows.
 
 ```js
 import mdit from 'markdown-it'
 import mditFigureWithPCaption from '@peaceroad/markdown-it-figure-with-p-caption'
+import mditRendererFence from '@peaceroad/markdown-it-renderer-fence' /* to processing code -> smap tag etc. process.*/
 
 const md = mdit()
 md.use(mditFigureWithPCaption)

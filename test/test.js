@@ -2,9 +2,10 @@ import assert from 'assert'
 import fs from 'fs'
 import path from 'path'
 import mdit from 'markdown-it'
+import mditAttrs from 'markdown-it-attrs'
+import mditRndererFence from '@peaceroad/markdown-it-renderer-fence'
 
 import mdFigureWithPCaption from '../index.js'
-import attrs from 'markdown-it-attrs'
 import highlightjs from 'highlight.js'
 
 let opt = {
@@ -17,27 +18,27 @@ let opt = {
   iframeTypeBlockquoteWithoutCaption: false,
 }
 
-const md = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+const md = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.hasNumClass = true
-const mdHasNumClass = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+const mdHasNumClass = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.hasNumClass = false
 opt.oneImageWithoutCaption = true
-const mdOneImage = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+const mdOneImage = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.iframeWithoutCaption = true
 opt.hasNumClass = false
-const mdIframeWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+const mdIframeWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.iframeTypeBlockquoteWithoutCaption = true
-const mdIframeTypeBlockquoteWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs);
+const mdIframeTypeBlockquoteWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.multipleImages =  true
-const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs)
+const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 opt.videoWithoutCaption = true
-const mdVideoWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(attrs)
+const mdVideoWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 const mdConsole = mdit({
   html: true,
@@ -51,7 +52,7 @@ const mdConsole = mdit({
     }
     return ''
   }
-}).use(mdFigureWithPCaption, opt).use(attrs)
+}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
 
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
@@ -163,19 +164,19 @@ pass = runTest(mdConsole, testData.console, pass)
 opt.oneImageWithoutCaption = false
 
 opt.imgAltCaption = 'Figure'
-const mdImgAltCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
+const mdImgAltCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdImgAltCaption, testData.imgAltCaption, pass, [1, 5])
 opt.imgAltCaption = '図'
-const mdImgAltCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
+const mdImgAltCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdImgAltCaptionJa, testData.imgAltCaption, pass, [6 , 99])
 
 opt.imgAltCaption = false
 
 opt.imgTitleCaption = 'Figure'
-const mdImgTitleCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
+const mdImgTitleCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdImgTitleCaption, testData.imgTitleCaption, pass, [1, 6])
 opt.imgTitleCaption = '図'
-const mdImgTitleCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(attrs)
+const mdImgTitleCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdImgTitleCaptionJa, testData.imgTitleCaption, pass, [7, 99])
 
 if (pass) console.log('Passed all test.')

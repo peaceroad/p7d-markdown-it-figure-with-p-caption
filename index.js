@@ -251,10 +251,16 @@ const mditFigureWithPCaption = (md, option) => {
         if(token.type === 'fence') {
           if (token.tag === 'code' && token.block) {
             checkToken = true;
+            let isSampInfo = false
             if (token.info === 'samp' || token.info === 'shell' || token.info === 'console') {
               token.tag = 'samp';
+              isSampInfo = true
             }
-            tagName = 'pre-' + token.tag;
+            if (isSampInfo) {
+              tagName = 'pre-samp';
+            } else {
+              tagName = 'pre-code';
+            }
             caption = checkCaption(state, n, en, tagName, caption);
             if (caption.hasPrev || caption.hasNext) {
               range = wrapWithFigure(state, range, tagName, caption, false, sp);
@@ -564,111 +570,6 @@ const mditFigureWithPCaption = (md, option) => {
     removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
   })
   md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
-
-  md.renderer.rules['fence'] = (tokens, idx, options, env, slf) => {
-    const token = tokens[idx];
-    //console.log(token)
-
-    const startTag = (token, tagName) => {
-      let idAttr = [], classAttr = [], dataAttrs = [], styleAttr = [], otherAttrs = []
-      let hasClass = false
-      if (token.attrs) {
-        //console.log('start: ' +token.attrs)
-        for (let attr of token.attrs) {
-          if (attr[0] === 'id') {
-            idAttr.push(attr);
-          } else if (attr[0] === 'class') {
-            hasClass = true
-            classAttr.push([attr[0], 'language-' + token.info + ' ' + attr[1]])
-          } else if (attr[0].startsWith('data-')) {
-            dataAttrs.push(attr);
-          } else if (attr[0] === 'style') {
-            styleAttr.push(attr);
-          } else {
-            otherAttrs.push(attr);
-          }
-        }
-      }
-      if (!hasClass) classAttr.push(['class', 'language-' + token.info])
-      let orderedAttrs = [...idAttr, ...classAttr, ...dataAttrs, ...styleAttr, ...otherAttrs]
-      //console.log(orderedAttrs)
-      let tag = '<' + tagName;
-      for (let attr of orderedAttrs) {
-        tag += ' ' + attr[0] + '="' + attr[1] + '"'
-      }
-      return tag + '>';
-    };
-
-    const splitToLines = (content) => {
-      const br = content.match(/\r?\n/)
-      const lines = content.split(/r?\n/)
-      let hasCodeLineStart = false
-      let styleIndex = -1
-      let setNumber = -1
-      if (token.attrs) {
-        token.attrs.forEach((attr, i) => {
-          if (attr[i][0] === 'style') styleIndex = i
-          hasCodeLineStart = (/^(?:(?:data-)?code-)?start$/.test(attr[0]))
-          if (hasCodeLineStart) {
-            token.attrs[i][0] = 'data-code-start'
-            setNumber = token.attrs[i][1]
-          }
-        })
-      }
-      if (setNumber !== -1) {
-        if (styleIndex === -1) {
-          token.attrs.push(['style', 'counter-set: code-line ' + setNumber + ';'])
-        } else {
-          token.attrs[styleIndex][1] = token.attrs[styleIndex][1].replace(/;?$/, '; counter-set: code-line ' + setNumber + ';')
-        }
-      }
-      //console.log('hasCodeLineStart: ' + hasCodeLineStart)
-      if (!hasCodeLineStart) return content
-      lines.map((line, n) => {
-        const lastElementTag = line.match(/<(\w+)( +[^>]*?)>[^>]*?(<\/\1>)?[^>]*?$/)
-        if (lastElementTag && !lastElementTag[3]) {
-          line += '</span>'
-          if (n < lines.length - 2) {
-            lines[n + 1] = `<${lastElementTag[1]}${lastElementTag[2]}>` + lines[n + 1]
-          }
-        }
-        if (n < lines.length - 1) {
-          lines[n] = '<span class="code-line">' + line + '</span>'
-        }
-      })
-      return lines.join(br)
-    }
-
-    let content = token.content
-    if (md.options.highlight) {
-      if (token.info === 'samp') {
-        content = md.utils.escapeHtml(token.content)
-      } else {
-        content = md.options.highlight(token.content, token.info)
-      }
-    } else {
-      content = md.utils.escapeHtml(token.content)
-    }
-    content = splitToLines(content)
-
-    let fenceHtml = '<pre>';
-    if (token.info === 'samp') {
-      fenceHtml += '<samp>';
-    } else if (token.info === 'shell' || token.info === 'console') {
-      fenceHtml += startTag(token, 'samp');
-    } else {
-      fenceHtml += startTag(token, 'code');
-    }
-    fenceHtml += content
-    if (token.info === 'samp') {
-      fenceHtml += '</samp>';
-    } else if (token.info === 'shell' || token.info === 'console') {
-      fenceHtml += '</samp>';
-    } else {
-      fenceHtml += '</code>';
-    }
-    return fenceHtml + '</pre>\n';
-  };
 }
 
 export default mditFigureWithPCaption

@@ -47,7 +47,7 @@ md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#
 <p>I draw <span class="style">cats</span>.</p>
 ```
 [HTML]
-<pre><code class="language-html" data-code-start="2" style="counter-set: code-line 2;"><span class="code-line"><span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>I draw <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;style&quot;</span>&gt;</span>cats<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>.<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span></span>
+<pre><code class="language-html" data-pre-start="2" style="counter-set:pre-line-number 2;"><span class="pre-line"><span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>I draw <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;style&quot;</span>&gt;</span>cats<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>.<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span></span>
 </code></pre>
 
 [Markdown]
@@ -55,7 +55,7 @@ md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#
 import mdit from 'markdonw-it'
 ```
 [HTML]
-<pre><code class="language-js" data-code-start="1" style="counter-set: code-line 1;"><span class="code-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
+<pre><code class="language-js" data-pre-start="1" style="counter-set:pre-line-number 1;"><span class="pre-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
 </code></pre>
 
 
@@ -66,9 +66,9 @@ const md = mdit()
 md.render('Nyaan')
 ```
 [HTML]
-<pre><code class="language-js style" data-code-start="1" style="counter-set: code-line 1;"><span class="code-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
-<span class="code-line"><span class="hljs-keyword">const</span> md = <span class="hljs-title function_">mdit</span>()</span>
-<span class="code-line">md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#x27;Nyaan&#x27;</span>)</span>
+<pre><code class="language-js style" data-pre-start="1" style="counter-set:pre-line-number 1;"><span class="pre-line"><span class="hljs-keyword">import</span> mdit <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;markdonw-it&#x27;</span></span>
+<span class="pre-line"><span class="hljs-keyword">const</span> md = <span class="hljs-title function_">mdit</span>()</span>
+<span class="pre-line">md.<span class="hljs-title function_">render</span>(<span class="hljs-string">&#x27;Nyaan&#x27;</span>)</span>
 </code></pre>
 
 [Markdown]
