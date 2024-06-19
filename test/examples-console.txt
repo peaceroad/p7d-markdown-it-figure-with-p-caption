@@ -92,3 +92,34 @@ $ pwd
 /home/User
 </samp></pre>
 
+
+[Markdown]
+端末 現在のディレクトリ
+
+```samp {.style}
+$ pwd
+/home/User
+```
+[HTML]
+<figure class="f-pre-samp">
+<figcaption><span class="f-pre-samp-label">端末</span> 現在のディレクトリ</figcaption>
+<pre><samp class="style">$ pwd
+/home/User
+</samp></pre>
+</figure>
+
+
+[Markdown]
+端末 現在のディレクトリ
+
+```console {.style}
+$ pwd
+/home/User
+```
+[HTML]
+<figure class="f-pre-samp">
+<figcaption><span class="f-pre-samp-label">端末</span> 現在のディレクトリ</figcaption>
+<pre><samp class="language-console style"><span class="hljs-meta prompt_">$ </span><span class="language-bash"><span class="hljs-built_in">pwd</span></span>
+/home/User
+</samp></pre>
+</figure>

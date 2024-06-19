@@ -186,7 +186,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
 <pre><code class="language-js">console.log('Hello World!');
 </code></pre>
@@ -207,7 +207,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <pre><code class="language-js">console.log('Hello World!');
 </code></pre>
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
@@ -228,7 +228,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-samp" role="doc-example">
+<figure class="f-pre-samp">
 <figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
 <pre><samp>$ pwd
 /home/user
@@ -250,7 +250,7 @@ Terminal. A Caption.
 A paragraph.
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-samp" role="doc-example">
+<figure class="f-pre-samp">
 <pre><samp>$ pwd
 /home/user
 </samp></pre>
@@ -533,7 +533,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
@@ -553,7 +553,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
@@ -573,7 +573,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong></figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
@@ -593,7 +593,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong></figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>

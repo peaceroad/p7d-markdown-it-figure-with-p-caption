@@ -21,6 +21,7 @@ const mditFigureWithPCaption = (md, option) => {
     multipleImages: true,
     imgAltCaption: false,
     imgTitleCaption: false,
+    roleDocExample: false,
   };
   if (option !== undefined) {
     for (let o in option) {
@@ -153,7 +154,7 @@ const mditFigureWithPCaption = (md, option) => {
         figureStartToken.attrSet('class', 'f-iframe');
       }
     }
-    if(/pre-(?:code|samp)/.test(tagName)) {
+    if(/pre-(?:code|samp)/.test(tagName) && opt.roleDocExample) {
       figureStartToken.attrSet('role', 'doc-example');
     }
     const figureEndToken = new state.Token('figure_close', 'figure', -1);

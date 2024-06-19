@@ -114,7 +114,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
 <pre><code class="language-js">console.log('Hello World!');
 </code></pre>
@@ -156,7 +156,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-samp" role="doc-example">
+<figure class="f-pre-samp">
 <figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
 <pre><samp>$ pwd
 /home/user
@@ -329,7 +329,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
@@ -358,7 +358,7 @@ A paragraph.
 
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-pre-code" role="doc-example">
+<figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
 <pre><code class="language-js">console.log('Nyaan!');
 </code></pre>
@@ -464,7 +464,7 @@ A paragraph.
 </figure>
 ~~~
 
-## Option: imgAltCaption
+### Option: imgAltCaption
 
 In Markdown documents, captions are often written in the alt attribute of images. If you follow the syntax of this plugin, the commit log will be cluttered. Therefore, as an option, the alt attribute is treated as a caption.
 Note that you cannot use this plugin's syntax and this option's syntax at the same time.
@@ -486,7 +486,7 @@ const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCa
 </figure>
 ```
 
-## Option: imgTitleCaption
+### Option: imgTitleCaption
 
 The title attribute of the Markdown img element is used as the caption.
 Note that you cannot use this plugin's standard syntax and this option's syntax at the same time.
@@ -506,4 +506,12 @@ const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitle
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
 <img src="cat.jpg" alt="A alt text.">
 </figure>
+```
+
+### Option: roleDocExample
+
+From version 0.8, role="doc-example" is not included as standard in figure.f-pre-code and figure.f-pre-samp. If necessary, set `roleDocExample: true.`
+
+```js
+const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {roleDocExample: true})
 ```
