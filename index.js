@@ -252,7 +252,7 @@ const mditFigureWithPCaption = (md, option) => {
           if (token.tag === 'code' && token.block) {
             checkToken = true;
             let isSampInfo = false
-            if (token.info === 'samp' || token.info === 'shell' || token.info === 'console') {
+            if (/^ *(?:samp|shell|console)(?:(?= )|$)/.test(token.info)) {
               token.tag = 'samp';
               isSampInfo = true
             }
