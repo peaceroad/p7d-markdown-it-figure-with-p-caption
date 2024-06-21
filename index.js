@@ -4,6 +4,7 @@ const mditFigureWithPCaption = (md, option) => {
 
   let opt = {
     classPrefix: 'f',
+    figureClassThatWrapsIframeTypeBlockquote: 'f-img',
     styleProcess : true,
     hasNumClass: false,
     scaleSuffix: false,
@@ -148,10 +149,16 @@ const mditFigureWithPCaption = (md, option) => {
       figureStartToken.attrSet('class', 'f-video');
     }
     if (sp.isIframeTypeBlockQuote) {
-      if (sp.hasImgCaption) {
-        figureStartToken.attrSet('class', 'f-img');
+      let figureClassThatWrapsIframeTypeBlockquote = 'i-frame'
+      if (caption.prev || caption.next) {
+        if (caption.name === 'img') {
+          figureClassThatWrapsIframeTypeBlockquote = 'f-img'
+        }
+        figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
       } else {
-        figureStartToken.attrSet('class', 'f-iframe');
+        console.log('else::')
+        figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
+        figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
       }
     }
     if(/pre-(?:code|samp)/.test(tagName) && opt.roleDocExample) {
@@ -277,12 +284,11 @@ const mditFigureWithPCaption = (md, option) => {
         const tags = ['video', 'audio', 'iframe', 'blockquote'];
         let ctj = 0;
         while (ctj < tags.length) {
-          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)?(\\n|$)'));
+          const hasTag = token.content.match(new RegExp('^<'+ tags[ctj] + ' ?[^>]*?>[\\s\\S]*?<\\/' + tags[ctj] + '>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)? *(\\n|$)'));
           if (!hasTag) {
             ctj++;
             continue;
           }
-          //console.log(hasTag)
           if ((hasTag[2] && hasTag[3] !== '\n') ||
             (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
             token.content += '\n'
@@ -308,7 +314,7 @@ const mditFigureWithPCaption = (md, option) => {
         }
         if(sp.isIframeTypeBlockQuote) {
           if(n > 2) {
-            if (state.tokens[n-2].children.length > 1) {
+            if (state.tokens[n-2].children && state.tokens[n-2].children.length > 1) {
               if (state.tokens[n-2].children[1].attrs.length > 0) {
                 if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
                   if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
@@ -320,7 +326,7 @@ const mditFigureWithPCaption = (md, option) => {
             }
           }
           if (n + 2 < state.tokens.length) {
-            if (state.tokens[n+2].children.length > 1) {
+            if (state.tokens[n+2].children && state.tokens[n+2].children.length > 1) {
               if (state.tokens[n+2].children[1].attrs.length > 0) {
                 if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
                   state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {

@@ -452,7 +452,7 @@ Source. Twitter Post.
 A paragraph.
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-iframe">
+<figure class="f-img">
 <figcaption><span class="f-blockquote-label">Source<span class="f-blockquote-label-joint">.</span></span> Twitter Post.</figcaption>
 <blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </figure>
@@ -500,7 +500,7 @@ Quote. Twitter Post.
 A paragraph.
 [HTML]
 <p>A paragraph.</p>
-<figure class="f-iframe">
+<figure class="f-img">
 <blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 <figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> Twitter Post.</figcaption>
 </figure>
@@ -661,4 +661,14 @@ Slide. A caption.
 <source src="example.mp4" type="video/mp4">
 </video>
 
+
+[Markdown]
+図 キャプション
+
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図</span> キャプション</figcaption>
+<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
 
