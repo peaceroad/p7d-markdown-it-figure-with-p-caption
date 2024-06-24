@@ -314,23 +314,27 @@ const mditFigureWithPCaption = (md, option) => {
         }
         if(sp.isIframeTypeBlockQuote) {
           if(n > 2) {
-            if (state.tokens[n-2].children && state.tokens[n-2].children.length > 1) {
-              if (state.tokens[n-2].children[1].attrs.length > 0) {
-                if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
-                  if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
-                    sp.hasImgCaption = true;
-                    /* For now, I think I should use figure instead of blockquoe for caption. */
+            if (state.tokens[n-2].children) {
+              if (state.tokens[n-2].children.length > 1) {
+                if (state.tokens[n-2].children[1].attrs) {
+                  if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
+                    if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
+                      sp.hasImgCaption = true;
+                      /* For now, I think I should use figure instead of blockquoe for caption. */
+                    }
                   }
                 }
               }
             }
           }
           if (n + 2 < state.tokens.length) {
-            if (state.tokens[n+2].children && state.tokens[n+2].children.length > 1) {
-              if (state.tokens[n+2].children[1].attrs.length > 0) {
-                if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
-                  state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
-                  sp.hasImgCaption = true;
+            if (state.tokens[n+2].children) {
+              if (state.tokens[n+2].children.length > 1) {
+                if (state.tokens[n+2].children[1].attrs) {
+                  if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
+                    state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
+                    sp.hasImgCaption = true;
+                  }
                 }
               }
             }
