@@ -672,3 +672,31 @@ Slide. A caption.
 <blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </figure>
 
+
+[Markdown]
+コード Hello world
+
+```js {.style}
+console.log('Hello world')
+```
+[HTML]
+<figure class="f-pre-code">
+<figcaption><span class="f-pre-code-label">コード</span> Hello world</figcaption>
+<pre><code class="language-js style">console.log('Hello world')
+</code></pre>
+</figure>
+
+
+[Markdown]
+```js {.style}
+console.log('Hello world')
+```
+
+コード Hello world
+[HTML]
+<figure class="f-pre-code">
+<pre><code class="language-js style">console.log('Hello world')
+</code></pre>
+<figcaption><span class="f-pre-code-label">コード</span> Hello world</figcaption>
+</figure>
+

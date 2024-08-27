@@ -156,7 +156,6 @@ const mditFigureWithPCaption = (md, option) => {
         }
         figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
       } else {
-        console.log('else::')
         figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
         figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
       }
@@ -173,12 +172,12 @@ const mditFigureWithPCaption = (md, option) => {
       }
     }
    // For vsce
-    if(state.tokens[n].attrs) {
+   //console.log(caption)
+    if(state.tokens[n].attrs && caption.name === 'img') {
       for (let attr of state.tokens[n].attrs) {
         figureStartToken.attrJoin(attr[0], attr[1]);
       }
     }
-    ///
     if (replaceInsteadOfWrap) {
       state.tokens.splice(en, 1, breakToken, figureEndToken, breakToken);
       state.tokens.splice(n, 1, figureStartToken, breakToken);
@@ -239,6 +238,7 @@ const mditFigureWithPCaption = (md, option) => {
             }
           }
           checkToken = true;
+          caption.name = checkTags;
           tagName = token.tag;
           while (en < state.tokens.length) {
             if(state.tokens[en].type === tagName + '_close') {
@@ -294,6 +294,7 @@ const mditFigureWithPCaption = (md, option) => {
             token.content += '\n'
           }
           tagName = tags[ctj];
+          caption.name = tags[ctj];
           checkToken = true;
           if (tagName === 'blockquote') {
             //text-post-media: threads
@@ -359,6 +360,7 @@ const mditFigureWithPCaption = (md, option) => {
         let isMultipleImagesHorizontal = true
         let isMultipleImagesVertical = true
         checkToken = true
+        caption.name = 'img'
         while (ntChildTokenIndex < nextToken.children.length) {
           const ntChildToken = nextToken.children[ntChildTokenIndex]
           if (ntChildTokenIndex === nextToken.children.length - 1) {
@@ -580,7 +582,9 @@ const mditFigureWithPCaption = (md, option) => {
     removeUnnumberedLabel: opt.removeUnnumberedLabel,
     removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
   })
-  md.core.ruler.before('linkify', 'figure_with_caption', figureWithCaption);
+
+  //If nextCaption has `{}` style and `f-img-multipleImages`, when upgraded to markdown-it-attrs@4.2.0, the existing script will have `{}` style on nextCaption. Therefore, since markdown-it-attrs is md.core.ruler.before('linkify'), figure_with_caption will be processed after it.
+  md.core.ruler.before('replacements', 'figure_with_caption', figureWithCaption);
 }
 
 export default mditFigureWithPCaption
