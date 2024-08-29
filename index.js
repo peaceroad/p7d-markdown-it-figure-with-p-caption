@@ -190,7 +190,7 @@ const figureWithCaption = (state, opt) => {
           }
         }
         checkToken = true
-        caption.name = checkTags
+        caption.name = checkTags[cti]
         tagName = token.tag
         while (en < state.tokens.length) {
           if(state.tokens[en].type === tagName + '_close') {
