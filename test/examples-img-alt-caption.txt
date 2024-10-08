@@ -87,3 +87,49 @@ Figure. A caption.
 <img src="cat.jpg" alt="">
 </figure>
 
+
+[Markdown]
+
+```
+code
+```
+
+![A caption.](cat.jpg)
+
+[HTML]
+<pre><code>code
+</code></pre>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+
+| h1 | h2 |
+|----|----|
+| 11 | 12 |
+
+![A caption.](cat.jpg)
+
+[HTML]
+<table>
+<thead>
+<tr>
+<th>h1</th>
+<th>h2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>A caption.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+

@@ -185,7 +185,7 @@ const figureWithCaption = (state, opt) => {
     while (cti < checkTags.length) {
       if (token.type === checkTags[cti] + '_open') {
         if (n > 1) {
-          if (state.tokens[n-2].type === 'figure_open') { // +linebreak
+          if (state.tokens[n-2].type === 'figure_open') { // linebreak in between
             cti++; continue;
           }
         }
@@ -201,6 +201,11 @@ const figureWithCaption = (state, opt) => {
         }
         range.end = en
         caption = checkCaption(state, n, en, caption)
+        console.log(caption.name, checkTags[cti])
+       if (!/table|pre|blockquote/.test(caption.name)) {
+          checkToken = false
+          break
+        }
         if (caption.hasPrev || caption.hasNext) {
           range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
         }
@@ -221,6 +226,10 @@ const figureWithCaption = (state, opt) => {
             tagName = 'pre-code'
           }
           caption = checkCaption(state, n, en, caption)
+          if (!/pre/.test(caption.name)) {
+            checkToken = false
+            break
+          }
           if (caption.hasPrev || caption.hasNext) {
             range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
             break
