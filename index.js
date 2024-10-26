@@ -1,12 +1,15 @@
-import mditPCaption from 'p7d-markdown-it-p-captions'
+import {setCaptionParagraph} from 'p7d-markdown-it-p-captions'
 
-const checkPrevCaption = (state, n, caption) => {
+const checkPrevCaption = (state, n, caption, sp, opt) => {
   if(n < 3) return caption
   const captionStartToken = state.tokens[n-3]
   const captionEndToken = state.tokens[n-1]
   if (captionStartToken === undefined || captionEndToken === undefined) return caption
 
   if (captionStartToken.type !== 'paragraph_open' && captionEndToken.type !== 'paragraph_close') return caption
+
+  caption = setCaptionParagraph(n-3, state, caption, sp, opt)
+
   let captionName = ''
   if (captionStartToken.attrs) {
     captionStartToken.attrs.forEach(attr => {
@@ -16,7 +19,7 @@ const checkPrevCaption = (state, n, caption) => {
   }
   if(!captionName) return caption
   caption.name = captionName
-  caption.hasPrev = true
+  caption.isPrev = true
   return caption
 }
 
@@ -52,12 +55,14 @@ const changePrevCaptionPosition = (state, n, caption) => {
   return true
 }
 
-const checkNextCaption = (state, en, caption) => {
+const checkNextCaption = (state, en, caption, sp, opt) => {
   if (en + 2 > state.tokens.length) return caption
   const captionStartToken = state.tokens[en+1]
   const captionEndToken = state.tokens[en+3]
   if (captionStartToken === undefined || captionEndToken === undefined) return caption
   if (captionStartToken.type !== 'paragraph_open' && captionEndToken.type !== 'paragraph_close') return caption
+
+  caption = setCaptionParagraph(en+1, state, caption, sp, opt)
 
   let captionName = ''
   if (captionStartToken.attrs) {
@@ -68,7 +73,7 @@ const checkNextCaption = (state, en, caption) => {
   }
   if(!captionName) return caption
   caption.name = captionName
-  caption.hasNext = true
+  caption.isNext = true
   return caption
 }
 
@@ -93,18 +98,18 @@ const changeNextCaptionPosition = (state, en, caption) => {
   return true
 }
 
-const wrapWithFigure = (state, range, tagName, caption, replaceInsteadOfWrap, sp, opt) => {
+const wrapWithFigure = (state, range, checkTokenTagName, caption, replaceInsteadOfWrap, sp, opt) => {
   let n = range.start
   let en = range.end
   const figureStartToken = new state.Token('figure_open', 'figure', 1)
-  figureStartToken.attrSet('class', 'f-' + tagName)
+  figureStartToken.attrSet('class', 'f-' + checkTokenTagName)
   if (sp.isVideoIframe) {
     figureStartToken.attrSet('class', 'f-video')
   }
-  if (sp.isIframeTypeBlockQuote) {
+  if (sp.isIframeTypeBlockquote) {
     let figureClassThatWrapsIframeTypeBlockquote = 'i-frame'
-    if (caption.prev || caption.next) {
-      if (caption.name === 'img') {
+    if (caption.isPrev || caption.isNext) {
+      if (caption.name === 'blockquote' || caption.name === 'img') {
         figureClassThatWrapsIframeTypeBlockquote = 'f-img'
       }
       figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
@@ -113,13 +118,15 @@ const wrapWithFigure = (state, range, tagName, caption, replaceInsteadOfWrap, sp
       figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
     }
   }
-  if(/pre-(?:code|samp)/.test(tagName) && opt.roleDocExample) {
+
+
+  if(/pre-(?:code|samp)/.test(checkTokenTagName) && opt.roleDocExample) {
     figureStartToken.attrSet('role', 'doc-example')
   }
   const figureEndToken = new state.Token('figure_close', 'figure', -1)
   const breakToken = new state.Token('text', '', 0)
   breakToken.content = '\n'
-  if (opt.styleProcess && caption.hasNext && sp.attrs.length > 0) {
+  if (opt.styleProcess && caption.isNext && sp.attrs.length > 0) {
     for (let attr of sp.attrs) {
       figureStartToken.attrJoin(attr[0], attr[1])
     }
@@ -147,10 +154,10 @@ const wrapWithFigure = (state, range, tagName, caption, replaceInsteadOfWrap, sp
   return range
 }
 
-const checkCaption = (state, n, en, caption) => {
-  caption = checkPrevCaption(state, n, caption)
-  if (caption.hasPrev) return caption
-  caption = checkNextCaption(state, en, caption)
+const checkCaption = (state, n, en, caption, sp, opt) => {
+  caption = checkPrevCaption(state, n, caption, sp, opt)
+  if (caption.isPrev) return caption
+  caption = checkNextCaption(state, en, caption, sp, opt)
   return caption
 }
 
@@ -166,72 +173,71 @@ const figureWithCaption = (state, opt) => {
     }
     let checkToken = false
     let hasCloseTag = false
-    let tagName = ''
+    let checkTokenTagName = ''
     let caption = {
+      mark: '',
       name: '',
       nameSuffix: '',
-      hasPrev: false,
-      hasNext: false,
+      isPrev: false,
+      isNext: false,
     };
     const sp = {
       attrs: [],
       isVideoIframe: false,
-      isIframeTypeBlockQuote: false,
+      isIframeTypeBlockquote: false,
       hasImgCaption: false,
     }
 
-    const checkTags = ['table', 'pre', 'blockquote']
+    const checkTypes = ['table', 'pre', 'blockquote']
     let cti = 0
-    while (cti < checkTags.length) {
-      if (token.type === checkTags[cti] + '_open') {
-        if (n > 1) {
-          if (state.tokens[n-2].type === 'figure_open') { // linebreak in between
-            cti++; continue;
-          }
+    //console.log(state.tokens[n].type, state.tokens[n].tag)
+    while (cti < checkTypes.length) {
+      if (token.type === checkTypes[cti] + '_open') {
+        // for n-1 token is line-break
+        if (n > 1 && state.tokens[n-2].type === 'figure_open') {
+          cti++; continue
         }
         checkToken = true
-        caption.name = checkTags[cti]
-        tagName = token.tag
+        checkTokenTagName = token.tag
+        caption.name = checkTypes[cti]
+        if (checkTypes[cti] === 'pre') {
+          if (state.tokens[n+1].tag === 'code') caption.mark = 'pre-code'
+          if (state.tokens[n+1].tag === 'samp') caption.mark = 'pre-samp'
+          caption.name = caption.mark
+        }
         while (en < state.tokens.length) {
-          if(state.tokens[en].type === tagName + '_close') {
+          if(state.tokens[en].type === checkTokenTagName + '_close') {
             hasCloseTag = true
             break
           }
           en++
         }
         range.end = en
-        caption = checkCaption(state, n, en, caption)
-        console.log(caption.name, checkTags[cti])
-       if (!/table|pre|blockquote/.test(caption.name)) {
-          checkToken = false
-          break
-        }
-        if (caption.hasPrev || caption.hasNext) {
-          range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
+        caption = checkCaption(state, n, en, caption, sp, opt)
+        if (caption.isPrev || caption.isNext) {
+          range = wrapWithFigure(state, range, checkTokenTagName, caption, false, sp, opt)
         }
         break
       }
 
-      if(token.type === 'fence') {
+      if (token.type === 'fence') {
         if (token.tag === 'code' && token.block) {
           checkToken = true
-          let isSampInfo = false
+          let isSamp = false
           if (/^ *(?:samp|shell|console)(?:(?= )|$)/.test(token.info)) {
             token.tag = 'samp'
-            isSampInfo = true
+            isSamp = true
           }
-          if (isSampInfo) {
-            tagName = 'pre-samp'
+          if (isSamp) {
+            checkTokenTagName = 'pre-samp'
+            caption.name = 'pre-samp'
           } else {
-            tagName = 'pre-code'
+            checkTokenTagName = 'pre-code'
+            caption.name = 'pre-code'
           }
-          caption = checkCaption(state, n, en, caption)
-          if (!/pre/.test(caption.name)) {
-            checkToken = false
-            break
-          }
-          if (caption.hasPrev || caption.hasNext) {
-            range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
+          caption = checkCaption(state, n, en, caption, sp, opt)
+          if (caption.isPrev || caption.isNext) {
+            range = wrapWithFigure(state, range, checkTokenTagName, caption, false, sp, opt)
             break
           }
         }
@@ -252,13 +258,13 @@ const figureWithCaption = (state, opt) => {
         if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
           token.content += '\n'
         }
-        tagName = tags[ctj]
+        checkTokenTagName = tags[ctj]
         caption.name = tags[ctj]
         checkToken = true
-        if (tagName === 'blockquote') {
+        if (checkTokenTagName === 'blockquote') {
           //text-post-media: threads
           if(/^<[^>]*? class="(?:twitter-tweet|instagram-media|text-post-media|bluesky-embed)"/.test(token.content)) {
-            sp.isIframeTypeBlockQuote = true
+            sp.isIframeTypeBlockquote = true
           } else {
             ctj++
             continue
@@ -267,47 +273,20 @@ const figureWithCaption = (state, opt) => {
         break
       }
       if (!checkToken) {n++; continue;}
-      if (tagName === 'iframe') {
+      if (checkTokenTagName === 'iframe') {
         if(/^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i.test(token.content)) {
           sp.isVideoIframe = true
         }
       }
-      if(sp.isIframeTypeBlockQuote) {
-        if(n > 2) {
-          if (state.tokens[n-2].children) {
-            if (state.tokens[n-2].children.length > 1) {
-              if (state.tokens[n-2].children[1].attrs) {
-                if (state.tokens[n-2].children[1].attrs[0][0] === 'class') {
-                  if (state.tokens[n-2].children[1].attrs[0][1] === 'f-img-label') {
-                    sp.hasImgCaption = true
-                    /* For now, I think I should use figure instead of blockquoe for caption. */
-                  }
-                }
-              }
-            }
-          }
-        }
-        if (n + 2 < state.tokens.length) {
-          if (state.tokens[n+2].children) {
-            if (state.tokens[n+2].children.length > 1) {
-              if (state.tokens[n+2].children[1].attrs) {
-                if (state.tokens[n+2].children[1].attrs[0][0] === 'class' &&
-                  state.tokens[n+2].children[1].attrs[0][1] === 'f-img-label') {
-                  sp.hasImgCaption = true
-                }
-              }
-            }
-          }
-        }
-      }
-      caption = checkCaption(state, n, en, caption)
-      if (caption.hasPrev || caption.hasNext) {
-        range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
+
+      caption = checkCaption(state, n, en, caption, sp, opt)
+      if (caption.isPrev || caption.isNext) {
+        range = wrapWithFigure(state, range, checkTokenTagName, caption, false, sp, opt)
         n = en + 2
-      } else if ((opt.iframeWithoutCaption && (tagName === 'iframe')) ||
-        (opt.videoWithoutCaption && (tagName === 'video')) ||
-        (opt.iframeTypeBlockquoteWithoutCaption && (tagName === 'blockquote'))) {
-        range = wrapWithFigure(state, range, tagName, caption, false, sp, opt)
+      } else if ((opt.iframeWithoutCaption && (checkTokenTagName === 'iframe')) ||
+        (opt.videoWithoutCaption && (checkTokenTagName === 'video')) ||
+        (opt.iframeTypeBlockquoteWithoutCaption && (checkTokenTagName === 'blockquote'))) {
+        range = wrapWithFigure(state, range, checkTokenTagName, caption, false, sp, opt)
         n = en + 2
       }
     }
@@ -357,7 +336,7 @@ const figureWithCaption = (state, opt) => {
             isMultipleImagesHorizontal = false
           }
         } else if (ntChildToken.type === 'softbreak') {
-         isMultipleImagesHorizontal = false
+          isMultipleImagesHorizontal = false
           if (isMultipleImagesHorizontal) {
             isMultipleImagesVertical = false
           }
@@ -379,26 +358,26 @@ const figureWithCaption = (state, opt) => {
         while (ntChildTokenIndex < nextToken.children.length) {
           const ccToken = nextToken.children[ntChildTokenIndex]
           if (ccToken.type === 'text' && /^ *$/.test(ccToken.content)) {
-           ccToken.content = ''
+            ccToken.content = ''
           }
           ntChildTokenIndex++
         }
       }
       en = n + 2
       range.end = en
-      tagName = 'img'
+      checkTokenTagName = 'img'
       nextToken.children[0].type = 'image'
 
-      if (opt.imgAltCaption) setAltToLabel(state, n, en, tagName, caption, opt)
-      if (opt.imgTitleCaption) setTitleToLabel(state, n, en, tagName, caption, opt)
-      caption = checkCaption(state, n, en, caption)
+      if (opt.imgAltCaption) setAltToLabel(state, n)
+      if (opt.imgTitleCaption) setTitleToLabel(state, n, en, checkTokenTagName, caption, opt)
+      caption = checkCaption(state, n, en, caption, sp, opt)
 
       if (opt.oneImageWithoutCaption && state.tokens[n-1]) {
         if (state.tokens[n-1].type === 'list_item_open') checkToken = false
       }
-      if (checkToken && (opt.oneImageWithoutCaption || caption.hasPrev || caption.hasNext)) {
-        if (caption.nameSuffix) tagName += caption.nameSuffix
-        range = wrapWithFigure(state, range, tagName, caption, true, sp, opt)
+      if (checkToken && (opt.oneImageWithoutCaption || caption.isPrev || caption.isNext)) {
+        if (caption.nameSuffix) checkTokenTagName += caption.nameSuffix
+        range = wrapWithFigure(state, range, checkTokenTagName, caption, true, sp, opt)
       }
     }
 
@@ -406,12 +385,12 @@ const figureWithCaption = (state, opt) => {
 
     n = range.start
     en = range.end
-    if (caption.hasPrev) {
+    if (caption.isPrev) {
       changePrevCaptionPosition(state, n, caption)
       n = en + 1
       continue
     }
-    if (caption.hasNext) {
+    if (caption.isNext) {
       changeNextCaptionPosition(state, en, caption)
       n = en + 4
       continue
@@ -421,11 +400,11 @@ const figureWithCaption = (state, opt) => {
   return
 }
 
-const setAltToLabel = (state, n, en, tagName, caption, opt) => {
+const setAltToLabel = (state, n) => {
   if (n < 2) return false
   if (state.tokens[n+1].children[0].type !== 'image' || !state.tokens[n-2].children) return false
-  if (state.tokens[n-2].children[2]) {
-    state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[2].content + ']')
+  if (state.tokens[n-2].children) {
+    state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[0].content + ']')
     if (!state.tokens[n+1].children[0].children[0]) {
       const textToken  = new state.Token('text', '', 0)
       state.tokens[n+1].children[0].children.push(textToken)
@@ -443,7 +422,7 @@ const setAltToLabel = (state, n, en, tagName, caption, opt) => {
   return true
 }
 
-const setTitleToLabel = (state, n, en, tagName, caption, opt) => {
+const setTitleToLabel = (state, n, en, checkTokenTagName, caption, opt) => {
   if (n < 2) return false
   if (state.tokens[n+1].children[0].type !== 'image') return false
   if (!state.tokens[n-2].children[0]) return false
@@ -556,21 +535,11 @@ const mditFigureWithPCaption = (md, option) => {
   }
 
   if (opt.imgAltCaption || opt.imgTitleCaption) {
+    opt.oneImageWithoutCaption = false
     md.block.ruler.before('paragraph', 'img_attr_caption', (state) => {
       imgAttrToPCaption(state, state.line, opt)
     })
   }
-  md.use(mditPCaption, {
-    classPrefix: opt.classPrefix,
-    dquoteFilename: opt.dquoteFilename,
-    strongFilename: opt.strongFilename,
-    hasNumClass: opt.hasNumClass,
-    bLabel: opt.bLabel,
-    strongLabel: opt.strongLabel,
-    jointSpaceUseHalfWidth: opt.jointSpaceUseHalfWidth,
-    removeUnnumberedLabel: opt.removeUnnumberedLabel,
-    removeUnnumberedLabelExceptMarks: opt.removeUnnumberedLabelExceptMarks,
-  })
 
   //If nextCaption has `{}` style and `f-img-multipleImages`, when upgraded to markdown-it-attrs@4.2.0, the existing script will have `{}` style on nextCaption. Therefore, since markdown-it-attrs is md.core.ruler.before('linkify'), figure_with_caption will be processed after it.
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {

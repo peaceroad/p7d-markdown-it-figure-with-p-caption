@@ -1,0 +1,30 @@
+[Markdown]
+![猫](cat.jpg "図1　キャプション")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
+<img src="cat.jpg" alt="猫">
+</figure>
+
+[Markdown]
+![](cat.jpg "図 キャプション")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図</span> キャプション</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+図 キャプション
+
+![猫](cat.jpg "図23 Caption")
+
+[HTML]
+<p>図 キャプション</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図23</span> Caption</figcaption>
+<img src="cat.jpg" alt="猫">
+</figure>

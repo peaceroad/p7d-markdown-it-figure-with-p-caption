@@ -700,3 +700,16 @@ console.log('Hello world')
 <figcaption><span class="f-pre-code-label">コード</span> Hello world</figcaption>
 </figure>
 
+
+[Markdown]
+
+```
+code
+```
+
+![A caption.](cat.jpg)
+
+[HTML]
+<pre><code>code
+</code></pre>
+<p><img src="cat.jpg" alt="A caption."></p>

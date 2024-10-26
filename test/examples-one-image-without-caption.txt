@@ -43,3 +43,17 @@ Figure. A Caption.
 </figure>
 
 
+[Markdown]
+
+```
+code
+```
+
+![A caption.](cat.jpg)
+
+[HTML]
+<pre><code>code
+</code></pre>
+<figure class="f-img">
+<img src="cat.jpg" alt="A caption.">
+</figure>

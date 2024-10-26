@@ -50,10 +50,9 @@ const mdConsole = mdit({
         return highlightjs.highlight(str, { language: lang }).value
       } catch (__) {}
     }
-    return ''
+    return str
   }
 }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-
 
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
 const isWindows = (process.platform === 'win32')
@@ -126,7 +125,7 @@ const runTest = (process, pat, pass, testId) => {
   while(n <= end) {
 
     if (!ms[n]
-//      || n != 3
+      //|| n != 24
     ) {
       n++
       continue
@@ -135,6 +134,7 @@ const runTest = (process, pat, pass, testId) => {
     const m = ms[n].markdown;
     const h = process.render(m)
     console.log('Test: ' + n + ' >>>');
+    //console.log(ms[n].markdown);
     try {
       assert.strictEqual(h, ms[n].html);
     } catch(e) {
@@ -161,22 +161,20 @@ pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
 pass = runTest(mdConsole, testData.console, pass)
 
 
-opt.oneImageWithoutCaption = false
-
 opt.imgAltCaption = 'Figure'
 const mdImgAltCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgAltCaption, testData.imgAltCaption, pass, [1, 5])
+pass = runTest(mdImgAltCaption, testData.imgAltCaption.replace(/\.txt$/, '.en.txt'), pass)
 opt.imgAltCaption = '図'
 const mdImgAltCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgAltCaptionJa, testData.imgAltCaption, pass, [6 , 99])
+pass = runTest(mdImgAltCaptionJa, testData.imgAltCaption.replace(/\.txt$/, '.ja.txt'),  pass)
 
 opt.imgAltCaption = false
 
 opt.imgTitleCaption = 'Figure'
 const mdImgTitleCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgTitleCaption, testData.imgTitleCaption, pass, [1, 6])
+pass = runTest(mdImgTitleCaption, testData.imgTitleCaption.replace(/\.txt$/, '.en.txt'), pass)
 opt.imgTitleCaption = '図'
 const mdImgTitleCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgTitleCaptionJa, testData.imgTitleCaption, pass, [7, 99])
+pass = runTest(mdImgTitleCaptionJa, testData.imgTitleCaption.replace(/.txt$/, '.ja.txt'), pass)
 
 if (pass) console.log('Passed all test.')
