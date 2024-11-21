@@ -7,7 +7,10 @@
   "scripts": {
     "test": "node test/test.js"
   },
-  "repository": "https://github.com/peaceroad/p7d-markdown-it-figure-with-p-caption.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peaceroad/p7d-markdown-it-figure-with-p-caption.git"
+  },
   "author": "peaceroad <peaceroad@gmail.com>",
   "license": "MIT",
   "bugs": {
