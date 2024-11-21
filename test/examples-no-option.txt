@@ -713,3 +713,31 @@ code
 <pre><code>code
 </code></pre>
 <p><img src="cat.jpg" alt="A caption."></p>
+
+
+[Markdown]
+リスト キャプション
+
+```
+code
+```
+[HTML]
+<figure class="f-pre-code">
+<figcaption><span class="f-pre-code-label">リスト</span> キャプション</figcaption>
+<pre><code>code
+</code></pre>
+</figure>
+
+
+[Markdown]
+リスト キャプション
+
+```samp
+>
+```
+[HTML]
+<figure class="f-pre-samp">
+<figcaption><span class="f-pre-samp-label">リスト</span> キャプション</figcaption>
+<pre><samp>&gt;
+</samp></pre>
+</figure>
