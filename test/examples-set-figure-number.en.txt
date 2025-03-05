@@ -1,0 +1,21 @@
+[Markdown]
+Figure. A caption.
+
+![](example.jpg)
+
+Figure. A caption.
+
+![](example.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="example.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<img src="example.jpg" alt="">
+</figure>
+
+
+

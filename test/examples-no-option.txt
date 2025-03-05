@@ -741,3 +741,30 @@ code
 <pre><samp>&gt;
 </samp></pre>
 </figure>
+
+[Markdown]
+リスト キャプション
+
+```
+>
+```
+[HTML]
+<figure class="f-pre-code">
+<figcaption><span class="f-pre-code-label">リスト</span> キャプション</figcaption>
+<pre><code>&gt;
+</code></pre>
+</figure>
+
+
+[Markdown]
+図 キャプション
+
+```samp
+>
+```
+[HTML]
+<figure class="f-pre-samp">
+<figcaption><span class="f-pre-samp-label">図</span> キャプション</figcaption>
+<pre><samp>&gt;
+</samp></pre>
+</figure>

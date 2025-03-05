@@ -515,3 +515,45 @@ From version 0.8, role="doc-example" is not included as standard in figure.f-pre
 ```js
 const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {roleDocExample: true})
 ```
+
+### Option: allIframeTypeFigureClassName
+
+From version 0.16.0, unify the figure element that wraps the iframe or blockquote tag in the embed code to figure.f-embed (this may become the default in the future).
+
+```js
+const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCaption, {
+  allIframeTypeFigureClassName: 'f-embed',
+  videoWithoutCaption = true,
+  iframeWithoutCaption = true,
+  iframeTypeBlockquoteWithoutCaption = true,
+}).use(mditAttrs).use(mditRndererFence);
+```
+
+```
+[Markdown]
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[HTML]
+<figure class="f-embed">
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</figure>
+
+
+[Markdown]
+Video. A youtube.
+
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[HTML]
+<figure class="f-embed">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</figure>
+
+
+[Markdown]
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@xxxx/xxxx/embed" ...>xxxxxxxxxxxxxxxx</blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
+
+[HTML]
+<figure class="f-embed">
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@xxxx/xxxx/embed" ...>xxxxxxxxxxxxxxxx</blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
+</figure>
+```

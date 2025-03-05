@@ -3,7 +3,7 @@
 
 [HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
 <img src="cat.jpg" alt="">
 </figure>
 
@@ -13,7 +13,7 @@
 
 [HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
 <img src="cat.jpg" alt="">
 </figure>
 
@@ -23,6 +23,7 @@
 
 [HTML]
 <figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span></figcaption>
 <img src="cat.jpg" alt="">
 </figure>
 
@@ -35,6 +36,7 @@ Figure. A caption.
 [HTML]
 <p>Figure. A caption.</p>
 <figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span></figcaption>
 <img src="cat.jpg" alt="">
 </figure>
 
@@ -47,14 +49,3 @@ Figure. A caption.
 <figcaption><span class="f-img-label">Figure 12<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
 <img src="cat.jpg" alt="">
 </figure>
-
-[Markdown]
-![Figure.1 A caption.](cat.jpg)
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure.1</span> A caption.</figcaption>
-<img src="cat.jpg" alt="">
-</figure>
-
-

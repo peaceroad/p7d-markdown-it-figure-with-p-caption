@@ -16,6 +16,7 @@ let opt = {
   videoWithoutCaption: false,
   hasNumClass: false,
   iframeTypeBlockquoteWithoutCaption: false,
+  setFigureNumber: false,
 }
 
 const md = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
@@ -39,6 +40,7 @@ const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use
 
 opt.videoWithoutCaption = true
 const mdVideoWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+
 
 const mdConsole = mdit({
   html: true,
@@ -73,6 +75,10 @@ const testData = {
   imgAltCaption: __dirname + path.sep + 'examples-img-alt-caption.txt',
   imgTitleCaption: __dirname + path.sep + 'examples-img-title-caption.txt',
   console: __dirname + path.sep + 'examples-console.txt',
+  setFigureNumber: __dirname + path.sep + 'examples-set-figure-number.txt',
+  imgAltCaptionNumber: __dirname + path.sep + 'examples-img-alt-caption-number.txt',
+  imgTitleCaptionNumber: __dirname + path.sep + 'examples-img-title-caption-number.txt',
+  allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
 }
 
 const getTestData = (pat) => {
@@ -125,7 +131,7 @@ const runTest = (process, pat, pass, testId) => {
   while(n <= end) {
 
     if (!ms[n]
-      //|| n != 43
+      //|| n != 11
     ) {
       n++
       continue
@@ -176,5 +182,27 @@ pass = runTest(mdImgTitleCaption, testData.imgTitleCaption.replace(/\.txt$/, '.e
 opt.imgTitleCaption = '図'
 const mdImgTitleCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdImgTitleCaptionJa, testData.imgTitleCaption.replace(/.txt$/, '.ja.txt'), pass)
+
+opt = {}
+opt.setFigureNumber = true
+const mdSetFigureNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdSetFigureNumber, testData.setFigureNumber.replace(/\.txt$/, '.en.txt'), pass)
+
+opt.imgAltCaption = true
+const mdImgAltCaptionNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdImgAltCaptionNumber, testData.imgAltCaptionNumber.replace(/\.txt$/, '.en.txt'), pass)
+
+opt = {}
+opt.imgTitleCaption = true
+const mdImgTitleCaptionNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+//pass = runTest(mdImgTitleCaptionNumber, testData.imgTitleCaptionNumber.replace(/\.txt$/, '.en.txt'), pass)
+
+opt = {}
+opt.videoWithoutCaption = true
+opt.iframeWithoutCaption = true
+opt.iframeTypeBlockquoteWithoutCaption = true
+opt.allIframeTypeFigureClassName = 'f-embed'
+const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdAllIframeTypeFigureClassName, testData.allIframeTypeFigureClassName, pass)
 
 if (pass) console.log('Passed all test.')
