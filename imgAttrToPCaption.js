@@ -1,49 +1,36 @@
 import { markReg } from 'p7d-markdown-it-p-captions'
 
-const imgReg = /^( *!\[)(.*?)\]\( *?((.*?)(?: +?\"(.*?)\")?) *?\)( *?\{.*?\})? *$/
+const imgReg = /^( *!\[)(.*?)\]\( *?((.*?)(?: +?"(.*?)")?) *?\)( *?\{.*?\})? *$/
 
 const imgAttrToPCaption = (state, startLine, opt) => {
+  const imgMarkReg = markReg['img']
   let pos = state.bMarks[startLine] + state.tShift[startLine]
   let max = state.eMarks[startLine]
-  //console.log('init inline: ' + state.src.slice(pos, max))
   let inline = state.src.slice(pos, max)
   const img = inline.match(imgReg)
   if (!img) return
 
-  let alt = img[2] === undefined ? '' : img[2]
-  let title = img[5] === undefined ? '' : img[5]
-  //console.log('alt: ' + alt + ', title: ' + title)
+  let alt = img[2] ?? ''
+  let title = img[5] ?? ''
+  const caption = opt.imgTitleCaption ? title : (opt.imgAltCaption ? alt : '')
+  const altCap = typeof opt.imgAltCaption === 'string' ? opt.imgAltCaption : ''
+  const titleCap = typeof opt.imgTitleCaption === 'string' ? opt.imgTitleCaption : ''
 
-  let caption = ''
-  if (opt.imgAltCaption) caption = alt
-  if (opt.imgTitleCaption) caption = title
-
-  const hasMarkLabel = caption.match(markReg['img'])
-
+  const hasMarkLabel = caption.match(imgMarkReg)
   let modCaption = ''
   if (hasMarkLabel) {
     modCaption = caption
   } else {
-    if (typeof opt.imgAltCaption === 'string' || typeof opt.imgTitleCaption === 'string') {
-      if (/[a-zA-Z]/.test(opt.imgAltCaption)) {
-        if (caption ===  '') {
-          modCaption = (opt.imgAltCaption ? opt.imgAltCaption : opt.imgTitleCaption) + '.'
-        } else {
-          modCaption = (opt.imgAltCaption ? opt.imgAltCaption : opt.imgTitleCaption) + '. ' + caption
-        }
-      } else {
-        if (caption ===  '') {
-          modCaption = (opt.imgAltCaption ? opt.imgAltCaption : opt.imgTitleCaption) + ' '
-        } else {
-          modCaption = (opt.imgAltCaption ? opt.imgAltCaption : opt.imgTitleCaption) + '　' + caption
-        }
-      }
+    const prefix = altCap || titleCap || ''
+    if (prefix && /[a-zA-Z]/.test(prefix)) {
+      modCaption = caption === '' ? prefix + '.' : prefix + '. ' + caption
     } else {
-      modCaption = 'Figure.'
-      if (caption !== '') modCaption += ' ' + caption
+      modCaption = caption === '' ? prefix + ' ' : prefix + '　' + caption
+    }
+    if (!prefix) {
+      modCaption = 'Figure.' + (caption !== '' ? ' ' + caption : '')
     }
   }
-  //console.log('modCaption: ' + modCaption)
   let token = state.push('paragraph_open', 'p', 1)
   token.map = [startLine, startLine + 1]
   token = state.push('inline', '', 0)
@@ -58,46 +45,37 @@ const imgAttrToPCaption = (state, startLine, opt) => {
 
 const setAltToLabel = (state, n) => {
   if (n < 2) return false
-  if (state.tokens[n+1].children[0].type !== 'image' || !state.tokens[n-2].children) return false
+  const imageToken = state.tokens[n+1].children[0]
+  if (imageToken.type !== 'image' || !state.tokens[n-2].children) return false
+  const prevTokenChild = state.tokens[n-2].children[0]
   if (state.tokens[n-2].children) {
-    state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + state.tokens[n-2].children[0].content + ']')
-    if (!state.tokens[n+1].children[0].children[0]) {
+    state.tokens[n+1].content = state.tokens[n+1].content.replace(/^!\[.*?\]/, '![' + prevTokenChild.content + ']')
+    if (!imageToken.children[0]) {
       const textToken  = new state.Token('text', '', 0)
-      state.tokens[n+1].children[0].children.push(textToken)
+      imageToken.children.push(textToken)
     }
-    // Set figure label:
-    //state.tokens[n+1].children[0].children[0].content = state.tokens[n-2].children[2].content
-    // Set img alt to empty value:
-    state.tokens[n+1].children[0].children[0].content = ''
+    imageToken.children[0].content = ''
   }
-  // Set figure label:
-  //state.tokens[n+1].children[0].content = state.tokens[n-2].children[2].content
-  // Set img alt to empty value:
-  state.tokens[n+1].children[0].content = ''
-  //console.log(state.tokens[n+1].children[0])
+  imageToken.content = ''
   return true
 }
 
 const setTitleToLabel = (state, n) => {
   if (n < 2) return false
-  if (state.tokens[n+1].children[0].type !== 'image') return false
+  const imageToken = state.tokens[n+1].children[0]
+  if (imageToken.type !== 'image') return false
   if (!state.tokens[n-2].children[0]) return false
-  state.tokens[n+1].children[0].attrSet('alt', state.tokens[n+1].children[0].content)
-  if (!state.tokens[n+1].children[0].children[0]) {
+  imageToken.attrSet('alt', imageToken.content)
+  if (!imageToken.children[0]) {
     const textToken  = new state.Token('text', '', 0)
-    state.tokens[n+1].children[0].children.push(textToken)
+    imageToken.children.push(textToken)
   }
-  let i = 0
-  while (0 < state.tokens[n+1].children[0].attrs.length) {
-    if (state.tokens[n+1].children[0].attrs[i][0] === 'title') {
-      state.tokens[n+1].children[0].attrs.splice(i, i + 1)
+  for (let i = 0; i < imageToken.attrs.length; i++) {
+    if (imageToken.attrs[i][0] === 'title') {
+      imageToken.attrs.splice(i, 1)
       break
-    } else {
-      state.tokens[n+1].children[0].attrJoin('title', '')
     }
-    i++
   }
-  //console.log(state.tokens[n+1].children[0])
   return true
 }
 
