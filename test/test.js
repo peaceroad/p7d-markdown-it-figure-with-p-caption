@@ -98,7 +98,13 @@ const getTestData = (pat) => {
       if (mhs[i] === undefined) {
         mhs[i] = '';
       } else {
-        mhs[i] = mhs[i].replace(/$/,'\n');
+        // If the HTML block ends with a closing tag (like <dl>), do not add a newline at the end.
+        // Also, markdown-it does not output a newline after closing tags like </dd> or </dt>, so this prevents false negatives in tests.
+        if (/<\/[a-zA-Z]+>$/.test(mhs[0].trim()) && !/<\/(?:video|figure)>$/.test(mhs[1].trim())) {
+          mhs[i] = mhs[i]
+        } else {
+          mhs[i] = mhs[i] + '\n';
+        }
       }
       i++;
     }
@@ -150,6 +156,9 @@ const runTest = (process, pat, pass, testId) => {
       console.log(ms[n].markdown);
       console.log('incorrect:');
       console.log('H: ' + h +'C: ' + ms[n].html);
+      console.log('H length:', h.length, 'C length:', ms[n].html.length);
+      //console.log('H last 10 chars:', JSON.stringify(h.slice(-10)));
+      //console.log('C last 10 chars:', JSON.stringify(ms[n].html.slice(-10)));
     }
     n++;
   }

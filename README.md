@@ -2,11 +2,12 @@
 
 This is a markdown-it plugin.
 
-For a paragraph with one image/images only, a table or code block or a blockquote or a iframe, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.
+For paragraphs containing only images, tables, code blocks, blockquotes, or iframes, this plugin converts them into figure elements with figcaption elements when a caption paragraph is written immediately before or after.
 
-1. Check that the element: one image only paragraph, table, code(samp) block, blockquote, and video, iframe.
-2. Check if this element has a caption paragraph immediately before or after it
-3. If there is the caption paragraph, convert them to figure and figcaption element.
+The conversion process:
+1. Detect supported elements: image paragraphs, tables, code/samp blocks, blockquotes, videos, and iframes
+2. Check for caption paragraphs immediately before or after the element
+3. Convert both elements into a figure with figcaption structure
 
 The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 
@@ -36,6 +37,11 @@ Also, It is recommended to set the width and height attributes of the images at 
 
 It could be applied to table, codeblock(pre > code, pre > samp), video as well.
 
+It also supports the following structures inside the figure. [0.13.0+]
+
+- Blockquote
+- loose list (with blank lines between items), not tight list (no blank lines)
+- Description list block (<dl> markup, markdown-it-deflist)
 
 ## Example
 

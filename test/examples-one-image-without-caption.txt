@@ -57,3 +57,104 @@ code
 <figure class="f-img">
 <img src="cat.jpg" alt="A caption.">
 </figure>
+
+
+[Markdown]
+- ![Test](direct-no-caption.jpg)
+
+- List item with paragraph but no caption:
+
+  ![Test](in-paragraph-no-caption.jpg)
+
+- Another list item
+[HTML]
+<ul>
+<li>
+<figure class="f-img">
+<img src="direct-no-caption.jpg" alt="Test">
+</figure>
+</li>
+<li>
+<p>List item with paragraph but no caption:</p>
+<figure class="f-img">
+<img src="in-paragraph-no-caption.jpg" alt="Test">
+</figure>
+</li>
+<li>
+<p>Another list item</p>
+</li>
+</ul>
+
+
+[Markdown]
+A paragraph.
+
+- ![Figure](cat.jpg)
+- ![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<ul>
+<li><img src="cat.jpg" alt="Figure"></li>
+<li><img src="cat.jpg" alt="Figure"></li>
+</ul>
+<p>A paragraph.</p>
+
+
+[Markdown]
+A paragraph.
+
+- ![Figure](cat.jpg)
+
+- ![Figure](cat.jpg)
+
+A paragraph.
+
+[HTML]
+<p>A paragraph.</p>
+<ul>
+<li>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
+</figure>
+</li>
+<li>
+<figure class="f-img">
+<img src="cat.jpg" alt="Figure">
+</figure>
+</li>
+</ul>
+<p>A paragraph.</p>
+
+
+[Markdown]
+<dl>
+<dt>Term</dt>
+<dd>
+
+![Test](image.jpg)
+
+</dd>
+</dl>
+[HTML]
+<dl>
+<dt>Term</dt>
+<dd>
+<figure class="f-img">
+<img src="image.jpg" alt="Test">
+</figure>
+</dd>
+</dl>
+
+
+[Markdown]
+> ![](image.png)
+
+[HTML]
+<blockquote>
+<figure class="f-img">
+<img src="image.png" alt="">
+</figure>
+</blockquote>

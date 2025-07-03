@@ -519,6 +519,18 @@ A paragraph.
 <p>A paragraph.</p>
 
 
+[Markdown]
+> ![](image.png)
+>
+> Figure. A caption.
+[HTML]
+<blockquote>
+<figure class="f-img">
+<img src="image.png" alt="">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
+</figure>
+</blockquote>
+
 
 [Markdown]
 A paragraph.
@@ -768,3 +780,93 @@ code
 <pre><samp>&gt;
 </samp></pre>
 </figure>
+
+
+[Markdown]
+<dl>
+<dt>Term</dt>
+<dd>
+
+Figure. Caption for image in dd.
+
+![Test](image.jpg)
+
+</dd>
+</dl>
+[HTML]
+<dl>
+<dt>Term</dt>
+<dd>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption for image in dd.</figcaption>
+<img src="image.jpg" alt="Test">
+</figure>
+</dd>
+</dl>
+
+
+[Markdown]
+- ![Test](direct-in-list.jpg)
+- List item with paragraph:
+
+  ![Test](in-paragraph.jpg)
+- List item with paragraph and caption:
+
+  Figure. Caption for image in paragraph.
+
+  ![Test](in-paragraph-with-caption.jpg)
+- Another list item
+[HTML]
+<ul>
+<li>
+<p><img src="direct-in-list.jpg" alt="Test"></p>
+</li>
+<li>
+<p>List item with paragraph:</p>
+<p><img src="in-paragraph.jpg" alt="Test"></p>
+</li>
+<li>
+<p>List item with paragraph and caption:</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption for image in paragraph.</figcaption>
+<img src="in-paragraph-with-caption.jpg" alt="Test">
+</figure>
+</li>
+<li>
+<p>Another list item</p>
+</li>
+</ul>
+
+
+[Markdown]
+- ![Test](direct-no-caption.jpg)
+
+- List item with paragraph but no caption:
+
+  ![Test](in-paragraph-no-caption.jpg)
+
+- Another list item
+[HTML]
+<ul>
+<li>
+<p><img src="direct-no-caption.jpg" alt="Test"></p>
+</li>
+<li>
+<p>List item with paragraph but no caption:</p>
+<p><img src="in-paragraph-no-caption.jpg" alt="Test"></p>
+</li>
+<li>
+<p>Another list item</p>
+</li>
+</ul>
+
+[Markdown]
+- ![Test1](direct-no-caption.jpg)
+- ![Test2](direct-no-caption.jpg)
+- Another list item
+[HTML]
+<ul>
+<li><img src="direct-no-caption.jpg" alt="Test1"></li>
+<li><img src="direct-no-caption.jpg" alt="Test2"></li>
+<li>Another list item</li>
+</ul>
