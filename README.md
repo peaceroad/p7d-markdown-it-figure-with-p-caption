@@ -37,11 +37,11 @@ Also, It is recommended to set the width and height attributes of the images at 
 
 It could be applied to table, codeblock(pre > code, pre > samp), video as well.
 
-It also supports the following structures inside the figure. [0.13.0+]
+These elements are also supported within the following structure. [0.13.0+]
 
 - Blockquote
 - loose list (with blank lines between items), not tight list (no blank lines)
-- Description list block (<dl> markup, markdown-it-deflist)
+- Description list block (`<dl>` markup, markdown-it-deflist)
 
 ## Example
 
