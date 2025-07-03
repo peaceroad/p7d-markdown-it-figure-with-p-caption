@@ -24,5 +24,11 @@
   },
   "dependencies": {
     "p7d-markdown-it-p-captions": "^0.17.0"
-  }
+  },
+  "files": [
+    "index.js",
+    "imgAttrToPCaption.js",
+    "README.md",
+    "LICENSE"
+  ]
 }
