@@ -190,50 +190,261 @@ const checkCaption = (tokens, n, en, caption, fNum, sp, opt, TokenConstructor) =
   return
 }
 
-const processTokensRecursively = (tokens, opt, fNum, TokenConstructor, parentType) => {
-  const nestedContainers = ['blockquote', 'list_item', 'dd']
+const nestedContainers = ['blockquote', 'list_item', 'dd']
 
-  figureWithCaptionCore(tokens, opt, fNum, TokenConstructor, parentType)
+const getNestedContainerType = (token) => {
+  if (!token || token.type.indexOf('_open') === -1) return null
+  const typeName = token.type.replace('_open', '')
+  if (nestedContainers.includes(typeName)) {
+    return typeName
+  }
+  return null
+}
 
-  const nestedRanges = []
-  let i = 0
+const resetRangeState = (range, start) => {
+  range.start = start
+  range.end = start
+}
+
+const resetCaptionState = (caption) => {
+  caption.mark = ''
+  caption.name = ''
+  caption.nameSuffix = ''
+  caption.isPrev = false
+  caption.isNext = false
+}
+
+const resetSpecialState = (sp) => {
+  sp.attrs.length = 0
+  sp.isVideoIframe = false
+  sp.isIframeTypeBlockquote = false
+  sp.hasImgCaption = false
+}
+
+const findClosingTokenIndex = (tokens, startIndex, tag) => {
+  let depth = 1
+  let i = startIndex + 1
   while (i < tokens.length) {
     const token = tokens[i]
-    let containerType = null
-    for (const container of nestedContainers) {
-      if (token.type === `${container}_open`) {
-        containerType = container
+    if (token.type === `${tag}_open`) depth++
+    if (token.type === `${tag}_close`) {
+      depth--
+      if (depth === 0) return i
+    }
+    i++
+  }
+  return startIndex
+}
+
+const detectCheckTypeOpen = (tokens, token, n, checkTypes, caption) => {
+  if (!token) return null
+  for (let i = 0; i < checkTypes.length; i++) {
+    const type = checkTypes[i]
+    if (token.type !== `${type}_open`) continue
+    if (n > 1 && tokens[n-2] && tokens[n-2].type === 'figure_open') return null
+    let tagName = token.tag
+    caption.name = type
+    if (type === 'pre') {
+      if (tokens[n+1] && tokens[n+1].tag === 'code') caption.mark = 'pre-code'
+      if (tokens[n+1] && tokens[n+1].tag === 'samp') caption.mark = 'pre-samp'
+      caption.name = caption.mark
+    }
+    const en = findClosingTokenIndex(tokens, n, tagName)
+    return {
+      type: 'block',
+      tagName,
+      en,
+      replaceInsteadOfWrap: false,
+      wrapWithoutCaption: false,
+      canWrap: true,
+    }
+  }
+  return null
+}
+
+const detectFenceToken = (token, n, caption) => {
+  if (!token || token.type !== 'fence' || token.tag !== 'code' || !token.block) return null
+  let tagName = 'pre-code'
+  if (sampLangReg.test(token.info)) {
+    token.tag = 'samp'
+    tagName = 'pre-samp'
+  }
+  caption.name = tagName
+  return {
+    type: 'fence',
+    tagName,
+    en: n,
+    replaceInsteadOfWrap: false,
+    wrapWithoutCaption: false,
+    canWrap: true,
+  }
+}
+
+const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt, htmlTagCandidates) => {
+  if (!token || token.type !== 'html_block') return null
+  const htmlTags = htmlTagCandidates.slice()
+  let ctj = 0
+  let matchedTag = ''
+  while (ctj < htmlTags.length) {
+    let hasTag
+    if (htmlTags[ctj] === 'div') {
+      hasTag = token.content.match(getHtmlReg('div'))
+      htmlTags[ctj] = 'iframe'
+      sp.isVideoIframe = true
+    } else {
+      hasTag = token.content.match(getHtmlReg(htmlTags[ctj]))
+    }
+    const blueskyContMatch = token.content.match(blueskyEmbedReg)
+    if (!(hasTag || (blueskyContMatch && htmlTags[ctj] === 'blockquote'))) {
+      ctj++
+      continue
+    }
+    if (hasTag) {
+      if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
+        token.content += '\n'
+      }
+    } else if (blueskyContMatch) {
+      let addedCont = ''
+      const tokensLength = tokens.length
+      let j = n + 1
+      while (j < tokensLength) {
+        const nextToken = tokens[j]
+        if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
+          addedCont += nextToken.content + '\n'
+          if (tokens[j + 1] && tokens[j + 1].type === 'paragraph_close') {
+            tokens.splice(j + 1, 1)
+          }
+          nextToken.content = ''
+          nextToken.children.forEach((child) => {
+            child.content = ''
+          })
+          break
+        }
+        if (nextToken.type === 'paragraph_open') {
+          addedCont += '\n'
+          tokens.splice(j, 1)
+          continue
+        }
+        j++
+      }
+      token.content += addedCont
+    }
+    matchedTag = htmlTags[ctj]
+    break
+  }
+  if (!matchedTag) return null
+  if (matchedTag === 'blockquote') {
+    const isIframeTypeBlockquote = token.content.match(classNameReg)
+    if (isIframeTypeBlockquote) {
+      sp.isIframeTypeBlockquote = true
+    } else {
+      return null
+    }
+  }
+  if (matchedTag === 'iframe' && videoIframeReg.test(token.content)) {
+    sp.isVideoIframe = true
+  }
+  caption.name = matchedTag
+  let wrapWithoutCaption = false
+  if (matchedTag === 'iframe' && opt.iframeWithoutCaption) {
+    wrapWithoutCaption = true
+  } else if (matchedTag === 'video' && opt.videoWithoutCaption) {
+    wrapWithoutCaption = true
+  } else if (matchedTag === 'blockquote' && sp.isIframeTypeBlockquote && opt.iframeTypeBlockquoteWithoutCaption) {
+    wrapWithoutCaption = true
+  }
+  return {
+    type: 'html',
+    tagName: matchedTag,
+    en: n,
+    replaceInsteadOfWrap: false,
+    wrapWithoutCaption,
+    canWrap: true,
+  }
+}
+
+const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => {
+  if (!token || token.type !== 'paragraph_open') return null
+  if (!nextToken || nextToken.type !== 'inline' || !nextToken.children || nextToken.children.length === 0) return null
+  if (nextToken.children[0].type !== 'image') return null
+
+  let childIndex = 1
+  let imageNum = 1
+  let isMultipleImagesHorizontal = true
+  let isMultipleImagesVertical = true
+  let isValid = true
+  caption.name = 'img'
+  const children = nextToken.children
+  const childrenLength = children.length
+  while (childIndex < childrenLength) {
+    const child = children[childIndex]
+    if (childIndex === childrenLength - 1) {
+      let imageAttrs = child.content && child.content.match(imageAttrsReg)
+      if (child.type === 'text' && imageAttrs) {
+        imageAttrs = imageAttrs[1].split(/ +/)
+        for (let i = 0; i < imageAttrs.length; i++) {
+          if (classAttrReg.test(imageAttrs[i])) {
+            imageAttrs[i] = imageAttrs[i].replace(classAttrReg, 'class=')
+          }
+          if (idAttrReg.test(imageAttrs[i])) {
+            imageAttrs[i] = imageAttrs[i].replace(idAttrReg, 'id=')
+          }
+          const imageAttr = imageAttrs[i].match(attrParseReg)
+          if (!imageAttr || !imageAttr[1]) continue
+          sp.attrs.push([imageAttr[1], imageAttr[2]])
+        }
         break
       }
     }
-    if (containerType) {
-      let depth = 1
-      let endIndex = i + 1
-      while (endIndex < tokens.length && depth > 0) {
-        if (tokens[endIndex].type === `${containerType}_open`) depth++
-        if (tokens[endIndex].type === `${containerType}_close`) depth--
-        endIndex++
+
+    if (!opt.multipleImages) {
+      isValid = false
+      break
+    }
+    if (child.type === 'image') {
+      imageNum++
+    } else if (child.type === 'text' && whitespaceReg.test(child.content)) {
+      isMultipleImagesVertical = false
+      if (isMultipleImagesVertical) {
+        isMultipleImagesHorizontal = false
       }
-      if (depth === 0 && endIndex - i > 2) {
-        nestedRanges.push({
-          start: i + 1,
-          end: endIndex - 1,
-          type: containerType
-        })
+    } else if (child.type === 'softbreak') {
+      isMultipleImagesHorizontal = false
+      if (isMultipleImagesHorizontal) {
+        isMultipleImagesVertical = false
       }
-      i = endIndex
     } else {
-      i++
+      isValid = false
+      break
+    }
+    childIndex++
+  }
+  if (isValid && imageNum > 1 && opt.multipleImages) {
+    if (isMultipleImagesHorizontal) {
+      caption.nameSuffix = '-horizontal'
+    } else if (isMultipleImagesVertical) {
+      caption.nameSuffix = '-vertical'
+    } else {
+      caption.nameSuffix = '-multiple'
+    }
+    for (let i = 0; i < childrenLength; i++) {
+      const child = children[i]
+      if (child.type === 'text' && whitespaceReg.test(child.content)) {
+        child.content = ''
+      }
     }
   }
-
-  for (let j = nestedRanges.length - 1; j >= 0; j--) {
-    const range = nestedRanges[j]
-    const innerTokens = tokens.slice(range.start, range.end)
-    if (innerTokens.length > 0) {
-      processTokensRecursively(innerTokens, opt, fNum, TokenConstructor, range.type)
-      tokens.splice(range.start, range.end - range.start, ...innerTokens)
-    }
+  nextToken.children[0].type = 'image'
+  const en = n + 2
+  let tagName = 'img'
+  if (caption.nameSuffix) tagName += caption.nameSuffix
+  return {
+    type: 'image',
+    tagName,
+    en,
+    replaceInsteadOfWrap: true,
+    wrapWithoutCaption: isValid && !!opt.oneImageWithoutCaption,
+    canWrap: isValid,
   }
 }
 
@@ -243,14 +454,14 @@ const figureWithCaption = (state, opt) => {
     table: 0,
   }
 
-  processTokensRecursively(state.tokens, opt, fNum, state.Token, null)
+  figureWithCaptionCore(state.tokens, opt, fNum, state.Token, null, 0)
 }
 
-const figureWithCaptionCore = (tokens, opt, fNum, TokenConstructor, parentType) => {
+const figureWithCaptionCore = (tokens, opt, fNum, TokenConstructor, parentType = null, startIndex = 0) => {
   const checkTypes = ['table', 'pre', 'blockquote']
   const htmlTagCandidates = ['video', 'audio', 'iframe', 'blockquote', 'div']
 
-  const rRange = { start: 0, end: 0 }
+  const rRange = { start: startIndex, end: startIndex }
   const rCaption = {
     mark: '', name: '', nameSuffix: '', isPrev: false, isNext: false
   }
@@ -258,288 +469,109 @@ const figureWithCaptionCore = (tokens, opt, fNum, TokenConstructor, parentType) 
     attrs: [], isVideoIframe: false, isIframeTypeBlockquote: false, hasImgCaption: false
   }
 
-  let n = 0
+  let n = startIndex
   while (n < tokens.length) {
     const token = tokens[n]
-    const nextToken = tokens[n+1]
-    let en = n
+    const containerType = getNestedContainerType(token)
 
-    rRange.start = n
-    rRange.end = en
-    let checkToken = false
-    let checkTokenTagName = ''
-    rCaption.mark = ''
-    rCaption.name = ''
-    rCaption.nameSuffix = ''
-    rCaption.isPrev = false
-    rCaption.isNext = false
-
-    rSp.attrs.length = 0
-    rSp.isVideoIframe = false
-    rSp.isIframeTypeBlockquote = false
-    rSp.hasImgCaption = false
-
-    let cti = 0
-    while (cti < checkTypes.length) {
-      if (token.type === checkTypes[cti] + '_open') {
-        // for n-1 token is line-break
-        if (n > 1 && tokens[n-2].type === 'figure_open') {
-          cti++; continue
-        }
-        checkToken = true
-        checkTokenTagName = token.tag
-        rCaption.name = checkTypes[cti]
-        if (checkTypes[cti] === 'pre') {
-          if (tokens[n+1].tag === 'code') rCaption.mark = 'pre-code'
-          if (tokens[n+1].tag === 'samp') rCaption.mark = 'pre-samp'
-          rCaption.name = rCaption.mark
-        }
-        while (en < tokens.length) {
-          if(tokens[en].type === checkTokenTagName + '_close') {
-            break
-          }
-          en++
-        }
-        rRange.end = en
-        checkCaption(tokens, n, en, rCaption, fNum, rSp, opt, TokenConstructor)
-        if (rCaption.isPrev || rCaption.isNext) {
-          wrapWithFigure(tokens, rRange, checkTokenTagName, rCaption, false, rSp, opt, TokenConstructor)
-        }
-        break
-      }
-
-      if (token.type === 'fence') {
-        if (token.tag === 'code' && token.block) {
-          checkToken = true
-          let isSamp = false
-          if (sampLangReg.test(token.info)) {
-            token.tag = 'samp'
-            isSamp = true
-          }
-          if (isSamp) {
-            checkTokenTagName = 'pre-samp'
-            rCaption.name = 'pre-samp'
-          } else {
-            checkTokenTagName = 'pre-code'
-            rCaption.name = 'pre-code'
-          }
-          checkCaption(tokens, n, en, rCaption, fNum, rSp, opt, TokenConstructor)
-          if (rCaption.isPrev || rCaption.isNext) {
-            wrapWithFigure(tokens, rRange, checkTokenTagName, rCaption, false, rSp, opt, TokenConstructor)
-            break
-          }
-        }
-        break
-      }
-      cti++
+    if (containerType && containerType !== 'blockquote') {
+      const closeIndex = figureWithCaptionCore(tokens, opt, fNum, TokenConstructor, containerType, n + 1)
+      n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
+      continue
     }
 
-    if (token.type === 'html_block') {
-      const htmlTags = htmlTagCandidates.slice()
-      let ctj = 0
-      let hasTag
-      while (ctj < htmlTags.length) {
-        if (htmlTags[ctj] === 'div') {
-          // for vimeo
-          hasTag = token.content.match(getHtmlReg('div'))
-          htmlTags[ctj] = 'iframe'
-          rSp.isVideoIframe = true
-        } else {
-          hasTag = token.content.match(getHtmlReg(htmlTags[ctj]))
-        }
-        const blueskyContMatch = token.content.match(blueskyEmbedReg)
-        if (!(hasTag || (blueskyContMatch && htmlTags[ctj] === 'blockquote'))) {
-          ctj++
-          continue
-        }
-        if (hasTag) {
-          if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
-            token.content += '\n'
-          }
-        } else if (blueskyContMatch) {
-          let addedCont = ''
-          const tokensChildren = tokens
-          const tokensLength = tokensChildren.length
-          let j = n + 1
-          let hasEndBlockquote = true
-          while (j < tokensLength) {
-            const nextToken = tokens[j]
-            if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
-              addedCont += nextToken.content + '\n'
-              if (tokens[j + 1] && tokens[j + 1].type === 'paragraph_close') {
-                tokens.splice(j + 1, 1)
-              }
-              nextToken.content = ''
-              nextToken.children.forEach((child) => {
-                child.content = ''
-              })
-              break
-            }
-            if (nextToken.type === 'paragraph_open') {
-              addedCont += '\n'
-              tokens.splice(j, 1)
-              continue
-            }
-            j++
-          }
-          token.content += addedCont
-          if (!hasEndBlockquote) {
-            ctj++
-            continue
-          }
-        }
 
-        checkTokenTagName = htmlTags[ctj]
-        rCaption.name = htmlTags[ctj]
-        checkToken = true
-        if (checkTokenTagName === 'blockquote') {
-          const isIframeTypeBlockquote = token.content.match(classNameReg)
-          if(isIframeTypeBlockquote) {
-            rSp.isIframeTypeBlockquote = true
-          } else {
-            ctj++
-            continue
-          }
-        }
-        break
-      }
-      if (!checkToken) {n++; continue;}
-      if (checkTokenTagName === 'iframe') {
-        if(videoIframeReg.test(token.content)) {
-          rSp.isVideoIframe = true
-        }
-      }
-
-      checkCaption(tokens, n, en, rCaption, fNum, rSp, opt, TokenConstructor)
-      if (rCaption.isPrev || rCaption.isNext) {
-        wrapWithFigure(tokens, rRange, checkTokenTagName, rCaption, false, rSp, opt, TokenConstructor)
-        n = en + 2
-      } else if ((opt.iframeWithoutCaption && (checkTokenTagName === 'iframe')) ||
-        (opt.videoWithoutCaption && (checkTokenTagName === 'video')) ||
-        (opt.iframeTypeBlockquoteWithoutCaption && (checkTokenTagName === 'blockquote'))) {
-        wrapWithFigure(tokens, rRange, checkTokenTagName, rCaption, false, rSp, opt, TokenConstructor)
-        n = en + 2
-      }
+    if (parentType && token.type === `${parentType}_close`) {
+      return n
     }
 
-    if (token.type === 'paragraph_open' && nextToken.type === 'inline' && nextToken.children[0].type === 'image') {
-      let ntChildTokenIndex = 1
-      let imageNum = 1
-      let isMultipleImagesHorizontal = true
-      let isMultipleImagesVertical = true
-      checkToken = true
-      rCaption.name = 'img'
-      const children = nextToken.children
-      const childrenLength = children.length
-      while (ntChildTokenIndex < childrenLength) {
-        const ntChildToken = children[ntChildTokenIndex]
-        if (ntChildTokenIndex === childrenLength - 1) {
-          let imageAttrs = ntChildToken.content.match(imageAttrsReg)
-          if(ntChildToken.type === 'text' && imageAttrs) {
-            imageAttrs = imageAttrs[1].split(/ +/)
-            let iai = 0
-            const attrsLength = imageAttrs.length
-            while (iai < attrsLength) {
-              if (classAttrReg.test(imageAttrs[iai])) {
-                imageAttrs[iai] = imageAttrs[iai].replace(classAttrReg, "class=")
-              }
-              if (idAttrReg.test(imageAttrs[iai])) {
-                imageAttrs[iai] = imageAttrs[iai].replace(idAttrReg, "id=")
-              }
-              let imageAttr = imageAttrs[iai].match(attrParseReg)
-              if (!imageAttr || !imageAttr[1]) {
-                iai++
-                continue
-              }
-              rSp.attrs.push([imageAttr[1], imageAttr[2]])
-              iai++
-            }
-            break
-          }
-        }
+    const nextToken = tokens[n + 1]
+    resetRangeState(rRange, n)
+    resetCaptionState(rCaption)
+    resetSpecialState(rSp)
 
-        if (!opt.multipleImages) {
-          checkToken = false
-          break
-        }
-        if (ntChildToken.type === 'image') {
-          imageNum += 1
-        } else if (ntChildToken.type === 'text' && whitespaceReg.test(ntChildToken.content)) {
-          isMultipleImagesVertical = false
-          if (isMultipleImagesVertical) {
-            isMultipleImagesHorizontal = false
-          }
-        } else if (ntChildToken.type === 'softbreak') {
-          isMultipleImagesHorizontal = false
-          if (isMultipleImagesHorizontal) {
-            isMultipleImagesVertical = false
-          }
-        } else {
-          checkToken = false
-          break
-        }
-        ntChildTokenIndex++
-      }
-      if (checkToken && imageNum > 1 && opt.multipleImages) {
-        if (isMultipleImagesHorizontal) {
-          rCaption.nameSuffix = '-horizontal'
-        } else if (isMultipleImagesVertical) {
-          rCaption.nameSuffix = '-vertical'
-        } else {
-          rCaption.nameSuffix = '-multiple'
-        }
-        ntChildTokenIndex = 0
-        while (ntChildTokenIndex < childrenLength) {
-          const ccToken = children[ntChildTokenIndex]
-          if (ccToken.type === 'text' && whitespaceReg.test(ccToken.content)) {
-            ccToken.content = ''
-          }
-          ntChildTokenIndex++
-        }
-      }
-      en = n + 2
-      rRange.end = en
-      checkTokenTagName = 'img'
-      nextToken.children[0].type = 'image'
+    const detection =
+      detectCheckTypeOpen(tokens, token, n, checkTypes, rCaption) ||
+      detectFenceToken(token, n, rCaption) ||
+      detectHtmlBlockToken(tokens, token, n, rCaption, rSp, opt, htmlTagCandidates) ||
+      detectImageParagraph(tokens, token, nextToken, n, rCaption, rSp, opt)
 
+    if (!detection) {
+      if (containerType === 'blockquote') {
+        const closeIndex = figureWithCaptionCore(tokens, opt, fNum, TokenConstructor, containerType, n + 1)
+        n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
+      } else {
+        n++
+      }
+      continue
+    }
+
+    rRange.end = detection.en
+
+    if (detection.type === 'image') {
       if (opt.imgAltCaption) setAltToLabel({ tokens, Token: TokenConstructor }, n)
       if (opt.imgTitleCaption) setTitleToLabel({ tokens, Token: TokenConstructor }, n)
-      checkCaption(tokens, n, en, rCaption, fNum, rSp, opt, TokenConstructor)
+    }
 
+    checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, TokenConstructor)
+
+    if (detection.canWrap === false) {
+      let nextIndex = rRange.end + 1
+      if (containerType === 'blockquote') {
+        const closeIndex = figureWithCaptionCore(tokens, opt, fNum, TokenConstructor, containerType, rRange.start + 1)
+        nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : rRange.end) + 1)
+      }
+      n = nextIndex
+      continue
+    }
+
+    const hasCaption = rCaption.isPrev || rCaption.isNext
+    let shouldWrap = false
+    if (detection.type === 'html') {
+      shouldWrap = detection.canWrap !== false && (hasCaption || detection.wrapWithoutCaption)
+    } else if (detection.type === 'image') {
+      shouldWrap = detection.canWrap !== false && (hasCaption || detection.wrapWithoutCaption)
       if (parentType === 'list_item' || isInListItem(tokens, n)) {
         const isInTightList = token.hidden === true
         if (isInTightList) {
-          checkToken = false
-        } else {
-          if (!opt.oneImageWithoutCaption && !rCaption.isPrev && !rCaption.isNext) {
-            checkToken = false
-          }
+          shouldWrap = false
+        } else if (!hasCaption && !opt.oneImageWithoutCaption) {
+          shouldWrap = false
         }
       }
+    } else {
+      shouldWrap = detection.canWrap !== false && hasCaption
+    }
 
-      if (checkToken && (opt.oneImageWithoutCaption || rCaption.isPrev || rCaption.isNext)) {
-        if (rCaption.nameSuffix) checkTokenTagName += rCaption.nameSuffix
-        wrapWithFigure(tokens, rRange, checkTokenTagName, rCaption, true, rSp, opt, TokenConstructor)
+    if (shouldWrap) {
+      wrapWithFigure(tokens, rRange, detection.tagName, rCaption, detection.replaceInsteadOfWrap, rSp, opt, TokenConstructor)
+    }
+
+    let nextIndex
+    if (!rCaption.name) {
+      nextIndex = n + 1
+    } else {
+      const en = rRange.end
+      if (rCaption.isPrev) {
+        changePrevCaptionPosition(tokens, rRange.start, rCaption, opt)
+        nextIndex = en + 1
+      } else if (rCaption.isNext) {
+        changeNextCaptionPosition(tokens, en, rCaption)
+        nextIndex = en + 4
+      } else {
+        nextIndex = en + 1
       }
     }
 
-    if (!checkToken || !rCaption.name) {n++; continue;}
+    if (containerType === 'blockquote') {
+      const closeIndex = figureWithCaptionCore(tokens, opt, fNum, TokenConstructor, containerType, rRange.start + 1)
+      const fallbackIndex = rCaption.name ? rRange.end : n
+      nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : fallbackIndex) + 1)
+    }
 
-    n = rRange.start
-    en = rRange.end
-    if (rCaption.isPrev) {
-      changePrevCaptionPosition(tokens, n, rCaption, opt)
-      n = en + 1
-      continue
-    }
-    if (rCaption.isNext) {
-      changeNextCaptionPosition(tokens, en, rCaption)
-      n = en + 4
-      continue
-    }
-    n = en + 1
+    n = nextIndex
   }
-  return
+  return tokens.length
 }
 
 const isInListItem = (() => {
