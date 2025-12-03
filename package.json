@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@peaceroad/markdown-it-renderer-fence": "^0.1.2",
+    "@peaceroad/markdown-it-renderer-image": "^0.5.2",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "markdown-it-attrs": "^4.3.1"

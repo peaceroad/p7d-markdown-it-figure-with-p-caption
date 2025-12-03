@@ -13,3 +13,17 @@
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain alt text with spaces</figcaption>
 <img src="spaced.jpg" alt="">
 </figure>
+
+[Markdown]
+![Keep English label](mix-en.jpg)
+
+![日本語キャプション](mix-ja.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Keep English label</figcaption>
+<img src="mix-en.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> 日本語キャプション</figcaption>
+<img src="mix-ja.jpg" alt="">
+</figure>

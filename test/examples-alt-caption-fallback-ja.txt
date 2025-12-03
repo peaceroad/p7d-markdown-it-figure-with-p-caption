@@ -1,0 +1,13 @@
+[Markdown]
+![English start ですが日本語です](ja-first.jpg)
+
+![Second caption](en-second.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>English start ですが日本語です</figcaption>
+<img src="ja-first.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Second caption</figcaption>
+<img src="en-second.jpg" alt="">
+</figure>

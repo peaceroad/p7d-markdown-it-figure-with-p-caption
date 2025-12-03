@@ -13,3 +13,17 @@
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Title fallback with spaces</figcaption>
 <img src="title-spaced.jpg" alt="Alt stays too">
 </figure>
+
+[Markdown]
+![Keep English label](title-mix-en.jpg "Keep English title")
+
+![Alt stays jp](title-ja.jpg " 日本語 キャプション ")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Keep English title</figcaption>
+<img src="title-mix-en.jpg" alt="Keep English label">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> 日本語 キャプション</figcaption>
+<img src="title-ja.jpg" alt="Alt stays jp">
+</figure>

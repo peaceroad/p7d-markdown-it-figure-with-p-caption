@@ -1,0 +1,13 @@
+[Markdown]
+![Alt stays jp](title-ja-first.jpg " 日本語タイトル1 ")
+
+![Alt stays en](title-en-second.jpg "Second title")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>日本語タイトル1</figcaption>
+<img src="title-ja-first.jpg" alt="Alt stays jp">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Second title</figcaption>
+<img src="title-en-second.jpg" alt="Alt stays en">
+</figure>
