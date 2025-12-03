@@ -35,6 +35,11 @@ const mdIframeWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, op
 opt.iframeTypeBlockquoteWithoutCaption = true
 const mdIframeTypeBlockquoteWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
+const optIframeTypeBlockquoteWithCaption = {
+  figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
+}
+const mdIframeTypeBlockquoteWithCaption = mdit({ html: true }).use(mdFigureWithPCaption, optIframeTypeBlockquoteWithCaption).use(mditAttrs).use(mditRndererFence);
+
 opt.multipleImages =  true
 const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
@@ -69,6 +74,7 @@ const testData = {
   oneImageWithoutCaption: __dirname + path.sep + 'examples-one-image-without-caption.txt',
   iframeWithoutCaption: __dirname + path.sep + 'examples-iframe-without-caption.txt',
   iframeTypeBlockquoteWithoutCaption: __dirname + path.sep + 'examples-iframe-type-blockquote-without-caption.txt',
+  iframeTypeBlockquoteWithCaption: __dirname + path.sep + 'examples-iframe-type-blockquote-with-caption.txt',
   multipleImages: __dirname + path.sep + 'examples-multiple-images.txt',
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
   mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
@@ -79,6 +85,33 @@ const testData = {
   imgAltCaptionNumber: __dirname + path.sep + 'examples-img-alt-caption-number.txt',
   imgTitleCaptionNumber: __dirname + path.sep + 'examples-img-title-caption-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
+}
+
+const mutateCaptionClosePlugin = (md) => {
+  md.core.ruler.before('figure_with_caption', 'test_mutate_caption_close', (state) => {
+    const tokens = state.tokens
+    for (let i = 0; i < tokens.length - 2; i++) {
+      const openToken = tokens[i]
+      const inlineToken = tokens[i + 1]
+      const closeToken = tokens[i + 2]
+      if (!openToken || !inlineToken || !closeToken) continue
+      if (openToken.type !== 'paragraph_open') continue
+      if (inlineToken.type !== 'inline') continue
+      if (closeToken.type !== 'paragraph_close') continue
+      if (!/^Figure\./.test(inlineToken.content.trim())) continue
+      closeToken.meta = closeToken.meta || {}
+      closeToken.meta.originalType = closeToken.type
+      closeToken.type = 'test_custom_paragraph_close'
+    }
+  })
+  md.core.ruler.after('figure_with_caption', 'test_restore_caption_close', (state) => {
+    for (const token of state.tokens) {
+      if (token.type === 'test_custom_paragraph_close' && token.meta && token.meta.originalType) {
+        token.type = token.meta.originalType
+        delete token.meta.originalType
+      }
+    }
+  })
 }
 
 const getTestData = (pat) => {
@@ -171,6 +204,7 @@ pass = runTest(mdHasNumClass, testData.hasNumClass, pass)
 pass = runTest(mdOneImage, testData.oneImageWithoutCaption, pass)
 pass = runTest(mdIframeWithoutCaption, testData.iframeWithoutCaption, pass)
 pass = runTest(mdIframeTypeBlockquoteWithoutCaption, testData.iframeTypeBlockquoteWithoutCaption, pass)
+pass = runTest(mdIframeTypeBlockquoteWithCaption, testData.iframeTypeBlockquoteWithCaption, pass)
 pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
 pass = runTest(mdConsole, testData.console, pass)
@@ -213,5 +247,18 @@ opt.iframeTypeBlockquoteWithoutCaption = true
 opt.allIframeTypeFigureClassName = 'f-embed'
 const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdAllIframeTypeFigureClassName, testData.allIframeTypeFigureClassName, pass)
+
+const mdCaptionGuard = mdit({ html: true }).use(mdFigureWithPCaption).use(mutateCaptionClosePlugin)
+const captionGuardMarkdown = 'Figure. Guard caption.\n\n![Figure](guard.jpg)'
+const captionGuardExpected = '<p>Figure. Guard caption.</p>\n<p><img src="guard.jpg" alt="Figure"></p>\n'
+const captionGuardHtml = mdCaptionGuard.render(captionGuardMarkdown)
+try {
+  assert.strictEqual(captionGuardHtml, captionGuardExpected)
+} catch (e) {
+  pass = false
+  console.log('Caption guard regression failed.')
+  console.log('Expected:', captionGuardExpected)
+  console.log('Result:', captionGuardHtml)
+}
 
 if (pass) console.log('Passed all test.')

@@ -1,0 +1,9 @@
+[Markdown]
+Quote. Embedded post.
+
+<blockquote class="mastodon-embed"><p>Example toot</p></blockquote> <script async src="https://mastodon.social/embed.js"></script>
+[HTML]
+<figure class="f-embed">
+<figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> Embedded post.</figcaption>
+<blockquote class="mastodon-embed"><p>Example toot</p></blockquote> <script async src="https://mastodon.social/embed.js"></script>
+</figure>

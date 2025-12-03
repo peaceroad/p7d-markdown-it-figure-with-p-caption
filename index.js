@@ -40,7 +40,7 @@ const checkPrevCaption = (tokens, n, caption, fNum, sp, opt, TokenConstructor) =
   const captionStartToken = tokens[n-3]
   const captionEndToken = tokens[n-1]
   if (captionStartToken === undefined || captionEndToken === undefined) return
-  if (captionStartToken.type !== 'paragraph_open' && captionEndToken.type !== 'paragraph_close') return
+  if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
   setCaptionParagraph(n-3, { tokens, Token: TokenConstructor }, caption, fNum, sp, opt)
   const captionName = getCaptionName(captionStartToken)
   if(!captionName) return
@@ -54,7 +54,7 @@ const checkNextCaption = (tokens, en, caption, fNum, sp, opt, TokenConstructor) 
   const captionStartToken = tokens[en+1]
   const captionEndToken = tokens[en+3]
   if (captionStartToken === undefined || captionEndToken === undefined) return
-  if (captionStartToken.type !== 'paragraph_open' && captionEndToken.type !== 'paragraph_close') return
+  if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
   setCaptionParagraph(en+1, { tokens, Token: TokenConstructor }, caption, fNum, sp, opt)
   const captionName = getCaptionName(captionStartToken)
   if(!captionName) return
@@ -138,16 +138,13 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
       figureStartToken.attrSet('class', 'f-video')
     }
     if (sp.isIframeTypeBlockquote) {
-      let figureClassThatWrapsIframeTypeBlockquote = 'i-frame'
-      if (caption.isPrev || caption.isNext) {
-        if (caption.name === 'blockquote' || caption.name === 'img') {
-          figureClassThatWrapsIframeTypeBlockquote = 'f-img'
-        }
-        figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
-      } else {
-        figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
-        figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
+      let figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
+      if ((caption.isPrev || caption.isNext) &&
+        figureClassThatWrapsIframeTypeBlockquote === 'f-img' &&
+        (caption.name === 'blockquote' || caption.name === 'img')) {
+        figureClassThatWrapsIframeTypeBlockquote = 'f-img'
       }
+      figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
     }
   } else {
     if (checkTokenTagName === 'iframe' || sp.isIframeTypeBlockquote) {
@@ -251,7 +248,7 @@ const figureWithCaption = (state, opt) => {
 
 const figureWithCaptionCore = (tokens, opt, fNum, TokenConstructor, parentType) => {
   const checkTypes = ['table', 'pre', 'blockquote']
-  const htmlTags = ['video', 'audio', 'iframe', 'blockquote', 'div']
+  const htmlTagCandidates = ['video', 'audio', 'iframe', 'blockquote', 'div']
 
   const rRange = { start: 0, end: 0 }
   const rCaption = {
@@ -338,6 +335,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, TokenConstructor, parentType) 
     }
 
     if (token.type === 'html_block') {
+      const htmlTags = htmlTagCandidates.slice()
       let ctj = 0
       let hasTag
       while (ctj < htmlTags.length) {

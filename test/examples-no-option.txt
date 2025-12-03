@@ -663,6 +663,32 @@ Slide. A caption.
 <iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
 </figure>
 
+[Markdown]
+Video. Vimeo first.
+
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/111111111" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+</div>
+
+Video. Vimeo second.
+
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/222222222" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+</div>
+[HTML]
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> Vimeo first.</figcaption>
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/111111111" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+</div>
+</figure>
+<figure class="f-video">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> Vimeo second.</figcaption>
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/222222222" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+</div>
+</figure>
+
 
 [Markdown]
 <video controls width="400" height="300">
