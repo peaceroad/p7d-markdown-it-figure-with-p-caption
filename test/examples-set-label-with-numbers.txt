@@ -1,0 +1,182 @@
+[Markdown]
+Figure. Cat caption.
+
+![Figure](cat.jpg)
+
+Table. Sample table.
+
+| A | B |
+| - | - |
+| 1 | 2 |
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Cat caption.</figcaption>
+<img src="cat.jpg" alt="Figure">
+</figure>
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table 1<span class="f-table-label-joint">.</span></span> Sample table.</figcaption>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+</figure>
+
+[Markdown]
+![Figure. Auto alt](dog.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
+<img src="dog.jpg" alt="Figure. Auto alt">
+</figure>
+
+[Markdown]
+Figure 5. Manual numbering.
+
+![Figure](horse.jpg)
+
+![Figure. Auto alt again](koala.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 5<span class="f-img-label-joint">.</span></span> Manual numbering.</figcaption>
+<img src="horse.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 6<span class="f-img-label-joint">.</span></span> Auto alt again</figcaption>
+<img src="koala.jpg" alt="Figure. Auto alt again">
+</figure>
+
+[Markdown]
+Table 3. Manual table.
+
+| A | B |
+| - | - |
+| 1 | 2 |
+
+Table. Auto table.
+
+| A | B |
+| - | - |
+| 3 | 4 |
+[HTML]
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table 3<span class="f-table-label-joint">.</span></span> Manual table.</figcaption>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+</figure>
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table 4<span class="f-table-label-joint">.</span></span> Auto table.</figcaption>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+</figure>
+
+[Markdown]
+![Figure. First auto](lion.jpg)
+
+![Figure. Second auto](tiger.jpg)
+
+![Figure. Third auto](bear.jpg)
+
+![Figure. Fourth auto](whale.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First auto</figcaption>
+<img src="lion.jpg" alt="Figure. First auto">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Second auto</figcaption>
+<img src="tiger.jpg" alt="Figure. Second auto">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Third auto</figcaption>
+<img src="bear.jpg" alt="Figure. Third auto">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 4<span class="f-img-label-joint">.</span></span> Fourth auto</figcaption>
+<img src="whale.jpg" alt="Figure. Fourth auto">
+</figure>
+
+[Markdown]
+Figure. Cat caption A.
+
+![Figure](cat-a.jpg)
+
+Figure. Cat caption B.
+
+![Figure](cat-b.jpg)
+
+Figure. Cat caption C.
+
+![Figure](cat-c.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Cat caption A.</figcaption>
+<img src="cat-a.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Cat caption B.</figcaption>
+<img src="cat-b.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Cat caption C.</figcaption>
+<img src="cat-c.jpg" alt="Figure">
+</figure>
+
+[Markdown]
+![Figure](dog-a.jpg)
+
+Figure. Dog caption A.
+
+![Figure](dog-b.jpg)
+
+Figure. Dog caption B.
+
+![Figure](dog-c.jpg)
+
+Figure. Dog caption C.
+[HTML]
+<figure class="f-img">
+<img src="dog-a.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Dog caption A.</figcaption>
+</figure>
+<figure class="f-img">
+<img src="dog-b.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Dog caption B.</figcaption>
+</figure>
+<figure class="f-img">
+<img src="dog-c.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Dog caption C.</figcaption>
+</figure>

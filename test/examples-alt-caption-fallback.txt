@@ -1,0 +1,15 @@
+[Markdown]
+![Plain alt text](plain.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain alt text</figcaption>
+<img src="plain.jpg" alt="">
+</figure>
+
+[Markdown]
+![Plain alt text with spaces  ](spaced.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain alt text with spaces</figcaption>
+<img src="spaced.jpg" alt="">
+</figure>

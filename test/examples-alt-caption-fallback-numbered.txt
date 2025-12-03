@@ -1,0 +1,19 @@
+[Markdown]
+![First cat](cat1.jpg)
+
+![Second cat ](cat2.jpg)
+
+![  Third cat  ](cat3.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First cat</figcaption>
+<img src="cat1.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Second cat</figcaption>
+<img src="cat2.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Third cat</figcaption>
+<img src="cat3.jpg" alt="">
+</figure>

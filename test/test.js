@@ -61,6 +61,19 @@ const mdConsole = mdit({
   }
 }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
+const mdAutoCaptionDetection = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true }).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true, altCaptionFallback: true }).use(mditAttrs).use(mditRndererFence);
+const mdTitleCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true, titleCaptionFallback: true }).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallbackNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
+  automaticCaptionDetection: true,
+  altCaptionFallback: true,
+  setLabelWithNumbers: ['img'],
+}).use(mditAttrs).use(mditRndererFence);
+const mdSetLabelWithNumbers = mdit({ html: true }).use(mdFigureWithPCaption, {
+  automaticCaptionDetection: true,
+  setLabelWithNumbers: ['img', 'table'],
+}).use(mditAttrs).use(mditRndererFence);
+
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
 const isWindows = (process.platform === 'win32')
 if (isWindows) {
@@ -85,6 +98,11 @@ const testData = {
   imgAltCaptionNumber: __dirname + path.sep + 'examples-img-alt-caption-number.txt',
   imgTitleCaptionNumber: __dirname + path.sep + 'examples-img-title-caption-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
+  autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
+  altCaptionFallback: __dirname + path.sep + 'examples-alt-caption-fallback.txt',
+  titleCaptionFallback: __dirname + path.sep + 'examples-title-caption-fallback.txt',
+  altCaptionFallbackNumbered: __dirname + path.sep + 'examples-alt-caption-fallback-numbered.txt',
+  setLabelWithNumbers: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
 }
 
 const mutateCaptionClosePlugin = (md) => {
@@ -208,6 +226,11 @@ pass = runTest(mdIframeTypeBlockquoteWithCaption, testData.iframeTypeBlockquoteW
 pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
 pass = runTest(mdConsole, testData.console, pass)
+pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetection, pass, [1, 2])
+pass = runTest(mdAltCaptionFallback, testData.altCaptionFallback, pass)
+pass = runTest(mdAltCaptionFallbackNumbered, testData.altCaptionFallbackNumbered, pass)
+pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
+pass = runTest(mdSetLabelWithNumbers, testData.setLabelWithNumbers, pass)
 
 
 opt.imgAltCaption = 'Figure'

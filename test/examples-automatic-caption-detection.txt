@@ -1,0 +1,31 @@
+[Markdown]
+![Figure. Auto alt](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
+<img src="cat.jpg" alt="Figure. Auto alt">
+</figure>
+
+[Markdown]
+![Plain alt](dog.jpg "Figure. Title label")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Title label</figcaption>
+<img src="dog.jpg" alt="Plain alt" title="Figure. Title label">
+</figure>
+
+[Markdown]
+![Alt fallback example](bird.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Alt fallback example</figcaption>
+<img src="bird.jpg" alt="Alt fallback example">
+</figure>
+
+[Markdown]
+![No caption](fish.jpg "Plain title text")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain title text</figcaption>
+<img src="fish.jpg" alt="No caption" title="Plain title text">
+</figure>

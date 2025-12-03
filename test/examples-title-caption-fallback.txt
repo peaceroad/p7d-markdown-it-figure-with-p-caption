@@ -1,0 +1,15 @@
+[Markdown]
+![Alt stays](title.jpg "Plain title fallback")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain title fallback</figcaption>
+<img src="title.jpg" alt="Alt stays">
+</figure>
+
+[Markdown]
+![Alt stays too](title-spaced.jpg "  Title fallback with spaces   ")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Title fallback with spaces</figcaption>
+<img src="title-spaced.jpg" alt="Alt stays too">
+</figure>
