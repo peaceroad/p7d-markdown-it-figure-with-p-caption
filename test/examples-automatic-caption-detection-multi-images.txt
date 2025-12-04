@@ -1,0 +1,60 @@
+[Markdown]
+![Figure. Dual alt](pair-a.jpg) ![Plain alt second](pair-b.jpg)
+[HTML]
+<figure class="f-img-horizontal">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Dual alt</figcaption>
+<img src="pair-a.jpg" alt=""><img src="pair-b.jpg" alt="Plain alt second">
+</figure>
+
+
+[Markdown]
+![Placeholder alt](tall-a.jpg "Figure. Vertical title")
+     ![Plain second](tall-b.jpg)
+[HTML]
+<figure class="f-img-vertical">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Vertical title</figcaption>
+<img src="tall-a.jpg" alt="Placeholder alt">
+<img src="tall-b.jpg" alt="Plain second">
+</figure>
+
+
+[Markdown]
+![Figure. Gallery auto](stack-a.jpg) ![Extra one](stack-b.jpg)
+![Extra two](stack-c.jpg)
+[HTML]
+<figure class="f-img-multiple">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Gallery auto</figcaption>
+<img src="stack-a.jpg" alt=""><img src="stack-b.jpg" alt="Extra one">
+<img src="stack-c.jpg" alt="Extra two">
+</figure>
+
+
+[Markdown]
+Figure. Manual caption before.
+
+![Figure. Should ignore alt](before-a.jpg) ![Plain alt](before-b.jpg)
+[HTML]
+<figure class="f-img-horizontal">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Manual caption before.</figcaption>
+<img src="before-a.jpg" alt="Figure. Should ignore alt"><img src="before-b.jpg" alt="Plain alt">
+</figure>
+
+
+[Markdown]
+![Figure. Should ignore alt](after-a.jpg) ![Plain alt](after-b.jpg)
+
+Figure. Manual caption after.
+[HTML]
+<figure class="f-img-horizontal">
+<img src="after-a.jpg" alt="Figure. Should ignore alt"><img src="after-b.jpg" alt="Plain alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Manual caption after.</figcaption>
+</figure>
+
+
+[Markdown]
+![Alt text only](title-a.jpg "Figure. Title-driven caption") ![Another plain](title-b.jpg)
+[HTML]
+<figure class="f-img-horizontal">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Title-driven caption</figcaption>
+<img src="title-a.jpg" alt="Alt text only"><img src="title-b.jpg" alt="Another plain">
+</figure>

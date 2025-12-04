@@ -14,6 +14,7 @@ let opt = {
   oneImageWithoutCaption: false,
   iframeWithoutCaption: false,
   videoWithoutCaption: false,
+  audioWithoutCaption: false,
   hasNumClass: false,
   iframeTypeBlockquoteWithoutCaption: false,
   setFigureNumber: false,
@@ -46,6 +47,10 @@ const mdMultipleImages = mdit({ html: true }).use(mdFigureWithPCaption, opt).use
 opt.videoWithoutCaption = true
 const mdVideoWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
+opt.audioWithoutCaption = true
+const mdAudioWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
+opt.audioWithoutCaption = false
+
 
 const mdConsole = mdit({
   html: true,
@@ -61,17 +66,51 @@ const mdConsole = mdit({
   }
 }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 
-const mdAutoCaptionDetection = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true }).use(mditAttrs).use(mditRndererFence);
-const mdAltCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true, altCaptionFallback: true }).use(mditAttrs).use(mditRndererFence);
-const mdTitleCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { automaticCaptionDetection: true, titleCaptionFallback: true }).use(mditAttrs).use(mditRndererFence);
+const mdAutoCaptionDetection = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true }).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoAltCaption: true }).use(mditAttrs).use(mditRndererFence);
+const mdTitleCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoTitleCaption: true }).use(mditAttrs).use(mditRndererFence);
 const mdAltCaptionFallbackNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
-  automaticCaptionDetection: true,
-  altCaptionFallback: true,
-  setLabelWithNumbers: ['img'],
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+  setLabelNumbers: ['img'],
 }).use(mditAttrs).use(mditRndererFence);
-const mdSetLabelWithNumbers = mdit({ html: true }).use(mdFigureWithPCaption, {
-  automaticCaptionDetection: true,
-  setLabelWithNumbers: ['img', 'table'],
+const mdSetLabelNumbers = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  setLabelNumbers: ['img', 'table'],
+}).use(mditAttrs).use(mditRndererFence);
+const mdRecommendedDefaults = mdit({ html: true }).use(mdFigureWithPCaption, {
+  strongFilename: true,
+  dquoteFilename: true,
+  jointSpaceUseHalfWidth: true,
+  oneImageWithoutCaption: true,
+  iframeWithoutCaption: true,
+  iframeTypeBlockquoteWithoutCaption: true,
+  videoWithoutCaption: true,
+  audioWithoutCaption: true,
+  removeUnnumberedLabel: true,
+  removeUnnumberedLabelExceptMarks: ['blockquote'],
+  allIframeTypeFigureClassName: 'f-embed',
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+  autoTitleCaption: true,
+  setLabelNumbers: ['img', 'table'],
+}).use(mditAttrs).use(mditRndererFence);
+const mdRecommendedDefaultsNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
+  strongFilename: true,
+  dquoteFilename: true,
+  jointSpaceUseHalfWidth: true,
+  oneImageWithoutCaption: true,
+  iframeWithoutCaption: true,
+  iframeTypeBlockquoteWithoutCaption: true,
+  videoWithoutCaption: true,
+  audioWithoutCaption: true,
+  removeUnnumberedLabel: false,
+  removeUnnumberedLabelExceptMarks: ['blockquote'],
+  allIframeTypeFigureClassName: 'f-embed',
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+  autoTitleCaption: true,
+  setLabelNumbers: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
 
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
@@ -90,6 +129,7 @@ const testData = {
   iframeTypeBlockquoteWithCaption: __dirname + path.sep + 'examples-iframe-type-blockquote-with-caption.txt',
   multipleImages: __dirname + path.sep + 'examples-multiple-images.txt',
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
+  audioWithoutCaption: __dirname + path.sep + 'examples-audio-without-caption.txt',
   mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
   imgAltCaption: __dirname + path.sep + 'examples-img-alt-caption.txt',
   imgTitleCaption: __dirname + path.sep + 'examples-img-title-caption.txt',
@@ -101,12 +141,15 @@ const testData = {
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
   autoCaptionDetectionNumbered: __dirname + path.sep + 'examples-automatic-caption-detection-numbered.txt',
+  recommendedOptions: __dirname + path.sep + 'examples-recommended-options-unlabeled.txt',
+  recommendedOptionsNumbered: __dirname + path.sep + 'examples-recommended-options-numbered.txt',
+  autoCaptionDetectionMultiImages: __dirname + path.sep + 'examples-automatic-caption-detection-multi-images.txt',
   altCaptionFallback: __dirname + path.sep + 'examples-alt-caption-fallback.txt',
   altCaptionFallbackJa: __dirname + path.sep + 'examples-alt-caption-fallback-ja.txt',
   titleCaptionFallback: __dirname + path.sep + 'examples-title-caption-fallback.txt',
   titleCaptionFallbackJa: __dirname + path.sep + 'examples-title-caption-fallback-ja.txt',
   altCaptionFallbackNumbered: __dirname + path.sep + 'examples-alt-caption-fallback-numbered.txt',
-  setLabelWithNumbers: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
+  setLabelNumbers: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
 }
 
 const mutateCaptionClosePlugin = (md) => {
@@ -229,16 +272,20 @@ pass = runTest(mdIframeTypeBlockquoteWithoutCaption, testData.iframeTypeBlockquo
 pass = runTest(mdIframeTypeBlockquoteWithCaption, testData.iframeTypeBlockquoteWithCaption, pass)
 pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
+pass = runTest(mdAudioWithoutCaption, testData.audioWithoutCaption, pass)
 pass = runTest(mdConsole, testData.console, pass)
 pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetection, pass)
 pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetectionManualPriority, pass)
+pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetectionMultiImages, pass)
+pass = runTest(mdRecommendedDefaults, testData.recommendedOptions, pass)
+pass = runTest(mdRecommendedDefaultsNumbered, testData.recommendedOptionsNumbered, pass)
 pass = runTest(mdAltCaptionFallback, testData.altCaptionFallback, pass)
 pass = runTest(mdAltCaptionFallback, testData.altCaptionFallbackJa, pass)
 pass = runTest(mdAltCaptionFallbackNumbered, testData.altCaptionFallbackNumbered, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
-pass = runTest(mdSetLabelWithNumbers, testData.setLabelWithNumbers, pass)
-pass = runTest(mdSetLabelWithNumbers, testData.autoCaptionDetectionNumbered, pass)
+pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
+pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
 
 
 opt.imgAltCaption = 'Figure'

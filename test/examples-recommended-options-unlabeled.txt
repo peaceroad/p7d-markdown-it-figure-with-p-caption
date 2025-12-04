@@ -1,0 +1,113 @@
+[Markdown]
+Code. Captioned code sample.
+
+```js
+console.log('A')
+```
+
+Figure. Captioned image.
+
+![Figure](manual.jpg)
+
+Table. Captioned data.
+
+| City | Food |
+| --- | --- |
+| Tokyo | Sushi |
+| Osaka | Takoyaki |
+
+Figure. Captioned iframe.
+
+<iframe src="https://example.com/embed" width="400" height="300"></iframe>
+[HTML]
+<figure class="f-pre-code">
+<figcaption>Captioned code sample.</figcaption>
+<pre><code class="language-js">console.log('A')
+</code></pre>
+</figure>
+<figure class="f-img">
+<figcaption>Captioned image.</figcaption>
+<img src="manual.jpg" alt="Figure">
+</figure>
+<figure class="f-table">
+<figcaption>Captioned data.</figcaption>
+<table>
+<thead>
+<tr>
+<th>City</th>
+<th>Food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tokyo</td>
+<td>Sushi</td>
+</tr>
+<tr>
+<td>Osaka</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
+</figure>
+<figure class="f-embed">
+<figcaption>Captioned iframe.</figcaption>
+<iframe src="https://example.com/embed" width="400" height="300"></iframe>
+</figure>
+
+
+[Markdown]
+![Figure. Auto alt](auto.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption>Auto alt</figcaption>
+<img src="auto.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Plain alt text](fallback.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption>Plain alt text</figcaption>
+<img src="fallback.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Alt text](title.jpg "Figure. Title fallback")
+[HTML]
+<figure class="f-img">
+<figcaption>Alt text</figcaption>
+<img src="title.jpg" alt="" title="Figure. Title fallback">
+</figure>
+
+
+[Markdown]
+![](empty.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption></figcaption>
+<img src="empty.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Figure. Primary alt](multi-a.jpg) ![Plain secondary](multi-b.jpg)
+[HTML]
+<figure class="f-img-horizontal">
+<figcaption>Primary alt</figcaption>
+<img src="multi-a.jpg" alt=""><img src="multi-b.jpg" alt="Plain secondary">
+</figure>
+
+
+[Markdown]
+<audio controls>
+<source src="ambient.mp3" type="audio/mpeg">
+</audio>
+[HTML]
+<figure class="f-audio">
+<audio controls>
+<source src="ambient.mp3" type="audio/mpeg">
+</audio>
+</figure>

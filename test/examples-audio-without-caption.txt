@@ -1,0 +1,24 @@
+[Markdown]
+<audio controls>
+<source src="example.mp3" type="audio/mpeg">
+</audio>
+[HTML]
+<figure class="f-audio">
+<audio controls>
+<source src="example.mp3" type="audio/mpeg">
+</audio>
+</figure>
+
+[Markdown]
+Audio. Sample narration.
+
+<audio controls>
+<source src="spoken.mp3" type="audio/mpeg">
+</audio>
+[HTML]
+<figure class="f-audio">
+<figcaption><span class="f-audio-label">Audio<span class="f-audio-label-joint">.</span></span> Sample narration.</figcaption>
+<audio controls>
+<source src="spoken.mp3" type="audio/mpeg">
+</audio>
+</figure>

@@ -1,0 +1,113 @@
+[Markdown]
+Code. Captioned code sample.
+
+```js
+console.log('A')
+```
+
+Figure. Captioned image.
+
+![Figure](manual.jpg)
+
+Table. Captioned data.
+
+| City | Food |
+| --- | --- |
+| Tokyo | Sushi |
+| Osaka | Takoyaki |
+
+Figure. Captioned iframe.
+
+<iframe src="https://example.com/embed" width="400" height="300"></iframe>
+[HTML]
+<figure class="f-pre-code">
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> Captioned code sample.</figcaption>
+<pre><code class="language-js">console.log('A')
+</code></pre>
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Captioned image.</figcaption>
+<img src="manual.jpg" alt="Figure">
+</figure>
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table 1<span class="f-table-label-joint">.</span></span> Captioned data.</figcaption>
+<table>
+<thead>
+<tr>
+<th>City</th>
+<th>Food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tokyo</td>
+<td>Sushi</td>
+</tr>
+<tr>
+<td>Osaka</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
+</figure>
+<figure class="f-embed">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Captioned iframe.</figcaption>
+<iframe src="https://example.com/embed" width="400" height="300"></iframe>
+</figure>
+
+
+[Markdown]
+![Figure. Auto alt](auto.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
+<img src="auto.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Plain alt text](fallback.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Plain alt text</figcaption>
+<img src="fallback.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Alt text](title.jpg "Figure. Title fallback")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Alt text</figcaption>
+<img src="title.jpg" alt="" title="Figure. Title fallback">
+</figure>
+
+
+[Markdown]
+![](empty.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span></figcaption>
+<img src="empty.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![Figure. Primary alt](multi-a.jpg) ![Plain secondary](multi-b.jpg)
+[HTML]
+<figure class="f-img-horizontal">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Primary alt</figcaption>
+<img src="multi-a.jpg" alt=""><img src="multi-b.jpg" alt="Plain secondary">
+</figure>
+
+
+[Markdown]
+<audio controls>
+<source src="ambient.mp3" type="audio/mpeg">
+</audio>
+[HTML]
+<figure class="f-audio">
+<audio controls>
+<source src="ambient.mp3" type="audio/mpeg">
+</audio>
+</figure>

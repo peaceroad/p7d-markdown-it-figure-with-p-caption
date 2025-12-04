@@ -10,7 +10,6 @@ const imageAttrsReg = /^ *\{(.*?)\} *$/
 const classAttrReg = /^\./
 const idAttrReg = /^#/
 const attrParseReg = /^(.*?)="?(.*)"?$/
-const whitespaceReg = /^ *$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
 const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
 const imgCaptionMarkReg = markReg && markReg.img ? markReg.img : null
@@ -21,7 +20,7 @@ const fallbackLabelDefaults = {
   table: { en: 'Table', ja: '表' },
 }
 
-const normalizeSetLabelWithNumbers = (value) => {
+const normalizeSetLabelNumbers = (value) => {
   const normalized = { img: false, table: false }
   if (!value) return normalized
   if (value === true) {
@@ -62,7 +61,7 @@ const buildLabelClassLookup = (opt) => {
 }
 
 const shouldApplyLabelNumbering = (captionType, opt) => {
-  const setting = opt.setLabelWithNumbers
+  const setting = opt.setLabelNumbers
   if (!setting) return false
   return !!setting[captionType]
 }
@@ -275,7 +274,7 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
 }
 
 const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
-  if (!opt.automaticCaptionDetection) return ''
+  if (!opt.autoCaptionDetection) return ''
   const tryMatch = (text) => {
     if (!text) return ''
     const trimmed = text.trim()
@@ -291,9 +290,9 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
     clearImageAltAttr(imageToken)
     return caption
   }
-  if (!caption && opt.altCaptionFallback) {
+  if (!caption && opt.autoAltCaption) {
     const altForFallback = altText || ''
-    caption = buildCaptionWithFallback(altForFallback, opt.altCaptionFallback, 'img', fallbackLabelState)
+    caption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, 'img', fallbackLabelState)
     if (imageToken) {
       clearImageAltAttr(imageToken)
     }
@@ -306,9 +305,9 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
     clearImageTitleAttr(imageToken)
     return caption
   }
-  if (!caption && opt.titleCaptionFallback) {
+  if (!caption && opt.autoTitleCaption) {
     const titleForFallback = titleText || ''
-    caption = buildCaptionWithFallback(titleForFallback, opt.titleCaptionFallback, 'img', fallbackLabelState)
+    caption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, 'img', fallbackLabelState)
     if (imageToken) {
       clearImageTitleAttr(imageToken)
     }
@@ -648,6 +647,8 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt, htmlTagCandida
     wrapWithoutCaption = true
   } else if (matchedTag === 'video' && opt.videoWithoutCaption) {
     wrapWithoutCaption = true
+  } else if (matchedTag === 'audio' && opt.audioWithoutCaption) {
+    wrapWithoutCaption = true
   } else if (matchedTag === 'blockquote' && sp.isIframeTypeBlockquote && opt.iframeTypeBlockquoteWithoutCaption) {
     wrapWithoutCaption = true
   }
@@ -822,7 +823,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
     let pendingAutoCaption = ''
-    if (!hasCaption && detection.type === 'image' && opt.automaticCaptionDetection) {
+    if (!hasCaption && detection.type === 'image' && opt.autoCaptionDetection) {
       pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt, fallbackLabelState)
       if (pendingAutoCaption) {
         hasCaption = true
@@ -929,9 +930,36 @@ const isInListItem = (() => {
 
 const mditFigureWithPCaption = (md, option) => {
   let opt = {
+    // --- figure-wrapper behavior ---
     classPrefix: 'f',
     figureClassThatWrapsIframeTypeBlockquote: 'f-img',
     styleProcess : true,
+    oneImageWithoutCaption: false,
+    iframeWithoutCaption: false,
+    videoWithoutCaption: false,
+    audioWithoutCaption: false,
+    iframeTypeBlockquoteWithoutCaption: false,
+    multipleImages: true,
+    roleDocExample: false,
+    allIframeTypeFigureClassName: '', // e.g. 'f-embed' to force a single class for iframe-like embeds (recommended)
+
+    // --- automatic caption detection heuristics ---
+    // Applies only to the first image within an image-only paragraph (even when multipleImages is true).
+    // Priority: caption paragraphs (before/after) > alt text > title attribute; auto detection only runs when no paragraph caption exists.
+    autoCaptionDetection: true,
+    autoAltCaption: false, // allow alt text (when matching markReg.img or fallback) to build captions automatically
+    autoTitleCaption: false, // same as above but reads from the title attribute when alt isn't usable
+
+    // --- numbering controls ---
+    autoLabelNumber: false, // shorthand for numbering only auto-generated image captions
+    setLabelNumbers: [], // preferred; supports ['img'], ['table'], or both
+    setFigureNumber: false, // legacy p-captions numbering (takes priority when enabled)
+
+    // --- alt/title-only caption modes (mutually exclusive with paragraph captions / auto detection) ---
+    imgAltCaption: false, // forces p-captions to treat the markdown alt text as the caption (disables autoCaptionDetection)
+    imgTitleCaption: false, // same as above but sourced from the markdown title attribute
+
+    // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
     hasNumClass: false,
     scaleSuffix: false,
     dquoteFilename: false,
@@ -939,27 +967,18 @@ const mditFigureWithPCaption = (md, option) => {
     bLabel: false,
     strongLabel: false,
     jointSpaceUseHalfWidth: false,
-    oneImageWithoutCaption: false,
-    iframeWithoutCaption: false,
-    videoWithoutCaption: false,
-    iframeTypeBlockquoteWithoutCaption: false,
     removeUnnumberedLabel: false,
     removeUnnumberedLabelExceptMarks: [],
     removeMarkNameInCaptionClass: false,
     wrapCaptionBody: false,
-    multipleImages: true,
-    imgAltCaption: false,
-    setFigureNumber: false,
-    imgTitleCaption: false,
-    setLabelWithNumbers: [],
-    roleDocExample: false,
-    allIframeTypeFigureClassName: '',
-    automaticCaptionDetection: true,
-    altCaptionFallback: false,
-    titleCaptionFallback: false,
   }
   if (option) Object.assign(opt, option)
-  opt.setLabelWithNumbers = normalizeSetLabelWithNumbers(opt.setLabelWithNumbers)
+  // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
+  opt.setLabelNumbers = normalizeSetLabelNumbers(opt.setLabelNumbers)
+  if (opt.autoLabelNumber) {
+    opt.setLabelNumbers.img = true
+  }
+  // Precompute `.f-*-label` permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)
 
   if (opt.imgAltCaption || opt.imgTitleCaption) {
