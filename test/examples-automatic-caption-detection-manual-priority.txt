@@ -1,0 +1,39 @@
+[Markdown]
+Figure. Manual caption before.
+
+![Manual alt](manual-before.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Manual caption before.</figcaption>
+<img src="manual-before.jpg" alt="Manual alt">
+</figure>
+
+[Markdown]
+![Manual alt](manual-after.jpg)
+
+Figure. Manual caption after.
+[HTML]
+<figure class="f-img">
+<img src="manual-after.jpg" alt="Manual alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Manual caption after.</figcaption>
+</figure>
+
+[Markdown]
+Figure. Caption priority.
+
+![Figure. Auto alt](manual-priority.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption priority.</figcaption>
+<img src="manual-priority.jpg" alt="Figure. Auto alt">
+</figure>
+
+[Markdown]
+![Auto alt](manual-priority-after.jpg)
+
+Figure. Caption priority after.
+[HTML]
+<figure class="f-img">
+<img src="manual-priority-after.jpg" alt="Auto alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption priority after.</figcaption>
+</figure>

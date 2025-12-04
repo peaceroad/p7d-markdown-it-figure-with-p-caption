@@ -99,6 +99,8 @@ const testData = {
   imgTitleCaptionNumber: __dirname + path.sep + 'examples-img-title-caption-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
+  autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
+  autoCaptionDetectionNumbered: __dirname + path.sep + 'examples-automatic-caption-detection-numbered.txt',
   altCaptionFallback: __dirname + path.sep + 'examples-alt-caption-fallback.txt',
   altCaptionFallbackJa: __dirname + path.sep + 'examples-alt-caption-fallback-ja.txt',
   titleCaptionFallback: __dirname + path.sep + 'examples-title-caption-fallback.txt',
@@ -228,13 +230,15 @@ pass = runTest(mdIframeTypeBlockquoteWithCaption, testData.iframeTypeBlockquoteW
 pass = runTest(mdMultipleImages, testData.multipleImages, pass)
 pass = runTest(mdVideoWithoutCaption, testData.videoWithoutCaption, pass)
 pass = runTest(mdConsole, testData.console, pass)
-pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetection, pass, [1, 2])
+pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetection, pass)
+pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetectionManualPriority, pass)
 pass = runTest(mdAltCaptionFallback, testData.altCaptionFallback, pass)
 pass = runTest(mdAltCaptionFallback, testData.altCaptionFallbackJa, pass)
 pass = runTest(mdAltCaptionFallbackNumbered, testData.altCaptionFallbackNumbered, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
 pass = runTest(mdSetLabelWithNumbers, testData.setLabelWithNumbers, pass)
+pass = runTest(mdSetLabelWithNumbers, testData.autoCaptionDetectionNumbered, pass)
 
 
 opt.imgAltCaption = 'Figure'

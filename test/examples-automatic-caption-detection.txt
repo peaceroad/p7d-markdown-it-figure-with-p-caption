@@ -3,29 +3,83 @@
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
-<img src="cat.jpg" alt="Figure. Auto alt">
+<img src="cat.jpg" alt="">
 </figure>
+
 
 [Markdown]
 ![Plain alt](dog.jpg "Figure. Title label")
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Title label</figcaption>
-<img src="dog.jpg" alt="Plain alt" title="Figure. Title label">
+<img src="dog.jpg" alt="Plain alt">
 </figure>
 
-[Markdown]
-![Alt fallback example](bird.jpg)
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Alt fallback example</figcaption>
-<img src="bird.jpg" alt="Alt fallback example">
-</figure>
 
 [Markdown]
 ![No caption](fish.jpg "Plain title text")
 [HTML]
+<p><img src="fish.jpg" alt="No caption" title="Plain title text"></p>
+
+
+[Markdown]
+![Manual alt](manual-after.jpg)
+
+Figure. Manual caption after.
+[HTML]
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain title text</figcaption>
-<img src="fish.jpg" alt="No caption" title="Plain title text">
+<img src="manual-after.jpg" alt="Manual alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Manual caption after.</figcaption>
 </figure>
+
+
+[Markdown]
+Figure. Caption priority.
+
+![Figure. Auto alt](manual-priority.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption priority.</figcaption>
+<img src="manual-priority.jpg" alt="Figure. Auto alt">
+</figure>
+
+
+[Markdown]
+![Figure. Auto alt](manual-priority.jpg)
+
+Figure. Caption priority.
+[HTML]
+<figure class="f-img">
+<img src="manual-priority.jpg" alt="Figure. Auto alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption priority.</figcaption>
+</figure>
+
+
+[Markdown]
+Figure. Caption priority.
+
+![Figure. Auto alt](manual-priority.jpg)
+
+![Figure. Auto alt](manual-priority.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption priority.</figcaption>
+<img src="manual-priority.jpg" alt="Figure. Auto alt">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
+<img src="manual-priority.jpg" alt="">
+</figure>
+
+[Markdown]
+![Figure. Combined alt](two-img-alt.jpg)
+
+Figure. Caption for second.
+
+![Second manual](two-img-caption.jpg)
+[HTML]
+<figure class="f-img">
+<img src="two-img-alt.jpg" alt="Figure. Combined alt">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption for second.</figcaption>
+</figure>
+<p><img src="two-img-caption.jpg" alt="Second manual"></p>

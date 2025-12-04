@@ -36,7 +36,7 @@ Table. Sample table.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Auto alt</figcaption>
-<img src="dog.jpg" alt="Figure. Auto alt">
+<img src="dog.jpg" alt="">
 </figure>
 
 [Markdown]
@@ -52,7 +52,7 @@ Figure 5. Manual numbering.
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 6<span class="f-img-label-joint">.</span></span> Auto alt again</figcaption>
-<img src="koala.jpg" alt="Figure. Auto alt again">
+<img src="koala.jpg" alt="">
 </figure>
 
 [Markdown]
@@ -114,19 +114,19 @@ Table. Auto table.
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First auto</figcaption>
-<img src="lion.jpg" alt="Figure. First auto">
+<img src="lion.jpg" alt="">
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Second auto</figcaption>
-<img src="tiger.jpg" alt="Figure. Second auto">
+<img src="tiger.jpg" alt="">
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Third auto</figcaption>
-<img src="bear.jpg" alt="Figure. Third auto">
+<img src="bear.jpg" alt="">
 </figure>
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure 4<span class="f-img-label-joint">.</span></span> Fourth auto</figcaption>
-<img src="whale.jpg" alt="Figure. Fourth auto">
+<img src="whale.jpg" alt="">
 </figure>
 
 [Markdown]

@@ -106,6 +106,21 @@ const removeTokenAttr = (token, attrName) => {
   }
 }
 
+const clearImageAltAttr = (token) => {
+  if (!token) return
+  setTokenAttr(token, 'alt', '')
+  token.content = ''
+  if (token.children) {
+    for (let i = 0; i < token.children.length; i++) {
+      token.children[i].content = ''
+    }
+  }
+}
+
+const clearImageTitleAttr = (token) => {
+  removeTokenAttr(token, 'title')
+}
+
 const getImageAltText = (token) => {
   let alt = getTokenAttr(token, 'alt')
   if (alt) return alt
@@ -272,28 +287,30 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
 
   const altText = getImageAltText(imageToken)
   let caption = tryMatch(altText)
+  if (caption) {
+    clearImageAltAttr(imageToken)
+    return caption
+  }
   if (!caption && opt.altCaptionFallback) {
     const altForFallback = altText || ''
     caption = buildCaptionWithFallback(altForFallback, opt.altCaptionFallback, 'img', fallbackLabelState)
     if (imageToken) {
-      imageToken.content = ''
-      setTokenAttr(imageToken, 'alt', '')
-      if (imageToken.children) {
-        for (let i = 0; i < imageToken.children.length; i++) {
-          imageToken.children[i].content = ''
-        }
-      }
+      clearImageAltAttr(imageToken)
     }
   }
   if (caption) return caption
 
   const titleText = getImageTitleText(imageToken)
   caption = tryMatch(titleText)
+  if (caption) {
+    clearImageTitleAttr(imageToken)
+    return caption
+  }
   if (!caption && opt.titleCaptionFallback) {
     const titleForFallback = titleText || ''
     caption = buildCaptionWithFallback(titleForFallback, opt.titleCaptionFallback, 'img', fallbackLabelState)
     if (imageToken) {
-      removeTokenAttr(imageToken, 'title')
+      clearImageTitleAttr(imageToken)
     }
   }
   return caption
@@ -929,6 +946,7 @@ const mditFigureWithPCaption = (md, option) => {
     removeUnnumberedLabel: false,
     removeUnnumberedLabelExceptMarks: [],
     removeMarkNameInCaptionClass: false,
+    wrapCaptionBody: false,
     multipleImages: true,
     imgAltCaption: false,
     setFigureNumber: false,

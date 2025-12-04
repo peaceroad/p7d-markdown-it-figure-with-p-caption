@@ -1,0 +1,60 @@
+[Markdown]
+![Figure. First auto](auto-cat.jpg)
+
+![Figure. Second auto](auto-dog.jpg)
+
+![Figure. Third auto](auto-bird.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First auto</figcaption>
+<img src="auto-cat.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Second auto</figcaption>
+<img src="auto-dog.jpg" alt="">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Third auto</figcaption>
+<img src="auto-bird.jpg" alt="">
+</figure>
+
+[Markdown]
+Figure. Manual caption 1.
+
+![Manual alt](numbered-1.jpg)
+
+Figure. Manual caption 2.
+
+![Manual alt](numbered-2.jpg)
+
+Figure. Manual caption 3.
+
+![Manual alt](numbered-3.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Manual caption 1.</figcaption>
+<img src="numbered-1.jpg" alt="Manual alt">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Manual caption 2.</figcaption>
+<img src="numbered-2.jpg" alt="Manual alt">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 3<span class="f-img-label-joint">.</span></span> Manual caption 3.</figcaption>
+<img src="numbered-3.jpg" alt="Manual alt">
+</figure>
+
+[Markdown]
+![Plain alt](auto-title-dog.jpg "Figure. Title fallback")
+
+![Title only](auto-title-bird.jpg "Figure. Title only")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> Title fallback</figcaption>
+<img src="auto-title-dog.jpg" alt="Plain alt">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Title only</figcaption>
+<img src="auto-title-bird.jpg" alt="Title only">
+</figure>
