@@ -77,6 +77,10 @@ const mdSetLabelNumbers = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
   setLabelNumbers: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
+const mdAutoLabelNumber = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  autoLabelNumber: true,
+}).use(mditAttrs).use(mditRndererFence);
 const mdRecommendedDefaults = mdit({ html: true }).use(mdFigureWithPCaption, {
   strongFilename: true,
   dquoteFilename: true,
@@ -137,6 +141,7 @@ const testData = {
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
   autoCaptionDetectionNumbered: __dirname + path.sep + 'examples-automatic-caption-detection-numbered.txt',
+  autoLabelNumber: __dirname + path.sep + 'examples-auto-label-number.txt',
   recommendedOptions: __dirname + path.sep + 'examples-recommended-options-unlabeled.txt',
   recommendedOptionsNumbered: __dirname + path.sep + 'examples-recommended-options-numbered.txt',
   autoCaptionDetectionMultiImages: __dirname + path.sep + 'examples-automatic-caption-detection-multi-images.txt',
@@ -283,6 +288,7 @@ pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
 pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
 pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
+pass = runTest(mdAutoLabelNumber, testData.autoLabelNumber, pass)
 
 const mdSetLabelNumbersSkip = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,

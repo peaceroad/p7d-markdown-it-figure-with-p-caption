@@ -1,0 +1,43 @@
+[Markdown]
+Figure. First numbered caption.
+
+![Figure](first.jpg)
+
+![Figure. Alt caption only.](alt-only.jpg)
+
+Table. Numbered table.
+
+| City | Food |
+| ---- | ---- |
+| Tokyo | Sushi |
+| Osaka | Takoyaki |
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First numbered caption.</figcaption>
+<img src="first.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Alt caption only.</figcaption>
+<img src="alt-only.jpg" alt="">
+</figure>
+<figure class="f-table">
+<figcaption><span class="f-table-label">Table 1<span class="f-table-label-joint">.</span></span> Numbered table.</figcaption>
+<table>
+<thead>
+<tr>
+<th>City</th>
+<th>Food</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tokyo</td>
+<td>Sushi</td>
+</tr>
+<tr>
+<td>Osaka</td>
+<td>Takoyaki</td>
+</tr>
+</tbody>
+</table>
+</figure>
