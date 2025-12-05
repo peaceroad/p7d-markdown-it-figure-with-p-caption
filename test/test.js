@@ -17,7 +17,6 @@ let opt = {
   audioWithoutCaption: false,
   hasNumClass: false,
   iframeTypeBlockquoteWithoutCaption: false,
-  setFigureNumber: false,
 }
 
 const md = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
@@ -134,7 +133,6 @@ const testData = {
   autoAltCaptionCustom: __dirname + path.sep + 'examples-auto-alt-caption-custom.txt',
   autoTitleCaptionCustom: __dirname + path.sep + 'examples-auto-title-caption-custom.txt',
   console: __dirname + path.sep + 'examples-console.txt',
-  setFigureNumber: __dirname + path.sep + 'examples-set-figure-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
@@ -296,11 +294,6 @@ const mdAutoTitleCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, 
   autoTitleCaption: '図',
 }).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdAutoTitleCaptionCustom, testData.autoTitleCaptionCustom, pass)
-
-opt = {}
-opt.setFigureNumber = true
-const mdSetFigureNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdSetFigureNumber, testData.setFigureNumber.replace(/\.txt$/, '.en.txt'), pass)
 
 opt = {}
 opt.videoWithoutCaption = true

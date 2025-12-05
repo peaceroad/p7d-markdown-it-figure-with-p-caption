@@ -27,7 +27,6 @@
 
 ## Automatic Numbering
 - Option `setLabelNumbers` accepts an array such as `['img']`, `['table']`, or `['img', 'table']` (arrays are the preferred form, though older boolean/object forms are still normalized internally). The option is normalized once, and a `labelClassLookup` map is built so child scanning can find `.f-img-label` / `.f-table-label` without recomputing class names. `autoLabelNumber: true` is a shorthand that enables the image counter by internally toggling `setLabelNumbers.img = true`.
-- Legacy `setFigureNumber` (from `p7d-markdown-it-p-captions`) still works; when it is enabled the plugin intentionally skips `setLabelNumbers`/`autoLabelNumber` to avoid injecting two numbering systems at once. Document this for users so they pick one numbering strategy.
 - Priority order: manually authored number > auto counter. If a caption already contains digits (`Figure 5.`), the counter syncs to that value; otherwise, the plugin injects `Figure 1`, `図1`, etc. Alt/title fallback captions are treated the same way.
 - Numbering reuses `setCaptionParagraph`’s inline children. The helper updates both the text node and `inline.content` to keep downstream renderers consistent.
 - Regression tests: `examples-set-label-with-numbers.txt`, `examples-alt-caption-fallback-numbered.txt`, and `examples-automatic-caption-detection-numbered.txt` cover manual numbering, auto counters, and fallback scenarios.

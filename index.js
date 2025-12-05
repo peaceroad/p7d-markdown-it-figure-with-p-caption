@@ -246,7 +246,6 @@ const updateInlineTokenContent = (inlineToken, originalText, newText) => {
 }
 
 const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, opt) => {
-  if (opt.setFigureNumber) return
   const captionType = caption.name === 'img' ? 'img' : (caption.name === 'table' ? 'table' : '')
   if (!captionType) return
   if (!shouldApplyLabelNumbering(captionType, opt)) return
@@ -929,7 +928,6 @@ const mditFigureWithPCaption = (md, option) => {
     // --- numbering controls ---
     autoLabelNumber: false, // shorthand for numbering only auto-generated image captions
     setLabelNumbers: [], // preferred; supports ['img'], ['table'], or both
-    setFigureNumber: false, // legacy p-captions numbering (takes priority when enabled)
 
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
     hasNumClass: false,
