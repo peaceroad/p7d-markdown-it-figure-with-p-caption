@@ -131,12 +131,8 @@ const testData = {
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
   audioWithoutCaption: __dirname + path.sep + 'examples-audio-without-caption.txt',
   mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
-  imgAltCaption: __dirname + path.sep + 'examples-img-alt-caption.txt',
-  imgTitleCaption: __dirname + path.sep + 'examples-img-title-caption.txt',
   console: __dirname + path.sep + 'examples-console.txt',
   setFigureNumber: __dirname + path.sep + 'examples-set-figure-number.txt',
-  imgAltCaptionNumber: __dirname + path.sep + 'examples-img-alt-caption-number.txt',
-  imgTitleCaptionNumber: __dirname + path.sep + 'examples-img-title-caption-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
@@ -287,36 +283,10 @@ pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
 pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
 pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
 
-
-opt.imgAltCaption = 'Figure'
-const mdImgAltCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgAltCaption, testData.imgAltCaption.replace(/\.txt$/, '.en.txt'), pass)
-opt.imgAltCaption = '図'
-const mdImgAltCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgAltCaptionJa, testData.imgAltCaption.replace(/\.txt$/, '.ja.txt'),  pass)
-
-opt.imgAltCaption = false
-
-opt.imgTitleCaption = 'Figure'
-const mdImgTitleCaption = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgTitleCaption, testData.imgTitleCaption.replace(/\.txt$/, '.en.txt'), pass)
-opt.imgTitleCaption = '図'
-const mdImgTitleCaptionJa = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgTitleCaptionJa, testData.imgTitleCaption.replace(/.txt$/, '.ja.txt'), pass)
-
 opt = {}
 opt.setFigureNumber = true
 const mdSetFigureNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdSetFigureNumber, testData.setFigureNumber.replace(/\.txt$/, '.en.txt'), pass)
-
-opt.imgAltCaption = true
-const mdImgAltCaptionNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdImgAltCaptionNumber, testData.imgAltCaptionNumber.replace(/\.txt$/, '.en.txt'), pass)
-
-opt = {}
-opt.imgTitleCaption = true
-const mdImgTitleCaptionNumber = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
-//pass = runTest(mdImgTitleCaptionNumber, testData.imgTitleCaptionNumber.replace(/\.txt$/, '.en.txt'), pass)
 
 opt = {}
 opt.videoWithoutCaption = true

@@ -1,5 +1,4 @@
 import { setCaptionParagraph, markReg } from 'p7d-markdown-it-p-captions'
-import { imgAttrToPCaption, setAltToLabel, setTitleToLabel } from './imgAttrToPCaption.js'
 
 const htmlRegCache = new Map()
 const classReg = /^f-(.+)$/
@@ -385,24 +384,6 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   const captionStartToken = tokens[n-3]
   const captionInlineToken = tokens[n-2]
   const captionEndToken = tokens[n-1]
-
-  if (opt.imgAltCaption || opt.imgTitleCaption) {
-    let isNoCaption = false
-    if (captionInlineToken.attrs) {
-      const attrs = captionInlineToken.attrs, len = attrs.length
-      for (let i = 0; i < len; i++) {
-        const attr = attrs[i]
-        if (attr[0] === 'class' && attr[1] === 'nocaption') {
-          isNoCaption = true
-          break
-        }
-      }
-    }
-    if (isNoCaption) {
-      tokens.splice(n-3, 3)
-      return false
-    }
-  }
 
   cleanCaptionTokenAttrs(captionStartToken, caption.name)
   captionStartToken.type = 'figcaption_open'
@@ -814,11 +795,6 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
 
     rRange.end = detection.en
 
-    if (detection.type === 'image') {
-      if (opt.imgAltCaption) setAltToLabel({ tokens, Token: TokenConstructor }, n)
-      if (opt.imgTitleCaption) setTitleToLabel({ tokens, Token: TokenConstructor }, n)
-    }
-
     checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, TokenConstructor)
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
@@ -955,13 +931,8 @@ const mditFigureWithPCaption = (md, option) => {
     setLabelNumbers: [], // preferred; supports ['img'], ['table'], or both
     setFigureNumber: false, // legacy p-captions numbering (takes priority when enabled)
 
-    // --- alt/title-only caption modes (mutually exclusive with paragraph captions / auto detection) ---
-    imgAltCaption: false, // forces p-captions to treat the markdown alt text as the caption (disables autoCaptionDetection)
-    imgTitleCaption: false, // same as above but sourced from the markdown title attribute
-
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
     hasNumClass: false,
-    scaleSuffix: false,
     dquoteFilename: false,
     strongFilename: false,
     bLabel: false,
@@ -980,19 +951,6 @@ const mditFigureWithPCaption = (md, option) => {
   }
   // Precompute `.f-*-label` permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)
-
-  if (opt.imgAltCaption || opt.imgTitleCaption) {
-    opt.oneImageWithoutCaption = true
-    opt.multipleImages = false
-    if (opt.setFigureNumber) {
-      opt.removeUnnumberedLabelExceptMarks = opt.removeUnnumberedLabelExceptMarks.filter(
-        mark => mark !== 'img' && mark !== 'table'
-      )
-    }
-    md.block.ruler.before('paragraph', 'img_attr_caption', (state) => {
-      imgAttrToPCaption(state, state.line, opt)
-    })
-  }
 
   //If nextCaption has `{}` style and `f-img-multipleImages`, when upgraded to markdown-it-attrs@4.2.0, the existing script will have `{}` style on nextCaption. Therefore, since markdown-it-attrs is md.core.ruler.before('linkify'), figure_with_caption will be processed after it.
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {
