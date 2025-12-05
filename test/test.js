@@ -146,6 +146,7 @@ const testData = {
   titleCaptionFallbackJa: __dirname + path.sep + 'examples-title-caption-fallback-ja.txt',
   altCaptionFallbackNumbered: __dirname + path.sep + 'examples-alt-caption-fallback-numbered.txt',
   setLabelNumbers: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
+  setLabelNumbersSkip: __dirname + path.sep + 'examples-set-label-numbers-skip.txt',
 }
 
 const mutateCaptionClosePlugin = (md) => {
@@ -282,6 +283,13 @@ pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
 pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
 pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
+
+const mdSetLabelNumbersSkip = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  setLabelNumbers: ['img'],
+  oneImageWithoutCaption: true,
+}).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdSetLabelNumbersSkip, testData.setLabelNumbersSkip, pass)
 
 const mdAutoAltCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,

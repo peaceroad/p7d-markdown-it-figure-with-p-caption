@@ -1,0 +1,42 @@
+[Markdown]
+Figure. First numbered caption.
+
+![Figure](first.jpg)
+
+Not a caption.
+
+![Skip figure](skip.jpg)
+
+Not a caption either.
+
+Figure. Second numbered caption.
+
+![Figure](second.jpg)
+
+Figure 10. Manual start.
+
+![Figure](manual-10.jpg)
+
+![Figure. Auto after manual](auto-after.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1<span class="f-img-label-joint">.</span></span> First numbered caption.</figcaption>
+<img src="first.jpg" alt="Figure">
+</figure>
+<p>Not a caption.</p>
+<figure class="f-img">
+<img src="skip.jpg" alt="Skip figure">
+</figure>
+<p>Not a caption either.</p>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 2<span class="f-img-label-joint">.</span></span> Second numbered caption.</figcaption>
+<img src="second.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 10<span class="f-img-label-joint">.</span></span> Manual start.</figcaption>
+<img src="manual-10.jpg" alt="Figure">
+</figure>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 11<span class="f-img-label-joint">.</span></span> Auto after manual</figcaption>
+<img src="auto-after.jpg" alt="">
+</figure>
