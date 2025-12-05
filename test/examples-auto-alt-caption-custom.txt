@@ -1,0 +1,15 @@
+[Markdown]
+![Plain alt text](plain.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Plain alt text</figcaption>
+<img src="plain.jpg" alt="">
+</figure>
+
+[Markdown]
+![Another caption](second.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Another caption</figcaption>
+<img src="second.jpg" alt="">
+</figure>

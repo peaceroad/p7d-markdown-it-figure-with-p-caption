@@ -131,6 +131,8 @@ const testData = {
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
   audioWithoutCaption: __dirname + path.sep + 'examples-audio-without-caption.txt',
   mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
+  autoAltCaptionCustom: __dirname + path.sep + 'examples-auto-alt-caption-custom.txt',
+  autoTitleCaptionCustom: __dirname + path.sep + 'examples-auto-title-caption-custom.txt',
   console: __dirname + path.sep + 'examples-console.txt',
   setFigureNumber: __dirname + path.sep + 'examples-set-figure-number.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
@@ -282,6 +284,18 @@ pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
 pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
 pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
+
+const mdAutoAltCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  autoAltCaption: '図',
+}).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdAutoAltCaptionCustom, testData.autoAltCaptionCustom, pass)
+
+const mdAutoTitleCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  autoTitleCaption: '図',
+}).use(mditAttrs).use(mditRndererFence);
+pass = runTest(mdAutoTitleCaptionCustom, testData.autoTitleCaptionCustom, pass)
 
 opt = {}
 opt.setFigureNumber = true

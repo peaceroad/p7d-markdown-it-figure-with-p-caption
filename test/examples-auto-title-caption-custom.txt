@@ -1,0 +1,23 @@
+[Markdown]
+![Alt stays](title.jpg "Plain title caption")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Plain title caption</figcaption>
+<img src="title.jpg" alt="Alt stays">
+</figure>
+
+[Markdown]
+![Another alt](second.jpg "Second title caption")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Second title caption</figcaption>
+<img src="second.jpg" alt="Another alt">
+</figure>
+
+[Markdown]
+![Title trimmed](trimmed.jpg "   Title with spaces   ")
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Title with spaces</figcaption>
+<img src="trimmed.jpg" alt="Title trimmed">
+</figure>
