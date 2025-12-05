@@ -1,90 +1,196 @@
 # p7d-markdown-it-figure-with-p-caption
 
-This is a markdown-it plugin.
+This markdown-it plugin converts paragraphs representing captions before or after image/table/code/video/audio/iframe into `figcaption` element, and wraps them in `figure` element. Caption parsing (labels, filenames, spacing rules) is delegated to [`p7d-markdown-it-p-captions`](https://www.npmjs.com/package/p7d-markdown-it-p-captions), so this plugin focuses on detecting the surrounding structure. Optionally, you have the option to wrap it in a `figure` element, even if there is no caption paragraph.
 
-For paragraphs containing only images, tables, code blocks, blockquotes, or iframes, this plugin converts them into figure elements with figcaption elements when a caption paragraph is written immediately before or after.
+For images, even if they don't have a caption paragraph, they can be treated as captions if they have a caption string in the image's `alt`/`title` text (there is also an option to promote them to captions even if they don't have that string).
 
-The conversion process:
-1. Detect supported elements: image paragraphs, tables, code/samp blocks, blockquotes, videos, and iframes
-2. Check for caption paragraphs immediately before or after the element
-3. Convert both elements into a figure with figcaption structure
+Optionally, you can auto-number image and table caption paragraphs starting from the beginning of the document if they only have label names.
 
-The figcaption behavior of this plugin depends on [p7d-markdown-it-p-captions](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+**Note.** If you want to adjust the image `width`/`height`, please also use [`@peaceroad/markdown-it-renderer-image`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image). Also, if you want to use the `samp` element when displaying terminal output, please also use [`@peaceroad/markdown-it-renderer-fence`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence). This document shows output using the latter option.
 
-**Notice.** Starting with version 0.7, the process changing from code to samp tag has been migrated to [@peaceroad/markdown-it-renderer-fence](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence). If you want to continue processing as before, please use this plugin at the same time.
-(The tests for this plugin and this Readme output used the plugins together.)
+## Behavior
 
-**Notice.** You can also use `markdown-it-attrs` at the same time. However, if there is `{.style}` at the end of a paragraph with only an image, and the next paragraph is a caption, `markdown-it-attrs` alone does not handle it well, so this plugin takes care of that. (This processing is optional `{styleProcess: true}` and can be turned off.) [0.5.0]
+### Images
 
-Use it as follows.
+- Pure image paragraphs (`![...](...)`) become `<figure class="f-img">` blocks as soon as a caption paragraph (previous or next) or an auto-detected caption exists.
+- Auto detection runs per image paragraph when `autoCaptionDetection` is `true` (default). The priority is:
+    1. Caption paragraphs immediately before or after the image (standard syntax).
+    2. Image `alt` text that already matches p7d-markdown-it-p-captions label formats (`Figure. `, `Figure 1. `, `図　`,`図1　`, etc.).
+    3. Image `title` attribute that matches the same labels.
+    4. Optional fallbacks (`autoAltCaption`, `autoTitleCaption`) that inject the label when the alt/title lacks one.
+        - `autoAltCaption`: `false` (default), `true`, or a string label. `true` inspects the first sentence of the caption text and picks `Figure` / `図` based on detected language; a string uses that label verbatim.
+        - `autoTitleCaption`: same behavior but sourced from the image `title`. It stays off by default so other plugins can keep using the `title` attribute for metadata.
+- Set `autoCaptionDetection: false` to disable the auto-caption workflow entirely.
+- Multi-image paragraphs are still wrapped as one figure when `multipleImages: true` (default). Layout-specific classes help with styling:
+  - `f-img-horizontal` when images sit on the same line (space-delimited).
+  - `f-img-vertical` when separated only by soft breaks.
+  - `f-img-multiple` for mixed layouts.
+- Automatic detection inspects only the first image in the paragraph. If it yields a caption, the entire figure reuses that caption while later images keep their own `alt`/`title`.
+- Paragraphs that contain only images also convert when they appear inside loose lists (leave blank lines between items), blockquotes, or description lists.
+
+### Tables
+
+- Markdown tables (including those produced by `markdown-it-multimd-table` or similar) convert into `<figure class="f-table">` blocks.
+- Caption paragraphs immediately before/after the table become `<figcaption>` element ahead of the `<table>`.
+
+### Code blocks
+
+- Captions labeled `Code. `, `Terminal. `, etc. wrap the fence in `<figure class="f-pre-code">` / `<figure class="f-pre-samp">`.
+- If `roleDocExample: true`, these figures add `role="doc-example"`.
+
+### Blockquotes
+
+- Captioned blockquotes (e.g., “Source. A paragraph. Ewritten immediately before or after `> ...`) become `<figure class="f-blockquote">` while keeping the original blockquote intact.
+
+### Video & Audio
+
+- Inline HTML `<video>` and `<audio>` tags are detected as media figures (`<figure class="f-video">` and `<figure class="f-audio">`).
+- A caption paragraph labeled `Video. ` / `Audio. ` (or any registered label) is promoted to `<figcaption>` before/after the media so controls remain unobstructed.
+
+### Embed by iframe
+
+- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `youtube.com` / `youtube-nocookie.com`, Vimeo `player.vimeo.com`); all other iframes fall back to `<figure class="f-iframe">` unless you override the class via `allIframeTypeFigureClassName`.
+- Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their `class` matches those providers. By default they become `<figure class="f-img">` so the caption label behaves like an image label (or whichever label you use, e.g., “Quote. E; override the wrapper class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
+- `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper stays `f-iframe` (or `f-embed` if you override it), while the figcaption includes `<span class="f-slide-label">Slide<span class="f-slide-label-joint">.</span></span>` so the caption itself can be styled distinctly via CSS.
+
+## Behavior Customization
+
+### Styles
+
+- Set `allIframeTypeFigureClassName: 'f-embed'` (recommended) to force a single CSS class across `<iframe>` and social-embed figures so they can share styles, ensuring every embed wrapper shares the same predictable class name.
+- `figureClassThatWrapsIframeTypeBlockquote`: override the class used when blockquote-based embeds (Twitter, Mastodon, Bluesky) are wrapped. Defaults to `f-img` so the label styles match image captions.
+- With `markdown-it-attrs`, any attribute block (`{ .foo #bar }`) attached to the caption paragraph is moved to the generated `<figure>` by default (`styleProcess: true`). This keeps per-figure classes/IDs on the wrapper instead of the original paragraph; disable the option only if you explicitly want the attributes to stay on the paragraph.
+- `classPrefix` (default `f`) controls the CSS namespace for every figure (`f-img`, `f-table`, etc.) so you can align with existing styles.
+
+### Wrapping without captions
+
+- `oneImageWithoutCaption`: turn single-image paragraphs into `<figure>` elements even when no caption paragraph/auto caption is present. This is independent of automatic detection.
+- `videoWithoutCaption`, `audioWithoutCaption`, `iframeWithoutCaption`, `iframeTypeBlockquoteWithoutCaption`: wrap the respective media blocks without caption.
+
+### Caption text helpers (delegated to `p7d-markdown-it-p-captions`)
+
+Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which owns the actual figcaption rendering:
+
+- `strongFilename` / `dquoteFilename`: pull out filenames from captions using `**filename**` or `"filename"` syntax and wrap them in `<strong class="f-*-filename">`.
+- `jointSpaceUseHalfWidth`: replace full-width space between Japanese labels and caption body with half-width space.
+- `bLabel` / `strongLabel`: emphasize the label span itself.
+- `removeUnnumberedLabel`: drop the leading “Figure. Etext entirely when no label number is present. Use `removeUnnumberedLabelExceptMarks` to keep specific labels (e.g., `['blockquote']` keeps `Quote. `).
+- `removeMarkNameInCaptionClass`: replace `.f-img-label` / `.f-table-label` with the generic `.f-label`.
+- `wrapCaptionBody`: wrap the non-label caption text in a span element.
+- `hasNumClass`: add a class attribute to label span element if it has a label number.
+
+### Automatic numbering
+
+- `setLabelNumbers`: enable numbering per media type. Pass an array such as `['img']`, `['table']`, or `['img', 'table']`.
+- `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `setLabelNumbers` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
+- Counters start at `1` near the top of the document and increment sequentially per media type. Figures and tables keep independent counters even when mixed together.
+- The counter only advances when a real caption exists (paragraph, auto-detected alt/title, or fallback text). Figures emitted solely because of `oneImageWithoutCaption` stay unnumbered.
+- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin updates its internal counter so the next automatic number becomes `6`. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
+
+## Basic Usage
 
 ```js
 import mdit from 'markdown-it'
 import mditFigureWithPCaption from '@peaceroad/markdown-it-figure-with-p-caption'
-import mditRendererFence from '@peaceroad/markdown-it-renderer-fence' /* to processing code -> smap tag etc. process.*/
+import mditRendererFence from '@peaceroad/markdown-it-renderer-fence' // optional but keeps fences aligned with samples
 
-const md = mdit()
-md.use(mditFigureWithPCaption)
+const md = mdit({ html: true, langPrefix: 'language-', })
+  .use(mditFigureWithPCaption)
+  .use(mditRendererFence)
 
-console.log(md.render('Figure. A Cat.\n\n![Figure](cat.jpg)'))
+console.log(md.render('Figure. A Cat.\n\n![A cat](cat.jpg)'))
 // <figure class="f-img">
 // <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Cat.</figcaption>
-// <img src="cat.jpg" alt="Figure">
+// <img src="cat.jpg" alt="A cat">
 // </figure>
 ```
 
-Also, It is recommended to set the width and height attributes of the images at the same time. See: [@peaceroad/markdown-it-renderer-image](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image).
+### Basic Recommended Options
 
-It could be applied to table, codeblock(pre > code, pre > samp), video as well.
+Auto label numbering for images and tables.
 
-These elements are also supported within the following structure. [0.13.0+]
+```js
+const figureOption = {
+  // Opinionated defaults
+  oneImageWithoutCaption: true,
+  videoWithoutCaption: true,
+  audioWithoutCaption: true,
+  iframeWithoutCaption: true,
+  iframeTypeBlockquoteWithoutCaption: true,
+  removeUnnumberedLabelExceptMarks: ['blockquote'], // keep “Quote. Elabels even when unnumbered
+  allIframeTypeFigureClassName: 'f-embed', // apply a uniform class to every iframe-style embed
+  autoLabelNumber: true,
 
-- Blockquote
-- loose list (with blank lines between items), not tight list (no blank lines)
-- Description list block (`<dl>` markup, markdown-it-deflist)
+  // If you want to enable auto alt/title captioning fallbacks without caption label.
+  //autoAltCaption: true,
+  //autoTitleCaption: true,
+}
+```
 
-## Example
+If there is no label number, the label will also be deleted.
+
+```js
+const figureOption = {
+  oneImageWithoutCaption: true,
+  videoWithoutCaption: true,
+  audioWithoutCaption: true,
+  iframeWithoutCaption: true,
+  iframeTypeBlockquoteWithoutCaption: true,
+  removeUnnumberedLabelExceptMarks: ['blockquote'],
+  allIframeTypeFigureClassName: 'f-embed',
+  removeUnnumberedLabel: true,
+}
+```
+
+These options can be used as follows:
+
+```
+const md = mdit({ html: true }).use(mditFigureWithPCaption, figureOption)
+```
+
+## Conversion Examples
+
+### Default before/after caption paragraph detection
 
 ~~~
 [Markdown]
-![Figure](figure.jpg)
+![A single cat](figure.jpg)
 
 [HTML]
-<p><img src="figure.jpg" alt="Figure"></p>
+<p><img src="figure.jpg" alt="A single cat"></p>
+
+<!-- Above: If oneImageWithoutCaption is true, this img element has wrapped into figure element without caption. -->
 
 
 [Markdown]
 Figure. A Caption.
 
-![Figure](figure.jpg)
+![A single cat](figure.jpg)
 [HTML]
 <figure class="f-img">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="Figure">
+<img src="figure.jpg" alt="A single cat">
 </figure>
 
 
 [Markdown]
-![Figure](figure.jpg)
+![A single cat](figure.jpg)
 
 Figure. A Caption.
 [HTML]
 <figure class="f-img">
-<img src="figure.jpg" alt="Figure">
+<img src="figure.jpg" alt="A single cat">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
 </figure>
 
 
 [Markdown]
-A paragraph.
-
 Table. A Caption.
 
 | Tokyo | Osaka |
 | ----- | ----- |
 | Sushi | Takoyaki |
 
-A paragraph.
 [HTML]
 <p>A paragraph.</p>
 <figure class="f-table">
@@ -104,53 +210,40 @@ A paragraph.
 </tbody>
 </table>
 </figure>
-<p>A paragraph.</p>
 
 
 [Markdown]
-A paragraph.
-
 Code. A Caption.
 
 ```js
 console.log('Hello World!');
 ```
 
-A paragraph.
-
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-pre-code">
 <figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
 <pre><code class="language-js">console.log('Hello World!');
 </code></pre>
 </figure>
-<p>A paragraph.</p>
+
+<!-- Above: class attribute of code element is generated by markdown-it option. -->
 
 
 [Markdown]
-A paragraph.
-
 Source. A Caption.
 
 > A quoted paragraph.
 
-A paragraph.
-
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-blockquote">
 <figcaption><span class="f-blockquote-label">Source<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
 <blockquote>
 <p>A quoted paragraph.</p>
 </blockquote>
 </figure>
-<p>A paragraph.</p>
 
 
 [Markdown]
-A paragraph.
-
 Terminal. A Caption.
 
 ```samp
@@ -158,108 +251,126 @@ $ pwd
 /home/user
 ```
 
-A paragraph.
-
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-pre-samp">
 <figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
 <pre><samp>$ pwd
 /home/user
 </samp></pre>
 </figure>
-<p>A paragraph.</p>
 
+<!-- Above: When @peaceroad/markdown-it-renderer-fence is used, samp element are generated automatically for `samp` fences. -->
 
 [Markdown]
-A paragraph.
-
 Video. A mp4.
 
 <video controls width="400" height="300">
 <source src="example.mp4" type="video/mp4">
 </video>
 
-A paragraph.
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-video">
 <figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A mp4.</figcaption>
 <video controls width="400" height="300">
 <source src="example.mp4" type="video/mp4">
 </video>
 </figure>
-<p>A paragraph.</p>
 
 
 [Markdown]
-A paragraph.
+Audio. A narration.
 
-Video. A youtube.
+<audio controls>
+<source src="example.mp3" type="audio/mpeg">
+</audio>
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-A paragraph.
 [HTML]
-<p>A paragraph.</p>
-<figure class="f-video">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<figure class="f-audio">
+<figcaption><span class="f-audio-label">Audio<span class="f-audio-label-joint">.</span></span> A narration.</figcaption>
+<audio controls>
+<source src="example.mp3" type="audio/mpeg">
+</audio>
 </figure>
-<p>A paragraph.</p>
 
 
 [Markdown]
-A paragraph.
+Video. A YouTube video.
 
-Video. A youtube.
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-A paragraph.
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-video">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A YouTube video.</figcaption>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
 </figure>
-<p>A paragraph.</p>
 
 
 [Markdown]
-A paragraph.
+Figure. Mastodon post.
 
-Figure. Twitter Post.
+<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://mastodon.social/embed.js"></script>
 
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; UserName (@account) <a href="https://twitter.com/account/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-A paragraph.
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Twitter Post.</figcaption>
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> X post.</figcaption>
+<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://mastodon.social/embed.js"></script>
 </figure>
-<p>A paragraph.</p>
 
+
+[Markdown]
+Quote. Mastodon post.
+
+<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://mastodon.social/embed.js"></script>
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Quote<span class="f-img-label-joint">.</span></span> X post.</figcaption>
+<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://mastodon.social/embed.js"></script>
+</figure>
+
+
+[Markdown]
+Slide. A Speaker Deck.
+
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+
+[HTML]
+<figure class="f-iframe">
+<figcaption><span class="f-slide-label">Slide<span class="f-slide-label-joint">.</span></span> A Speaker Deck.</figcaption>
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+</figure>
 ~~~
 
-Note: External embedding supports Youtube and Twitter. Twitter embedding uses blockquote instead of iframe. Therefore, the caption identifier should use "Quote", but "Figure" is also acceptable.
-
-
-From version 0.5.0, it supports cases where a paragraph contains only multiple images. Instead of `f-img` as the figure class name, use the following class name. (This class name is unstable, but I probably won't change it.) 
-
-- `f-img-horizontal` if the image is written in one line on Markdown
-- `f-img-vertical` if images are written only vertically, one per line
-- `f-img-multiple` in other cases
-
-Notice. This process can be turned off by specifying `{multipleImages: false}`.
+### Auto alt/title detection
 
 ```
 [Markdown]
+![Figure. A cat.](cat.jpg)
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="">
+</figure>
+
+
+[Markdown]
+![A white cat eats fishs.](cat.jpg "Figure. A cat.")
+
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="A white cat eats fishs.">
+</figure>
+```
+
+### Multiple images
+
+~~~
+[Markdown]
 A paragraph. multipleImages: true. horizontal images only.
 
-![One cat](cat1.jpg) ![Two cat](cat2.jpg)
+![Sitting cat](cat1.jpg) ![Standing cat](cat2.jpg)
 
 Figure. Cats.
 
@@ -267,7 +378,7 @@ A paragraph.
 [HTML]
 <p>A paragraph. multipleImages: true.  horizontal images only</p>
 <figure class="f-img-horizontal">
-<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
+<img src="cat1.jpg" alt="Sitting cat"><img src="cat2.jpg" alt="Standing cat">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
 </figure>
 <p>A paragraph.</p>
@@ -277,16 +388,16 @@ A paragraph. multipleImages: true. vertical images only.
 
 Figure. Cats.
 
-![One cat](cat1.jpg) 
-     ![Two cat](cat2.jpg)
+![Sitting cat](cat1.jpg) 
+     ![Standing cat](cat2.jpg)
 
 A paragraph.
 [HTML]
 <p>A paragraph. multipleImages: true. vertical images only.</p>
 <figure class="f-img-vertical">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
-<img src="cat1.jpg" alt="One cat">
-<img src="cat2.jpg" alt="Two cat">
+<img src="cat1.jpg" alt="Sitting cat">
+<img src="cat2.jpg" alt="Standing cat">
 </figure>
 <p>A paragraph.</p>
 
@@ -295,271 +406,138 @@ A paragraph. multipleImages: true.
 
 Figure. Cats.
 
-![One cat](cat1.jpg) ![Two cat](cat2.jpg)
-![Three cat](cat3.jpg)
+![Sitting cat](cat1.jpg) ![Standing cat](cat2.jpg)
+![Sleeping cat](cat3.jpg)
 
 A paragraph.
 [HTML]
 <p>A paragraph. multipleImages: true.</p>
 <figure class="f-img-multiple">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
-<img src="cat1.jpg" alt="One cat"><img src="cat2.jpg" alt="Two cat">
-<img src="cat3.jpg" alt="Three cat">
-</figure>
-<p>A paragraph.</p>
-```
-
-## Option: Specify file name
-
-Specify the file name before writing the caption.
-Note that a space is required between the file name and caption.
-
-### Use double quote
-
-```js
-
-md.use(mditFigureWithPCaption, {dquoteFilename: true});
-```
-
-~~~
-[Markdown]
-A paragraph.
-
-Code. "filename.js" Call a cat.
-
-```js
-console.log('Nyaan!');
-```
-
-A paragraph.
-
-[HTML]
-<p>A paragraph.</p>
-<figure class="f-pre-code">
-<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
-<pre><code class="language-js">console.log('Nyaan!');
-</code></pre>
+<img src="cat1.jpg" alt="Sitting cat"><img src="cat2.jpg" alt="Standing cat">
+<img src="cat3.jpg" alt="Sleeping cat">
 </figure>
 <p>A paragraph.</p>
 ~~~
 
-### Use strong mark
+### Styles
 
-```js
-md.use(mditFigureWithPCaption, {strongFilename: true});
+This example uses `classPrefix: 'custom'` and leaves `styleProcess: true` so a trailing `{.notice}` block moves onto the `<figure>` wrapper.
+
 ```
-
-~~~
-
 [Markdown]
-A paragraph.
+Figure. Highlighted cat. {.notice}
 
-Code. **filename.js** Call a cat.
-
-```js
-console.log('Nyaan!');
-```
-
-A paragraph.
-
+![Highlighted cat](cat.jpg)
 [HTML]
-<p>A paragraph.</p>
-<figure class="f-pre-code">
-<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> <strong class="f-pre-code-filename">filename.js</strong> Call a cat.</figcaption>
-<pre><code class="language-js">console.log('Nyaan!');
-</code></pre>
+<figure class="custom-img notice">
+<figcaption><span class="custom-img-label">Figure<span class="custom-img-label-joint">.</span></span> Highlighted cat.</figcaption>
+<img src="cat.jpg" alt="Highlighted cat">
 </figure>
-<p>A paragraph.</p>
-~~~
-
-## Option
-
-### Convert one image paragraph without caption
-
-Convert one image paragraph without a caption paragraph to figure element.
-
-```js
-md.use(mditFigureWithPCaption, {oneImageWithoutCaption: true});
 ```
 
-~~~
+## Option Examples
+
+### Automatic detection fallbacks
+
+`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source.
+
+```
 [Markdown]
-A paragraph.
-
-![Figure](cat.jpg)
-
-A paragraph.
+![Alt fallback example](bird.jpg)
 
 [HTML]
-<p>A paragraph.</p>
 <figure class="f-img">
-<img src="cat.jpg" alt="Figure">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Alt fallback example</figcaption>
+<img src="bird.jpg" alt="">
 </figure>
-<p>A paragraph.</p>
-~~~
 
-### Convert one video element without caption
 
-Convert one video element without a caption paragraph to figure element.
+[Markdown]
+![No caption](fish.jpg "Plain title text")
 
-```js
-md.use(mditFigureWithPCaption, {videoWithoutCaption: true});
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain title text</figcaption>
+<img src="fish.jpg" alt="No caption">
+</figure>
 ```
 
-#### Convert one iframe without caption
+### Role helpers
 
-Convert one iframe without a caption paragraph to iframe element. (adn twitter blockquote embed eelment.)
-
-```js
-md.use(mditFigureWithPCaption, {iframeWithoutCaption: true});
-```
+Set `roleDocExample: true` to add `role="doc-example"` to code/samp figures.
 
 ~~~
 [Markdown]
-<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+```samp
+$ pwd
+/home/user
+```
+
 [HTML]
-<figure class="f-iframe">
-<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
+<figure class="f-pre-samp" role="doc-example">
+...
 </figure>
+~~~
 
+### Captionless conversion toggles
+
+If `oneImageWithoutCaption` is enabled, a single image paragraph will be wrapped with `<figure class="f-img">` even without a caption.
+
+```
 [Markdown]
-A paragraph.
+![A single cat](cat.jpg)
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-A paragraph.
 [HTML]
-<p>A paragraph.</p>
-<figure class="f-video">
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<figure class="f-img">
+<img src="cat.jpg" alt="A single cat">
 </figure>
-<p>A paragraph.</p>
+```
 
+If `videoWithoutCaption` is enabled, an `iframe` pointing to a known video host (such as YouTube or video elements) will be wrapped with `<figure class="f-video">`.
+
+```
 [Markdown]
-<iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
+
 [HTML]
 <figure class="f-video">
-<iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
 </figure>
 
+
 [Markdown]
-A paragraph. iframeWithoutCaption: true.
-
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-A paragraph.
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
 [HTML]
-<p>A paragraph. iframeWithoutCaption: true.</p>
+<figure class="f-video">
+<video controls width="400" height="300">
+<source src="example.mp4" type="video/mp4">
+</video>
+</figure>
+```
+
+If when `iframeWithoutCaption` is enabled, iframe elements will be wrapped with `<figure class="f-iframe">`. And if `iframeTypeBlockquoteWithoutCaption` is enabled, blockquote-based embeds (for example, X) will be wrapped with `<figure class="f-mg">` (or another configured class).
+
+```
+[Markdown]
+<iframe>
+...
+</iframe>
+
+[HTML]
 <figure class="f-iframe">
-<blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-</figure>
-<p>A paragraph.</p>
-
-[Markdown]
-<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
-[HTML]
-<figure class="f-iframe">
-<iframe src="https://example.com/embed" class="mastodon-embed" style="max-width: 100%; border: 0" width="400" allowfullscreen="allowfullscreen"></iframe><script src="https://exapmle.com/embed.js" async="async"></script>
-</figure>
-
-[Markdown]
-<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
-[HTML]
-<figure class="f-iframe">
-<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
-</figure>
-~~~
-
-### Option: imgAltCaption
-
-In Markdown documents, captions are often written in the alt attribute of images. If you follow the syntax of this plugin, the commit log will be cluttered. Therefore, as an option, the alt attribute is treated as a caption.
-Note that you cannot use this plugin's syntax and this option's syntax at the same time.
-
-The img alt attribute have an empty value.
-
-```js
-const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgAltCaption: 'Figure'})
-```
-
-```
-[Markdown]
-![Figure. A caption.](cat.jpg)
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="">
+<iframe>
+...
+</iframe>
 </figure>
 ```
 
-### Option: imgTitleCaption
+### Iframe-type blockquote class override
 
-The title attribute of the Markdown img element is used as the caption.
-Note that you cannot use this plugin's standard syntax and this option's syntax at the same time.
+If `figureClassThatWrapsIframeTypeBlockquote` is enabled, blockquote-based embeds (for example, X, Mastodon, Bluesky) will be wrapped with the specified class.
 
-The img alt attribute is not specially modified during conversion; the Markdown alt attribute is used as is.
+### All iframe/embed class override
 
-```js
-const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {imgTitleCaption: 'Figure'})
-```
-
-```
-[Markdown]
-![A alt text.](cat.jpg "Figure. A caption.")
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A caption.</figcaption>
-<img src="cat.jpg" alt="A alt text.">
-</figure>
-```
-
-### Option: roleDocExample
-
-From version 0.8, role="doc-example" is not included as standard in figure.f-pre-code and figure.f-pre-samp. If necessary, set `roleDocExample: true.`
-
-```js
-const mdImgAltCaption = mdit({html: true}).use(mditFigureWithPCaption, {roleDocExample: true})
-```
-
-### Option: allIframeTypeFigureClassName
-
-From version 0.16.0, unify the figure element that wraps the iframe or blockquote tag in the embed code to figure.f-embed (this may become the default in the future).
-
-```js
-const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCaption, {
-  allIframeTypeFigureClassName: 'f-embed',
-  videoWithoutCaption = true,
-  iframeWithoutCaption = true,
-  iframeTypeBlockquoteWithoutCaption = true,
-}).use(mditAttrs).use(mditRndererFence);
-```
-
-```
-[Markdown]
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-[HTML]
-<figure class="f-embed">
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</figure>
-
-
-[Markdown]
-Video. A youtube.
-
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-[HTML]
-<figure class="f-embed">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A youtube.</figcaption>
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</figure>
-
-
-[Markdown]
-<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@xxxx/xxxx/embed" ...>xxxxxxxxxxxxxxxx</blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
-
-[HTML]
-<figure class="f-embed">
-<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@xxxx/xxxx/embed" ...>xxxxxxxxxxxxxxxx</blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
-</figure>
-```
+Enable `allIframeTypeFigureClassName` (recommended. `'f-embed'`) to consolidate iframe-like embeds under one class.

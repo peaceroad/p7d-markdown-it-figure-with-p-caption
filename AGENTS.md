@@ -26,10 +26,11 @@
 - Regression tests: `examples-automatic-caption-detection*.txt`, `examples-alt-caption-fallback*.txt`, `examples-title-caption-fallback*.txt`, and the numbered variants ensure fallbacks + counters stay in sync.
 
 ## Automatic Numbering
-- Option `setLabelNumbers` accepts an array such as `['img']`, `['table']`, or `['img', 'table']` (arrays are the preferred form, though older boolean/object forms are still normalized internally). The option is normalized once, and a `labelClassLookup` map is built so child scanning can find `.f-img-label` / `.f-table-label` without recomputing class names. `autoLabelNumber: true` is a shorthand that enables the image counter by internally toggling `setLabelNumbers.img = true`.
+- Option `setLabelNumbers` accepts an array such as `['img']`, `['table']`, or `['img', 'table']`. The value is normalized once, and a `labelClassLookup` map is built so child scanning can find `.f-img-label` / `.f-table-label` without recomputing class names. `autoLabelNumber: true` is a shorthand that toggles numbering for both images and tables unless `setLabelNumbers` is provided explicitly (explicit arrays always win).
+- Counters start at `1` from the top of the document and increment sequentially per media type. Figures without captions (e.g., ones produced solely by `oneImageWithoutCaption`) never advance the counter because there is no label span to mutate.
 - Priority order: manually authored number > auto counter. If a caption already contains digits (`Figure 5.`), the counter syncs to that value; otherwise, the plugin injects `Figure 1`, `図1`, etc. Alt/title fallback captions are treated the same way.
-- Numbering reuses `setCaptionParagraph`’s inline children. The helper updates both the text node and `inline.content` to keep downstream renderers consistent.
-- Regression tests: `examples-set-label-with-numbers.txt`, `examples-alt-caption-fallback-numbered.txt`, and `examples-automatic-caption-detection-numbered.txt` cover manual numbering, auto counters, and fallback scenarios.
+- Numbering reuses `setCaptionParagraph`'s inline children. The helper updates both the text node and `inline.content` to keep downstream renderers consistent.
+- Regression tests: `examples-set-label-with-numbers.txt`, `examples-set-label-numbers-skip.txt`, `examples-auto-label-number.txt`, `examples-alt-caption-fallback-numbered.txt`, and `examples-automatic-caption-detection-numbered.txt` cover manual numbering, auto counters, skipped figures, and fallback scenarios.
 
 ## Potential Future Work
 - `wrapWithFigure` still instantiates new tokens on every call; a simple factory or token pool could reduce GC pressure if profiling shows it’s a hotspot.

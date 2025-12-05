@@ -22,24 +22,10 @@ const fallbackLabelDefaults = {
 const normalizeSetLabelNumbers = (value) => {
   const normalized = { img: false, table: false }
   if (!value) return normalized
-  if (value === true) {
-    normalized.img = true
-    normalized.table = true
-    return normalized
-  }
-  if (typeof value === 'string') {
-    if (normalized.hasOwnProperty(value)) normalized[value] = true
-    return normalized
-  }
   if (Array.isArray(value)) {
     for (const entry of value) {
       if (normalized.hasOwnProperty(entry)) normalized[entry] = true
     }
-    return normalized
-  }
-  if (typeof value === 'object') {
-    normalized.img = !!value.img
-    normalized.table = !!value.table
     return normalized
   }
   return normalized
@@ -926,7 +912,7 @@ const mditFigureWithPCaption = (md, option) => {
     autoTitleCaption: false, // same as above but reads from the title attribute when alt isn't usable
 
     // --- numbering controls ---
-    autoLabelNumber: false, // shorthand for numbering only auto-generated image captions
+    autoLabelNumber: false, // shorthand for enabling numbering for both img/table unless setLabelNumbers is provided explicitly
     setLabelNumbers: [], // preferred; supports ['img'], ['table'], or both
 
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
@@ -941,11 +927,13 @@ const mditFigureWithPCaption = (md, option) => {
     removeMarkNameInCaptionClass: false,
     wrapCaptionBody: false,
   }
+  const hasExplicitSetLabelNumbers = option && Object.prototype.hasOwnProperty.call(option, 'setLabelNumbers')
   if (option) Object.assign(opt, option)
   // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
   opt.setLabelNumbers = normalizeSetLabelNumbers(opt.setLabelNumbers)
-  if (opt.autoLabelNumber) {
+  if (opt.autoLabelNumber && !hasExplicitSetLabelNumbers) {
     opt.setLabelNumbers.img = true
+    opt.setLabelNumbers.table = true
   }
   // Precompute `.f-*-label` permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)
