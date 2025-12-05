@@ -1,39 +1,44 @@
 # AGENTS notes for `p7d-markdown-it-figure-with-p-caption`
 
-## Overview
-`p7d-markdown-it-figure-with-p-caption` walks markdown-it’s block token stream and wraps single images, tables, code blocks, blockquotes, audio/video embeds, and iframe-like content (YouTube, Bluesky, etc.) with `<figure>` + `<figcaption>`. Label formatting and numbering are delegated to `p7d-markdown-it-p-captions`, while code block rendering is typically handled by `@peaceroad/markdown-it-renderer-fence`. Most examples assume it is used together with `markdown-it-attrs` and `@peaceroad/markdown-it-renderer-image` so that `{.class #id}` and width/height attributes are preserved.
+## 1. Purpose
+- Wrap media/table/code/blockquote blocks with `<figure>` and upgrade nearby caption paragraphs to `<figcaption>`.
+- Hand off label formatting/numbering to `p7d-markdown-it-p-captions`; this plugin focuses on detection, wrapping, and figure-level classes.
+- Preserve `{.class #id}` metadata and renderer-specific styling hooks (markdown-it-attrs, custom fence/image renderers).
 
-## Typical Workflow
-1. In Markdown, authors write a caption paragraph immediately before or after the block (`Figure. A cat.`). Multiple-image blocks rely on softbreaks/whitespace to determine layout (`f-img-horizontal`, `f-img-vertical`, `f-img-multiple`).
-2. On the markdown-it side, call `md.use(mditFigureWithPCaption, opts)` (optionally chain `markdown-it-attrs` and `@peaceroad/markdown-it-renderer-fence`). During `md.render` the target block is converted into `<figure class="f-…">` with `<figcaption>`.
-3. Loose lists, blockquotes, and description lists are supported (ensure blank lines within list items so markdown-it emits paragraph tokens). Tight lists are skipped because their structure can’t accommodate `<figure>` wrappers without invalid HTML.
-4. Options like `{dquoteFilename:true}` / `{strongFilename:true}` emphasize filenames inside captions, while `{oneImageWithoutCaption:true}` / `videoWithoutCaption` / `audioWithoutCaption` / `iframeWithoutCaption` / `iframeTypeBlockquoteWithoutCaption` force `<figure>` even without captions. `autoAltCaption` / `autoTitleCaption` extend automatic detection by promoting unlabeled alt/title text into captions (with language-aware labels) when no caption paragraph exists.
+## 2. Processing Flow
+1. Registration: `md.use(mditFigureWithPCaption, opts)` adds the `figure_with_caption` core rule right before `replacements`, after markdown-it-attrs has decorated paragraphs.
+2. Traversal: `figureWithCaptionCore` walks token arrays recursively, honoring container boundaries (blockquote/list/definition) while skipping tight lists to avoid invalid HTML.
+3. Detection: helpers flag qualifying ranges — `detectCheckTypeOpen` (table/pre/blockquote), `detectFenceToken` (fence and `samp`), `detectHtmlBlockToken` (video/audio/iframe/social embeds/div wrappers), `detectImageParagraph` (img-only paragraphs, including multi-image layouts with orientation suffixes).
+4. Caption pairing: `checkPrevCaption` / `checkNextCaption` locate caption paragraphs; auto caption fallbacks inject temporary paragraphs when alt/title data qualifies.
+5. Wrapping: `wrapWithFigure` splices figure tokens around the detected block and `changePrevCaptionPosition` / `changeNextCaptionPosition` convert chosen caption paragraphs into `figcaption` tokens in place.
 
-## Implementation Notes
-- `figureWithCaptionCore` recursively walks tokens, using `detectCheckTypeOpen`, `detectFenceToken`, `detectHtmlBlockToken`, and `detectImageParagraph` to identify targets. `checkPrevCaption` / `checkNextCaption` detect captions, and `createAutoCaptionParagraph` injects fallback captions when needed.
-- `wrapWithFigure` inserts `<figure>` tokens and handles special cases (iframe/blockquote/video classes). `changePrevCaptionPosition` / `changeNextCaptionPosition` convert caption paragraphs into `<figcaption>` nodes inside the figure.
-- `detectHtmlBlockToken` supports `<video>`, `<audio>`, `<iframe>`, `<blockquote>`, and `<div>` wrappers (Vimeo, Bluesky, Twitter, etc.). Recent optimization removed candidate-array copies and redundant regex calls.
-- `detectImageParagraph` validates the inline children (image/text/softbreak only), collects trailing `{.class}` attributes, and determines multi-image suffixes. The `isOnlySpacesText` helper avoids regex-based whitespace checks.
-- `isInListItem` uses a WeakMap cache to track whether a token is inside a list item; tight lists are skipped.
+## 3. Caption & Numbering Logic
+- Priority order: explicit caption paragraph → labeled `alt` text → `title` attribute. Fallbacks can prepend language-aware labels via `autoAltCaption` / `autoTitleCaption`.
+- Once a fallback consumes alt/title text we blank those attributes so downstream renderers do not duplicate the caption.
+- Language sniffing looks at the first sentence to decide when to switch default labels to Japanese; the resolved label per media type is cached for the render pass.
+- Auto-generated caption paragraphs are inserted immediately before the figure, then re-run through `setCaptionParagraph` so numbering hooks stay consistent.
+- `setCaptionParagraph` records its decision in `sp.captionDecision` (mark, label text, numbering presence), allowing slide wrappers or other consumers to react without re-parsing inline tokens.
+- `ensureAutoFigureNumbering` finds the label span via `opt.labelClassLookup`, respects hand-authored numbers, and increments counts only for marks enabled by `setLabelNumbers` / `autoLabelNumber`.
 
-## Automatic Caption Detection
-- Priority order: caption paragraphs (before/after) > image alt text > image title. If a caption paragraph is found, auto detection (`autoCaptionDetection`, enabled by default) is skipped.
-- Alt/title strings must match `p7d-markdown-it-p-captions`’ `markReg.img` (e.g., `Figure.`, `図`). If not, the plugin leaves them untouched unless `autoAltCaption` / `autoTitleCaption` is enabled, in which case it either applies a custom label (string option) or auto-detects the language and chooses `Figure`/`Table` vs. `図`/`表` when the option is `true`. The first fallback per type caches that decision so later captions stay consistent within the same render.
-- Whether the caption comes from a direct label match or a fallback, the consumed `alt`/`title` attributes are cleared so the caption text isn’t duplicated across `<img>` and `<figcaption>`.
-- The auto language heuristic scans the first sentence of the caption text (until `.?!。？！` or a newline): any Hiragana/Katakana/Kanji before that boundary switch the document to Japanese labels, otherwise it defaults to English. Once cached, the stored label is reused for the remainder of the document unless a string override is provided.
-- When a fallback consumes alt/title text, the image attributes are cleared (`alt=""`, `title` removed) so the caption is the sole source. This prevents duplicate narration and avoids conflicts with renderer plugins that use `title` for sizing.
-- Auto-generated caption paragraphs are inserted immediately before the block, then converted into `<figcaption>` via `changePrevCaptionPosition`, preserving the “caption-first” layout and class names (`.f-img-label`, etc.).
-- Regression tests: `examples-automatic-caption-detection*.txt`, `examples-alt-caption-fallback*.txt`, `examples-title-caption-fallback*.txt`, and the numbered variants ensure fallbacks + counters stay in sync.
+## 4. Figure Classes & Label Mirroring
+- `resolveFigureClassName` picks a baseline class: `allIframeTypeFigureClassName` overrides every iframe/social embed; otherwise we differentiate among iframes (`f-iframe`), known videos (`f-video`), social blockquotes (`figureClassThatWrapsIframeTypeBlockquote`, default `f-img`), and standard blocks (`f-img`, `f-table`, etc.).
+- Slide-aware override: `setCaptionParagraph` surfaces the detected mark (e.g., `slide`), and `figureClassThatWrapsSlides` (default `f-slide`) swaps the figure class whenever that mark appears. If `allIframeTypeFigureClassName` is provided we skip the slide override so iframe/social embeds always share the global class; otherwise you can opt out by setting the slide option to an empty string or swap in a custom class such as `f-slide-deck`. Auto-generated captions re-run this check so inferred slides still get the override when eligible.
+- Attribute forwarding: when `styleProcess` is enabled we merge attributes gathered from the caption paragraph (via markdown-it-attrs) and image token styles onto the `<figure>` to match VS Code’s markdown preview behavior.
+- Label span mirroring: `p7d-markdown-it-p-captions` exposes `labelClassFollowsFigure` plus `figureToLabelClassMap`. Because `sp.figureClassName` is known before `setCaptionParagraph`, the caption renderer can mirror figure classes onto the label/joint/body spans (e.g., `f-embed → caption-embed caption-social`, `f-iframe → caption-slide-label caption-slide-extra`). Duplicates are stripped before appending `-label`, `-label-joint`, `-body` suffixes.
 
-## Automatic Numbering
-- Option `setLabelNumbers` accepts an array such as `['img']`, `['table']`, or `['img', 'table']`. The value is normalized once, and a `labelClassLookup` map is built so child scanning can find `.f-img-label` / `.f-table-label` without recomputing class names. `autoLabelNumber: true` is a shorthand that toggles numbering for both images and tables unless `setLabelNumbers` is provided explicitly (explicit arrays always win).
-- Counters start at `1` from the top of the document and increment sequentially per media type. Figures without captions (e.g., ones produced solely by `oneImageWithoutCaption`) never advance the counter because there is no label span to mutate.
-- Priority order: manually authored number > auto counter. If a caption already contains digits (`Figure 5.`), the counter syncs to that value; otherwise, the plugin injects `Figure 1`, `図1`, etc. Alt/title fallback captions are treated the same way.
-- Numbering reuses `setCaptionParagraph`'s inline children. The helper updates both the text node and `inline.content` to keep downstream renderers consistent.
-- Regression tests: `examples-set-label-with-numbers.txt`, `examples-set-label-numbers-skip.txt`, `examples-auto-label-number.txt`, `examples-alt-caption-fallback-numbered.txt`, and `examples-automatic-caption-detection-numbered.txt` cover manual numbering, auto counters, skipped figures, and fallback scenarios.
+## 5. Options Snapshot
+- Wrapper behavior: `oneImageWithoutCaption`, `videoWithoutCaption`, `audioWithoutCaption`, `iframeWithoutCaption`, `iframeTypeBlockquoteWithoutCaption` force wrapping even without captions; `figureClassThatWrapsSlides` / `figureClassThatWrapsIframeTypeBlockquote` handle special classes; `allIframeTypeFigureClassName` replaces every iframe/social/embed class (including slide overrides) with a single namespace like `f-embed`.
+- Caption formatting (forwarded to `p7d-markdown-it-p-captions`): `strongFilename`, `dquoteFilename`, `jointSpaceUseHalfWidth`, `bLabel`/`strongLabel`, `removeUnnumberedLabel`, `removeUnnumberedLabelExceptMarks`, `removeMarkNameInCaptionClass`, `wrapCaptionBody`, `hasNumClass`.
+- Auto detection: `autoCaptionDetection`, `autoAltCaption`, `autoTitleCaption`.
+- Numbering: `setLabelNumbers`, `autoLabelNumber`.
 
-## Potential Future Work
-- `wrapWithFigure` still instantiates new tokens on every call; a simple factory or token pool could reduce GC pressure if profiling shows it’s a hotspot.
-- `getHtmlReg` currently caches only by tag name. Extending the cache key to tag+type (e.g., iframe + youtube) might cut down on RegExp creation for common embeds.
-- `{.class #id}` parsing in `detectImageParagraph` relies on multiple regexes; a dedicated parser or pre-scan could shorten the hot path.
-- Tight list handling is strict (figure conversion skipped). If UX feedback suggests otherwise, consider an opt-in that allows figures inside tight lists or emits warnings for skipped blocks.
+## 6. Test Coverage
+- Fixtures under `test/*.txt` feed `test/test.js` (`npm test`).
+- `examples-figure-class-that-wraps-slides.txt` ensures `figureClassThatWrapsSlides` overrides correctly (default and custom values).
+- `examples-option-label-class-follows-figure.txt` and `examples-option-figure-to-label-class-map.txt` verify that label classes mirror figure classes.
+
+## 7. Future Work
+- Investigate a token factory/pool for `wrapWithFigure` to reduce GC churn on huge documents.
+- Expand `getHtmlReg` caching with tag + media subtype hints (e.g., iframe + YouTube) to avoid recreating regexes for embed-heavy posts.
+- Explore an opt-in strategy for tight lists (temporary split/merge or diagnostics) so captions aren’t silently skipped.
+- Cache `{.class #id}` parsing in `detectImageParagraph` to avoid redundant regex work on large attribute blocks.
