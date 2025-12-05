@@ -1,0 +1,20 @@
+[Markdown]
+Slide. Custom slide.
+
+<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
+[HTML]
+<figure class="f-slide-custom">
+<figcaption><span class="f-slide-label">Slide<span class="f-slide-label-joint">.</span></span> Custom slide.</figcaption>
+<iframe class="speakerdeck-iframe" style="border: 0px none; background: rgba(0, 0, 0, 0.1) padding-box; margin: 0px; padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 100%; height: auto; aspect-ratio: 560 / 314;" src="https://speakerdeck.com/player/xxxxxxxxxxxxxx" title="xxxxxxxxxxx" allowfullscreen="true" data-ratio="1.78343949044586" frameborder="0"></iframe>
+</figure>
+
+
+[Markdown]
+Figure. Cat.
+
+![Cat](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cat.</figcaption>
+<img src="cat.jpg" alt="Cat">
+</figure>

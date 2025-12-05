@@ -50,6 +50,27 @@ opt.audioWithoutCaption = true
 const mdAudioWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 opt.audioWithoutCaption = false
 
+const mdLabelClassFollowsFigure = mdit({ html: true }).use(mdFigureWithPCaption, {
+  labelClassFollowsFigure: true,
+  wrapCaptionBody: true,
+  figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
+}).use(mditAttrs).use(mditRndererFence);
+
+const mdLabelClassMap = mdit({ html: true }).use(mdFigureWithPCaption, {
+  labelClassFollowsFigure: true,
+  wrapCaptionBody: true,
+  figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
+  figureToLabelClassMap: {
+    'f-embed': 'caption-embed caption-social',
+    'f-iframe': 'caption-slide-label caption-slide-extra',
+    'f-img': ['c-figure', 'alt-figure-body'],
+  },
+}).use(mditAttrs).use(mditRndererFence);
+
+const mdCustomSlideFigureClass = mdit({ html: true }).use(mdFigureWithPCaption, {
+  figureClassThatWrapsSlides: 'f-slide-custom',
+}).use(mditAttrs).use(mditRndererFence);
+
 
 const mdConsole = mdit({
   html: true,
@@ -138,6 +159,9 @@ const testData = {
   autoTitleCaptionCustom: __dirname + path.sep + 'examples-auto-title-caption-custom.txt',
   console: __dirname + path.sep + 'examples-console.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
+  figureClassThatWrapsSlides: __dirname + path.sep + 'examples-figure-class-that-wraps-slides.txt',
+  optionLabelClassFollowsFigure: __dirname + path.sep + 'examples-option-label-class-follows-figure.txt',
+  optionFigureToLabelClassMap: __dirname + path.sep + 'examples-option-figure-to-label-class-map.txt',
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
   autoCaptionDetectionNumbered: __dirname + path.sep + 'examples-automatic-caption-detection-numbered.txt',
@@ -316,6 +340,9 @@ opt.iframeTypeBlockquoteWithoutCaption = true
 opt.allIframeTypeFigureClassName = 'f-embed'
 const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCaption, opt).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdAllIframeTypeFigureClassName, testData.allIframeTypeFigureClassName, pass)
+pass = runTest(mdLabelClassFollowsFigure, testData.optionLabelClassFollowsFigure, pass)
+pass = runTest(mdLabelClassMap, testData.optionFigureToLabelClassMap, pass)
+pass = runTest(mdCustomSlideFigureClass, testData.figureClassThatWrapsSlides, pass)
 
 const mdCaptionGuard = mdit({ html: true }).use(mdFigureWithPCaption).use(mutateCaptionClosePlugin)
 const captionGuardMarkdown = 'Figure. Guard caption.\n\n![Figure](guard.jpg)'

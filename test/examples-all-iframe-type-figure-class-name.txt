@@ -163,6 +163,18 @@ A paragraph.
 
 
 [Markdown]
+Slide. Embed slide deck.
+
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+
+[HTML]
+<figure class="f-embed">
+<figcaption><span class="f-slide-label">Slide<span class="f-slide-label-joint">.</span></span> Embed slide deck.</figcaption>
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+</figure>
+
+
+[Markdown]
 <blockquote class="bluesky-embed" data-bluesky-uri="at://xxxxxxxxxxxxx" data-bluesky-cid="xxxx"><p lang="en">xxxx
 
 xxxx</p>&mdash; xxxx (<a href="https://bsky.app/profile/xxx">@xxx</a>) <a href="https://bsky.app/profile/xxx?ref_src=embed">1970年01月01日 00:00</a></blockquote><script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>

@@ -1,0 +1,21 @@
+[Markdown]
+Source. Twitter embed.
+
+<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-embed">
+<figcaption><span class="f-embed-label f-blockquote-label">Source<span class="f-embed-label-joint f-blockquote-label-joint">.</span></span> <span class="f-embed-body f-blockquote-body">Twitter embed.</span></figcaption>
+<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+
+
+[Markdown]
+Figure. Cat.
+
+![Cat](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> <span class="f-img-body">Cat.</span></figcaption>
+<img src="cat.jpg" alt="Cat">
+</figure>
+

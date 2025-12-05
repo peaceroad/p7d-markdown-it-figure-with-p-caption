@@ -1,6 +1,7 @@
 import { setCaptionParagraph, markReg } from 'p7d-markdown-it-p-captions'
 
 const htmlRegCache = new Map()
+const cleanCaptionRegCache = new Map()
 const classReg = /^f-(.+)$/
 const blueskyEmbedReg = /^<blockquote class="bluesky-embed"[^]*?>[\s\S]*?$/
 const videoIframeReg = /^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i
@@ -14,6 +15,12 @@ const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
 const imgCaptionMarkReg = markReg && markReg.img ? markReg.img : null
 const asciiLabelReg = /^[A-Za-z]/
 const trailingDigitsReg = /(\d+)\s*$/
+const CHECK_TYPE_TOKEN_MAP = {
+  table_open: 'table',
+  pre_open: 'pre',
+  blockquote_open: 'blockquote',
+}
+const HTML_TAG_CANDIDATES = ['video', 'audio', 'iframe', 'blockquote', 'div']
 const fallbackLabelDefaults = {
   img: { en: 'Figure', ja: '図' },
   table: { en: 'Table', ja: '表' },
@@ -348,8 +355,6 @@ const checkNextCaption = (tokens, en, caption, fNum, sp, opt, TokenConstructor) 
   return
 }
 
-const cleanCaptionRegCache = new Map()
-
 const cleanCaptionTokenAttrs = (token, captionName) => {
   if (!token.attrs) return
   let reg = cleanCaptionRegCache.get(captionName)
@@ -364,6 +369,40 @@ const cleanCaptionTokenAttrs = (token, captionName) => {
     }
   }
 }
+
+const resolveFigureClassName = (checkTokenTagName, caption, sp, opt) => {
+  let className = 'f-' + checkTokenTagName
+  if (opt.allIframeTypeFigureClassName === '') {
+    if (sp.isVideoIframe) {
+      className = 'f-video'
+    }
+    if (sp.isIframeTypeBlockquote) {
+      let figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
+      if ((caption.isPrev || caption.isNext) &&
+        figureClassThatWrapsIframeTypeBlockquote === 'f-img' &&
+        (caption.name === 'blockquote' || caption.name === 'img')) {
+        figureClassThatWrapsIframeTypeBlockquote = 'f-img'
+      }
+      className = figureClassThatWrapsIframeTypeBlockquote
+    }
+  } else {
+    if (checkTokenTagName === 'iframe' || sp.isIframeTypeBlockquote) {
+      className = opt.allIframeTypeFigureClassName
+    }
+  }
+  return className
+}
+
+const applyCaptionDrivenFigureClass = (caption, sp, opt) => {
+  if (!sp) return
+  const figureClassForSlides = opt.figureClassThatWrapsSlides
+  if (!figureClassForSlides) return
+  const detectedMark = (sp.captionDecision && sp.captionDecision.mark) || (caption && caption.name) || ''
+  if (detectedMark !== 'slide') return
+  if (opt.allIframeTypeFigureClassName && sp.figureClassName === opt.allIframeTypeFigureClassName) return
+  sp.figureClassName = figureClassForSlides
+}
+
 
 const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   const captionStartToken = tokens[n-3]
@@ -380,7 +419,7 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   return true
 }
 
-const changeNextCaptionPosition = (tokens, en, caption) => {
+const changeNextCaptionPosition = (tokens, en, caption, opt) => {
   const captionStartToken = tokens[en+2] // +1: text node for figure.
   const captionInlineToken = tokens[en+3]
   const captionEndToken = tokens[en+4]
@@ -398,26 +437,8 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   let n = range.start
   let en = range.end
   const figureStartToken = new TokenConstructor('figure_open', 'figure', 1)
-  figureStartToken.attrSet('class', 'f-' + checkTokenTagName)
-
-  if (opt.allIframeTypeFigureClassName === '') {
-    if (sp.isVideoIframe) {
-      figureStartToken.attrSet('class', 'f-video')
-    }
-    if (sp.isIframeTypeBlockquote) {
-      let figureClassThatWrapsIframeTypeBlockquote = opt.figureClassThatWrapsIframeTypeBlockquote
-      if ((caption.isPrev || caption.isNext) &&
-        figureClassThatWrapsIframeTypeBlockquote === 'f-img' &&
-        (caption.name === 'blockquote' || caption.name === 'img')) {
-        figureClassThatWrapsIframeTypeBlockquote = 'f-img'
-      }
-      figureStartToken.attrSet('class', figureClassThatWrapsIframeTypeBlockquote)
-    }
-  } else {
-    if (checkTokenTagName === 'iframe' || sp.isIframeTypeBlockquote) {
-      figureStartToken.attrSet('class', opt.allIframeTypeFigureClassName)
-    }
-  }
+  const figureClassName = sp.figureClassName || resolveFigureClassName(checkTokenTagName, caption, sp, opt)
+  figureStartToken.attrSet('class', figureClassName)
 
   if(/pre-(?:code|samp)/.test(checkTokenTagName) && opt.roleDocExample) {
     figureStartToken.attrSet('role', 'doc-example')
@@ -486,6 +507,8 @@ const resetSpecialState = (sp) => {
   sp.isVideoIframe = false
   sp.isIframeTypeBlockquote = false
   sp.hasImgCaption = false
+  sp.figureClassName = ''
+  sp.captionDecision = null
 }
 
 const findClosingTokenIndex = (tokens, startIndex, tag) => {
@@ -503,30 +526,27 @@ const findClosingTokenIndex = (tokens, startIndex, tag) => {
   return startIndex
 }
 
-const detectCheckTypeOpen = (tokens, token, n, checkTypes, caption) => {
+const detectCheckTypeOpen = (tokens, token, n, caption) => {
   if (!token) return null
-  for (let i = 0; i < checkTypes.length; i++) {
-    const type = checkTypes[i]
-    if (token.type !== `${type}_open`) continue
-    if (n > 1 && tokens[n-2] && tokens[n-2].type === 'figure_open') return null
-    let tagName = token.tag
-    caption.name = type
-    if (type === 'pre') {
-      if (tokens[n+1] && tokens[n+1].tag === 'code') caption.mark = 'pre-code'
-      if (tokens[n+1] && tokens[n+1].tag === 'samp') caption.mark = 'pre-samp'
-      caption.name = caption.mark
-    }
-    const en = findClosingTokenIndex(tokens, n, tagName)
-    return {
-      type: 'block',
-      tagName,
-      en,
-      replaceInsteadOfWrap: false,
-      wrapWithoutCaption: false,
-      canWrap: true,
-    }
+  const baseType = CHECK_TYPE_TOKEN_MAP[token.type]
+  if (!baseType) return null
+  if (n > 1 && tokens[n - 2] && tokens[n - 2].type === 'figure_open') return null
+  let tagName = token.tag
+  caption.name = baseType
+  if (baseType === 'pre') {
+    if (tokens[n + 1] && tokens[n + 1].tag === 'code') caption.mark = 'pre-code'
+    if (tokens[n + 1] && tokens[n + 1].tag === 'samp') caption.mark = 'pre-samp'
+    caption.name = caption.mark
   }
-  return null
+  const en = findClosingTokenIndex(tokens, n, tagName)
+  return {
+    type: 'block',
+    tagName,
+    en,
+    replaceInsteadOfWrap: false,
+    wrapWithoutCaption: false,
+    canWrap: true,
+  }
 }
 
 const detectFenceToken = (token, n, caption) => {
@@ -547,12 +567,12 @@ const detectFenceToken = (token, n, caption) => {
   }
 }
 
-const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt, htmlTagCandidates) => {
+const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   if (!token || token.type !== 'html_block') return null
   const blueskyContMatch = token.content.match(blueskyEmbedReg)
   let matchedTag = ''
-  for (let i = 0; i < htmlTagCandidates.length; i++) {
-    const candidate = htmlTagCandidates[i]
+  for (let i = 0; i < HTML_TAG_CANDIDATES.length; i++) {
+    const candidate = HTML_TAG_CANDIDATES[i]
     const treatDivAsIframe = candidate === 'div'
     const lookupTag = treatDivAsIframe ? 'div' : candidate
     const hasTag = token.content.match(getHtmlReg(lookupTag))
@@ -730,15 +750,12 @@ const figureWithCaption = (state, opt) => {
 }
 
 const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, parentType = null, startIndex = 0) => {
-  const checkTypes = ['table', 'pre', 'blockquote']
-  const htmlTagCandidates = ['video', 'audio', 'iframe', 'blockquote', 'div']
-
   const rRange = { start: startIndex, end: startIndex }
   const rCaption = {
     mark: '', name: '', nameSuffix: '', isPrev: false, isNext: false
   }
   const rSp = {
-    attrs: [], isVideoIframe: false, isIframeTypeBlockquote: false, hasImgCaption: false
+    attrs: [], isVideoIframe: false, isIframeTypeBlockquote: false, hasImgCaption: false, captionDecision: null
   }
 
   let n = startIndex
@@ -763,9 +780,9 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     resetSpecialState(rSp)
 
     const detection =
-      detectCheckTypeOpen(tokens, token, n, checkTypes, rCaption) ||
+      detectCheckTypeOpen(tokens, token, n, rCaption) ||
       detectFenceToken(token, n, rCaption) ||
-      detectHtmlBlockToken(tokens, token, n, rCaption, rSp, opt, htmlTagCandidates) ||
+      detectHtmlBlockToken(tokens, token, n, rCaption, rSp, opt) ||
       detectImageParagraph(tokens, token, nextToken, n, rCaption, rSp, opt)
 
     if (!detection) {
@@ -780,7 +797,9 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
 
     rRange.end = detection.en
 
+    rSp.figureClassName = resolveFigureClassName(detection.tagName, rCaption, rSp, opt)
     checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, TokenConstructor)
+    applyCaptionDrivenFigureClass(rCaption, rSp, opt)
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
     let pendingAutoCaption = ''
@@ -827,6 +846,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
         rRange.end += insertedLength
         n += insertedLength
         checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, TokenConstructor)
+        applyCaptionDrivenFigureClass(rCaption, rSp, opt)
       }
       ensureAutoFigureNumbering(tokens, rRange, rCaption, figureNumberState, opt)
       wrapWithFigure(tokens, rRange, detection.tagName, rCaption, detection.replaceInsteadOfWrap, rSp, opt, TokenConstructor)
@@ -894,6 +914,7 @@ const mditFigureWithPCaption = (md, option) => {
     // --- figure-wrapper behavior ---
     classPrefix: 'f',
     figureClassThatWrapsIframeTypeBlockquote: 'f-img',
+    figureClassThatWrapsSlides: 'f-slide',
     styleProcess : true,
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,

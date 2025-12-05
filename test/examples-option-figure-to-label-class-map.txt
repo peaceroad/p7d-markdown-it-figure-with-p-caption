@@ -1,0 +1,32 @@
+[Markdown]
+Source. Twitter embed.
+
+<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-embed">
+<figcaption><span class="caption-embed-label caption-social-label f-blockquote-label">Source<span class="caption-embed-label-joint caption-social-label-joint f-blockquote-label-joint">.</span></span> <span class="caption-embed-body caption-social-body f-blockquote-body">Twitter embed.</span></figcaption>
+<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+
+
+[Markdown]
+Slide. Speaker deck.
+
+<iframe src="https://speakerdeck.com/player/XXXX" width="560" height="315" title="Slides" frameborder="0" allowfullscreen></iframe>
+[HTML]
+<figure class="f-slide">
+<figcaption><span class="caption-slide-label caption-slide-extra-label f-slide-label">Slide<span class="caption-slide-label-joint caption-slide-extra-label-joint f-slide-label-joint">.</span></span> <span class="caption-slide-body caption-slide-extra-body f-slide-body">Speaker deck.</span></figcaption>
+<iframe src="https://speakerdeck.com/player/XXXX" width="560" height="315" title="Slides" frameborder="0" allowfullscreen></iframe>
+</figure>
+
+
+[Markdown]
+Figure. Cat.
+
+![Cat](cat.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="c-figure-label alt-figure-label f-img-label">Figure<span class="c-figure-label-joint alt-figure-label-joint f-img-label-joint">.</span></span> <span class="c-figure-body alt-figure-body f-img-body">Cat.</span></figcaption>
+<img src="cat.jpg" alt="Cat">
+</figure>
+
