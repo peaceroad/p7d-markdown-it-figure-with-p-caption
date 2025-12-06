@@ -92,11 +92,11 @@ const mdTitleCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { 
 const mdAltCaptionFallbackNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
   autoAltCaption: true,
-  setLabelNumbers: ['img'],
+  autoLabelNumberSets: ['img'],
 }).use(mditAttrs).use(mditRndererFence);
-const mdSetLabelNumbers = mdit({ html: true }).use(mdFigureWithPCaption, {
+const mdAutoLabelNumberSets = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
-  setLabelNumbers: ['img', 'table'],
+  autoLabelNumberSets: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
 const mdAutoLabelNumber = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
@@ -117,7 +117,7 @@ const mdRecommendedDefaults = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
   autoAltCaption: true,
   autoTitleCaption: true,
-  setLabelNumbers: ['img', 'table'],
+  autoLabelNumberSets: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
 const mdRecommendedDefaultsNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
   strongFilename: true,
@@ -134,7 +134,7 @@ const mdRecommendedDefaultsNumbered = mdit({ html: true }).use(mdFigureWithPCapt
   autoCaptionDetection: true,
   autoAltCaption: true,
   autoTitleCaption: true,
-  setLabelNumbers: ['img', 'table'],
+  autoLabelNumberSets: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
 
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
@@ -174,8 +174,8 @@ const testData = {
   titleCaptionFallback: __dirname + path.sep + 'examples-title-caption-fallback.txt',
   titleCaptionFallbackJa: __dirname + path.sep + 'examples-title-caption-fallback-ja.txt',
   altCaptionFallbackNumbered: __dirname + path.sep + 'examples-alt-caption-fallback-numbered.txt',
-  setLabelNumbers: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
-  setLabelNumbersSkip: __dirname + path.sep + 'examples-set-label-numbers-skip.txt',
+  autoLabelNumberSets: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
+  autoLabelNumberSetsSkip: __dirname + path.sep + 'examples-set-label-numbers-skip.txt',
 }
 
 const mutateCaptionClosePlugin = (md) => {
@@ -310,16 +310,16 @@ pass = runTest(mdAltCaptionFallback, testData.altCaptionFallbackJa, pass)
 pass = runTest(mdAltCaptionFallbackNumbered, testData.altCaptionFallbackNumbered, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallback, pass)
 pass = runTest(mdTitleCaptionFallback, testData.titleCaptionFallbackJa, pass)
-pass = runTest(mdSetLabelNumbers, testData.setLabelNumbers, pass)
-pass = runTest(mdSetLabelNumbers, testData.autoCaptionDetectionNumbered, pass)
+pass = runTest(mdAutoLabelNumberSets, testData.autoLabelNumberSets, pass)
+pass = runTest(mdAutoLabelNumberSets, testData.autoCaptionDetectionNumbered, pass)
 pass = runTest(mdAutoLabelNumber, testData.autoLabelNumber, pass)
 
-const mdSetLabelNumbersSkip = mdit({ html: true }).use(mdFigureWithPCaption, {
+const mdAutoLabelNumberSetsSkip = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
-  setLabelNumbers: ['img'],
+  autoLabelNumberSets: ['img'],
   oneImageWithoutCaption: true,
 }).use(mditAttrs).use(mditRndererFence);
-pass = runTest(mdSetLabelNumbersSkip, testData.setLabelNumbersSkip, pass)
+pass = runTest(mdAutoLabelNumberSetsSkip, testData.autoLabelNumberSetsSkip, pass)
 
 const mdAutoAltCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,

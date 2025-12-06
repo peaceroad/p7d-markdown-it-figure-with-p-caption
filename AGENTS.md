@@ -18,7 +18,7 @@
 - Language sniffing looks at the first sentence to decide when to switch default labels to Japanese; the resolved label per media type is cached for the render pass.
 - Auto-generated caption paragraphs are inserted immediately before the figure, then re-run through `setCaptionParagraph` so numbering hooks stay consistent.
 - `setCaptionParagraph` records its decision in `sp.captionDecision` (mark, label text, numbering presence), allowing slide wrappers or other consumers to react without re-parsing inline tokens.
-- `ensureAutoFigureNumbering` finds the label span via `opt.labelClassLookup`, respects hand-authored numbers, and increments counts only for marks enabled by `setLabelNumbers` / `autoLabelNumber`.
+- `ensureAutoFigureNumbering` finds the label span via `opt.labelClassLookup`, respects hand-authored numbers, and increments counts only for marks enabled by `autoLabelNumberSets` / `autoLabelNumber`.
 
 ## 4. Figure Classes & Label Mirroring
 - `resolveFigureClassName` picks a baseline class: `allIframeTypeFigureClassName` overrides every iframe/social embed; otherwise we differentiate among iframes (`f-iframe`), known videos (`f-video`), social blockquotes (`figureClassThatWrapsIframeTypeBlockquote`, default `f-img`), and standard blocks (`f-img`, `f-table`, etc.).
@@ -30,7 +30,7 @@
 - Wrapper behavior: `oneImageWithoutCaption`, `videoWithoutCaption`, `audioWithoutCaption`, `iframeWithoutCaption`, `iframeTypeBlockquoteWithoutCaption` force wrapping even without captions; `figureClassThatWrapsSlides` / `figureClassThatWrapsIframeTypeBlockquote` handle special classes; `allIframeTypeFigureClassName` replaces every iframe/social/embed class (including slide overrides) with a single namespace like `f-embed`.
 - Caption formatting (forwarded to `p7d-markdown-it-p-captions`): `strongFilename`, `dquoteFilename`, `jointSpaceUseHalfWidth`, `bLabel`/`strongLabel`, `removeUnnumberedLabel`, `removeUnnumberedLabelExceptMarks`, `removeMarkNameInCaptionClass`, `wrapCaptionBody`, `hasNumClass`.
 - Auto detection: `autoCaptionDetection`, `autoAltCaption`, `autoTitleCaption`.
-- Numbering: `setLabelNumbers`, `autoLabelNumber`.
+- Numbering: `autoLabelNumberSets`, `autoLabelNumber`.
 
 ## 6. Test Coverage
 - Fixtures under `test/*.txt` feed `test/test.js` (`npm test`).

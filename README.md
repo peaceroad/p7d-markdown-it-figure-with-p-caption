@@ -89,8 +89,8 @@ Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which 
 
 ### Automatic numbering
 
-- `setLabelNumbers`: enable numbering per media type. Pass an array such as `['img']`, `['table']`, or `['img', 'table']`.
-- `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `setLabelNumbers` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
+- `autoLabelNumberSets`: enable numbering per media type. Pass an array such as `['img']`, `['table']`, or `['img', 'table']`.
+- `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `autoLabelNumberSets` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
 - Counters start at `1` near the top of the document and increment sequentially per media type. Figures and tables keep independent counters even when mixed together.
 - The counter only advances when a real caption exists (paragraph, auto-detected alt/title, or fallback text). Figures emitted solely because of `oneImageWithoutCaption` stay unnumbered.
 - Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin updates its internal counter so the next automatic number becomes `6`. This applies to captions sourced from paragraphs, auto detection, and fallback captions.

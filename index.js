@@ -26,7 +26,7 @@ const fallbackLabelDefaults = {
   table: { en: 'Table', ja: '表' },
 }
 
-const normalizeSetLabelNumbers = (value) => {
+const normalizeAutoLabelNumberSets = (value) => {
   const normalized = { img: false, table: false }
   if (!value) return normalized
   if (Array.isArray(value)) {
@@ -53,7 +53,7 @@ const buildLabelClassLookup = (opt) => {
 }
 
 const shouldApplyLabelNumbering = (captionType, opt) => {
-  const setting = opt.setLabelNumbers
+  const setting = opt.autoLabelNumberSets
   if (!setting) return false
   return !!setting[captionType]
 }
@@ -933,8 +933,8 @@ const mditFigureWithPCaption = (md, option) => {
     autoTitleCaption: false, // same as above but reads from the title attribute when alt isn't usable
 
     // --- numbering controls ---
-    autoLabelNumber: false, // shorthand for enabling numbering for both img/table unless setLabelNumbers is provided explicitly
-    setLabelNumbers: [], // preferred; supports ['img'], ['table'], or both
+    autoLabelNumber: false, // shorthand for enabling numbering for both img/table unless autoLabelNumberSets is provided explicitly
+    autoLabelNumberSets: [], // preferred; supports ['img'], ['table'], or both
 
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
     hasNumClass: false,
@@ -948,13 +948,13 @@ const mditFigureWithPCaption = (md, option) => {
     removeMarkNameInCaptionClass: false,
     wrapCaptionBody: false,
   }
-  const hasExplicitSetLabelNumbers = option && Object.prototype.hasOwnProperty.call(option, 'setLabelNumbers')
+  const hasExplicitAutoLabelNumberSets = option && Object.prototype.hasOwnProperty.call(option, 'autoLabelNumberSets')
   if (option) Object.assign(opt, option)
   // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
-  opt.setLabelNumbers = normalizeSetLabelNumbers(opt.setLabelNumbers)
-  if (opt.autoLabelNumber && !hasExplicitSetLabelNumbers) {
-    opt.setLabelNumbers.img = true
-    opt.setLabelNumbers.table = true
+  opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(opt.autoLabelNumberSets)
+  if (opt.autoLabelNumber && !hasExplicitAutoLabelNumberSets) {
+    opt.autoLabelNumberSets.img = true
+    opt.autoLabelNumberSets.table = true
   }
   // Precompute `.f-*-label` permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)
