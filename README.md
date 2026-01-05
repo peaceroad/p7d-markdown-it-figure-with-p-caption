@@ -582,7 +582,7 @@ Need matching caption classes too? Combine this option with `labelClassFollowsFi
 
 ### Caption markers
 
-- `allowLabelPrefixMarkerWithoutLabel`: when `true`, marker-only paragraphs (e.g., `*Caption`) are treated as captions without labels. If `labelPrefixMarker` is an array, the first entry is used for the previous caption and the second for the next caption. The marker is stripped from output.
+- `allowLabelPrefixMarkerWithoutLabel`: when `true`, marker-only paragraphs (e.g., `▼Caption`) are treated as captions without labels. If `labelPrefixMarker` is an array, the first entry is used for the previous caption and the second for the next caption. The marker is stripped from output.
 
 ```js
 const figureOption = {
