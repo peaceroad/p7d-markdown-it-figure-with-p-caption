@@ -1,0 +1,29 @@
+[Markdown]
+▼キャプション
+
+![](example.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption>キャプション</figcaption>
+<img src="example.jpg" alt="">
+</figure>
+
+[Markdown]
+![](example.jpg)
+
+▲キャプション
+[HTML]
+<figure class="f-img">
+<img src="example.jpg" alt="">
+<figcaption>キャプション</figcaption>
+</figure>
+
+[Markdown]
+▼図1　キャプション
+
+![](example.jpg)
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">図1<span class="f-img-label-joint">　</span></span>キャプション</figcaption>
+<img src="example.jpg" alt="">
+</figure>

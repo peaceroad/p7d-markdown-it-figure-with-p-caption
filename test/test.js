@@ -102,6 +102,13 @@ const mdAutoLabelNumber = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
   autoLabelNumber: true,
 }).use(mditAttrs).use(mditRndererFence);
+const mdLabelPrefixMarkerWithLabel = mdit({ html: true }).use(mdFigureWithPCaption, {
+  labelPrefixMarker: ['▼', '▲'],
+}).use(mditAttrs).use(mditRndererFence);
+const mdLabelPrefixMarkerWithoutLabel = mdit({ html: true }).use(mdFigureWithPCaption, {
+  labelPrefixMarker: ['▼', '▲'],
+  allowLabelPrefixMarkerWithoutLabel: true,
+}).use(mditAttrs).use(mditRndererFence);
 const mdRecommendedDefaults = mdit({ html: true }).use(mdFigureWithPCaption, {
   strongFilename: true,
   dquoteFilename: true,
@@ -143,6 +150,14 @@ if (isWindows) {
   __dirname = __dirname.replace(/^\/+/, '').replace(/\//g, '\\')
 }
 
+const fixturePath = (name) => __dirname + path.sep + name
+const resolveFixture = (...names) => {
+  for (const name of names) {
+    const candidate = fixturePath(name)
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return fixturePath(names[0])
+}
 
 const testData = {
   noOption: __dirname + path.sep +  'examples-no-option.txt',
@@ -154,17 +169,18 @@ const testData = {
   multipleImages: __dirname + path.sep + 'examples-multiple-images.txt',
   videoWithoutCaption: __dirname + path.sep + 'examples-video-without-caption.txt',
   audioWithoutCaption: __dirname + path.sep + 'examples-audio-without-caption.txt',
-  mdAllOption: __dirname + path.sep + 'examples-all-option.txt',
   autoAltCaptionCustom: __dirname + path.sep + 'examples-auto-alt-caption-custom.txt',
   autoTitleCaptionCustom: __dirname + path.sep + 'examples-auto-title-caption-custom.txt',
   console: __dirname + path.sep + 'examples-console.txt',
   allIframeTypeFigureClassName: __dirname + path.sep + 'examples-all-iframe-type-figure-class-name.txt',
   figureClassThatWrapsSlides: __dirname + path.sep + 'examples-figure-class-that-wraps-slides.txt',
-  optionLabelClassFollowsFigure: __dirname + path.sep + 'examples-option-label-class-follows-figure.txt',
-  optionFigureToLabelClassMap: __dirname + path.sep + 'examples-option-figure-to-label-class-map.txt',
+  optionLabelClassFollowsFigure: resolveFixture('examples-option-label-class-follows-figure.txt', 'examples-label-class-follows-figure.txt'),
+  optionFigureToLabelClassMap: resolveFixture('examples-option-figure-to-label-class-map.txt', 'examples-label-class-map.txt'),
   autoCaptionDetection: __dirname + path.sep + 'examples-automatic-caption-detection.txt',
   autoCaptionDetectionManualPriority: __dirname + path.sep + 'examples-automatic-caption-detection-manual-priority.txt',
   autoCaptionDetectionNumbered: __dirname + path.sep + 'examples-automatic-caption-detection-numbered.txt',
+  labelPrefixMarkerWithLabel: __dirname + path.sep + 'examples-caption-marker-with-label.txt',
+  allowLabelPrefixMarkerWithoutLabel: __dirname + path.sep + 'examples-caption-marker-without-label.txt',
   autoLabelNumber: __dirname + path.sep + 'examples-auto-label-number.txt',
   recommendedOptions: __dirname + path.sep + 'examples-recommended-options-unlabeled.txt',
   recommendedOptionsNumbered: __dirname + path.sep + 'examples-recommended-options-numbered.txt',
@@ -303,6 +319,8 @@ pass = runTest(mdConsole, testData.console, pass)
 pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetection, pass)
 pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetectionManualPriority, pass)
 pass = runTest(mdAutoCaptionDetection, testData.autoCaptionDetectionMultiImages, pass)
+pass = runTest(mdLabelPrefixMarkerWithLabel, testData.labelPrefixMarkerWithLabel, pass)
+pass = runTest(mdLabelPrefixMarkerWithoutLabel, testData.allowLabelPrefixMarkerWithoutLabel, pass)
 pass = runTest(mdRecommendedDefaults, testData.recommendedOptions, pass)
 pass = runTest(mdRecommendedDefaultsNumbered, testData.recommendedOptionsNumbered, pass)
 pass = runTest(mdAltCaptionFallback, testData.altCaptionFallback, pass)
@@ -358,3 +376,4 @@ try {
 }
 
 if (pass) console.log('Passed all test.')
+
