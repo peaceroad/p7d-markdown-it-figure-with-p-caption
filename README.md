@@ -86,6 +86,20 @@ Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which 
 - `hasNumClass`: add a class attribute to label span element if it has a label number.
 - `labelClassFollowsFigure`: mirror the resolved `<figure>` class onto the `figcaption` spans (`f-embed-label`, `f-embed-label-joint`, `f-embed-body`, etc.) when you want captions styled alongside the wrapper.
 - `figureToLabelClassMap`: extend `labelClassFollowsFigure` by mapping specific figure classes (e.g., `f-embed`) to custom caption label classes such as `caption-embed caption-social` for fine-grained control.
+- `labelPrefixMarker`: allow a leading marker before labels (string or array, e.g., `*Figure. ...`). Arrays are limited to two markers; extras are ignored.
+
+### Caption markers
+
+- `allowLabelPrefixMarkerWithoutLabel`: when `true`, marker-only paragraphs (e.g., `*Caption`) are treated as captions without labels. If `labelPrefixMarker` is an array, the first entry is used for the previous caption and the second for the next caption. The marker is stripped from output.
+
+```js
+const figureOption = {
+  labelPrefixMarker: ['▼', '▲'],
+  allowLabelPrefixMarkerWithoutLabel: true,
+}
+```
+
+The first marker applies to captions before the figure, the second to captions after it.
 
 ### Automatic numbering
 
