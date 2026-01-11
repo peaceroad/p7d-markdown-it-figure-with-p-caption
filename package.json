@@ -1,6 +1,6 @@
 {
   "name": "@peaceroad/markdown-it-figure-with-p-caption",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "A markdown-it plugin. For a paragraph with only one image, a table or code block or blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.",
   "main": "index.js",
   "type": "module",
