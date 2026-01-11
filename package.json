@@ -18,13 +18,13 @@
   },
   "devDependencies": {
     "@peaceroad/markdown-it-renderer-fence": "^0.3.0",
-    "@peaceroad/markdown-it-renderer-image": "^0.5.2",
+    "@peaceroad/markdown-it-renderer-image": "^0.6.0",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "markdown-it-attrs": "^4.3.1"
   },
   "dependencies": {
-    "p7d-markdown-it-p-captions": "^0.20.0"
+    "p7d-markdown-it-p-captions": "^0.20.1"
   },
   "files": [
     "index.js",
