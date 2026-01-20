@@ -17,8 +17,10 @@
     "url": "https://github.com/peaceroad/p7d-markdown-it-figure-with-p-caption/issues"
   },
   "devDependencies": {
-    "@peaceroad/markdown-it-renderer-fence": "^0.3.0",
-    "@peaceroad/markdown-it-renderer-image": "^0.6.0",
+    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.4",
+    "@peaceroad/markdown-it-renderer-fence": "^0.3.1",
+    "@peaceroad/markdown-it-renderer-image": "^0.7.0",
+    "@peaceroad/markdown-it-strong-ja": "^0.6.2",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "markdown-it-attrs": "^4.3.1"

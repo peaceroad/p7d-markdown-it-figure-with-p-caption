@@ -4,6 +4,8 @@ import path from 'path'
 import mdit from 'markdown-it'
 import mditAttrs from 'markdown-it-attrs'
 import mditRndererFence from '@peaceroad/markdown-it-renderer-fence'
+import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
+import mditBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
 
 import mdFigureWithPCaption from '../index.js'
 import highlightjs from 'highlight.js'
@@ -144,6 +146,9 @@ const mdRecommendedDefaultsNumbered = mdit({ html: true }).use(mdFigureWithPCapt
   autoLabelNumberSets: ['img', 'table'],
 }).use(mditAttrs).use(mditRndererFence);
 
+const mdWithStrongJa = mdit({ html: true }).use(mditStrongJa).use(mdFigureWithPCaption).use(mditBreaks)
+//const mdWithStrongJa = mdit({ html: true }).use(mdFigureWithPCaption).use(mditStrongJa)
+
 let __dirname = path.dirname(new URL(import.meta.url).pathname)
 const isWindows = (process.platform === 'win32')
 if (isWindows) {
@@ -192,6 +197,7 @@ const testData = {
   altCaptionFallbackNumbered: __dirname + path.sep + 'examples-alt-caption-fallback-numbered.txt',
   autoLabelNumberSets: __dirname + path.sep + 'examples-set-label-with-numbers.txt',
   autoLabelNumberSetsSkip: __dirname + path.sep + 'examples-set-label-numbers-skip.txt',
+  withStrongJa: __dirname + path.sep + 'examples-with-strong-ja.txt',
 }
 
 const mutateCaptionClosePlugin = (md) => {
@@ -227,12 +233,12 @@ const getTestData = (pat) => {
     console.log('No exist: ' + pat)
     return ms
   }
-  const exampleCont = fs.readFileSync(pat, 'utf-8').trim();
+  const exampleCont = fs.readFileSync(pat, 'utf-8').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 
-  let ms0 = exampleCont.split(/\n*\[Markdown\]\n/);
+  let ms0 = exampleCont.split(/(?:\r?\n)*\[Markdown\]\r?\n/);
   let n = 1;
   while(n < ms0.length) {
-    let mhs = ms0[n].split(/\n+\[HTML[^\]]*?\]\n/);
+    let mhs = ms0[n].split(/(?:\r?\n)+\[HTML[^\]]*?\]\r?\n/);
     let i = 1;
     while (i < 2) {
       if (mhs[i] === undefined) {
@@ -307,6 +313,7 @@ const runTest = (process, pat, pass, testId) => {
 
 let pass = true
 pass = runTest(md, testData.noOption, pass)
+pass = runTest(mdWithStrongJa, testData.withStrongJa, pass)
 pass = runTest(mdHasNumClass, testData.hasNumClass, pass)
 pass = runTest(mdOneImage, testData.oneImageWithoutCaption, pass)
 pass = runTest(mdIframeWithoutCaption, testData.iframeWithoutCaption, pass)

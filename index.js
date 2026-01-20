@@ -135,6 +135,7 @@ const isOnlySpacesText = (token) => {
   if (!token || token.type !== 'text') return false
   const content = token.content
   if (typeof content !== 'string') return false
+  if (content.length === 0) return true
   for (let i = 0; i < content.length; i++) {
     if (content.charCodeAt(i) !== 0x20) return false
   }
@@ -555,6 +556,18 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     figureStartToken.attrSet('role', 'doc-example')
   }
   const figureEndToken = new TokenConstructor('figure_close', 'figure', -1)
+  const rangeStartMap = tokens[n] && Array.isArray(tokens[n].map) && tokens[n].map.length === 2
+    ? tokens[n].map
+    : null
+  const rangeEndMap = tokens[en] && Array.isArray(tokens[en].map) && tokens[en].map.length === 2
+    ? tokens[en].map
+    : rangeStartMap
+  if (rangeStartMap) {
+    figureStartToken.map = [rangeStartMap[0], rangeStartMap[1]]
+  }
+  if (rangeEndMap) {
+    figureEndToken.map = [rangeEndMap[0], rangeEndMap[1]]
+  }
   const breakToken = new TokenConstructor('text', '', 0)
   breakToken.content = '\n'
   if (opt.styleProcess && caption.isNext && sp.attrs.length > 0) {
@@ -780,16 +793,23 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
   for (let childIndex = 1; childIndex < childrenLength; childIndex++) {
     const child = children[childIndex]
     if (childIndex === childrenLength - 1 && child.type === 'text') {
-      let imageAttrs = child.content && child.content.match(imageAttrsReg)
-      if (imageAttrs) {
-        const parsedAttrs = parseImageAttrs(imageAttrs[1])
-        if (parsedAttrs && parsedAttrs.length) {
-          for (let i = 0; i < parsedAttrs.length; i++) {
-            sp.attrs.push(parsedAttrs[i])
+      const rawContent = child.content
+      if (opt.styleProcess && rawContent && rawContent.indexOf('{') !== -1) {
+        const imageAttrs = rawContent.match(imageAttrsReg)
+        if (imageAttrs) {
+          const parsedAttrs = parseImageAttrs(imageAttrs[1])
+          if (parsedAttrs && parsedAttrs.length) {
+            for (let i = 0; i < parsedAttrs.length; i++) {
+              sp.attrs.push(parsedAttrs[i])
+            }
           }
+          break
         }
-        break
       }
+      if (typeof rawContent === 'string' && rawContent.trim()) {
+        isValid = false
+      }
+      break
     }
 
     if (!opt.multipleImages) {

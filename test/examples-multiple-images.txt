@@ -138,3 +138,14 @@ A paragraph.
 </figure>
 <p>A paragraph.</p>
 
+
+[Markdown]
+A paragraph. multipleImages: true.
+
+![One cat](cat1.jpg) ![Two cat](cat2.jpg) Text
+
+A paragraph.
+[HTML]
+<p>A paragraph. multipleImages: true.</p>
+<p><img src="cat1.jpg" alt="One cat"> <img src="cat2.jpg" alt="Two cat"> Text</p>
+<p>A paragraph.</p>

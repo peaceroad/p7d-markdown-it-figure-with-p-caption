@@ -1,0 +1,19 @@
+[][Markdown]
+**Notice.** Aaaa[aaaa](htpps://example.com/)aaaa
+[HTML]
+<p><strong>Notice.</strong> Aaaa<a href="htpps://example.com/">aaaa</a>aaaa</p>
+
+[Markdown]
+**Notice**. Aaaa[aaaa](htpps://example.com/)aaaa
+[HTML]
+<p><strong>Notice</strong>. Aaaa<a href="htpps://example.com/">aaaa</a>aaaa</p>
+
+[Markdown]
+**Notice**. Aaaa `bbb` aaaa
+[HTML]
+<p><strong>Notice</strong>. Aaaa <code>bbb</code> aaaa</p>
+
+[Markdown]
+**Notice.** Aaaa `bbb` aaaa
+[HTML]
+<p><strong>Notice.</strong> Aaaa <code>bbb</code> aaaa</p>
