@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node test/test.js"
+    "test": "node test/test.js",
+    "test:p-captions": "node test/test-p-captions.js",
+    "test:all": "npm run test && npm run test:p-captions"
   },
   "repository": {
     "type": "git",
@@ -17,10 +19,10 @@
     "url": "https://github.com/peaceroad/p7d-markdown-it-figure-with-p-caption/issues"
   },
   "devDependencies": {
-    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.4",
-    "@peaceroad/markdown-it-renderer-fence": "^0.3.1",
-    "@peaceroad/markdown-it-renderer-image": "^0.7.0",
-    "@peaceroad/markdown-it-strong-ja": "^0.6.2",
+    "@peaceroad/markdown-it-cjk-breaks-mod": "^0.1.6",
+    "@peaceroad/markdown-it-renderer-fence": "^0.4.1",
+    "@peaceroad/markdown-it-renderer-image": "^0.9.1",
+    "@peaceroad/markdown-it-strong-ja": "^0.7.2",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "markdown-it-attrs": "^4.3.1"

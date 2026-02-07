@@ -6,6 +6,7 @@ import mditAttrs from 'markdown-it-attrs'
 import mditRndererFence from '@peaceroad/markdown-it-renderer-fence'
 import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
 import mditBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
+import mditPCaption from 'p7d-markdown-it-p-captions'
 
 import mdFigureWithPCaption from '../index.js'
 import highlightjs from 'highlight.js'
@@ -382,5 +383,24 @@ try {
   console.log('Result:', captionGuardHtml)
 }
 
-if (pass) console.log('Passed all test.')
+// Regression guard: p-captions language selection in another md instance
+// must not change figure-with-p-caption detection behavior.
+const languageIsolationMarkdown = '図. 日本語キャプション\n\n![alt](a.jpg)'
+const mdFigureIsolationBaseline = mdit({ html: true }).use(mdFigureWithPCaption)
+const languageIsolationExpected = mdFigureIsolationBaseline.render(languageIsolationMarkdown)
 
+const mdPCaptionEnglishOnly = mdit({ html: true }).use(mditPCaption, { languages: ['en'] })
+mdPCaptionEnglishOnly.render('Figure. English caption')
+
+const mdFigureIsolationAfter = mdit({ html: true }).use(mdFigureWithPCaption)
+const languageIsolationActual = mdFigureIsolationAfter.render(languageIsolationMarkdown)
+try {
+  assert.strictEqual(languageIsolationActual, languageIsolationExpected)
+} catch (e) {
+  pass = false
+  console.log('Language isolation regression failed.')
+  console.log('Expected:', languageIsolationExpected)
+  console.log('Result:', languageIsolationActual)
+}
+
+if (pass) console.log('Passed all test.')

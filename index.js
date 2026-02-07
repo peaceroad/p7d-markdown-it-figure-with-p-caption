@@ -1,4 +1,8 @@
-import { setCaptionParagraph, markReg } from 'p7d-markdown-it-p-captions'
+import {
+  setCaptionParagraph,
+  getMarkRegForLanguages,
+  getMarkRegStateForLanguages,
+} from 'p7d-markdown-it-p-captions'
 
 const htmlRegCache = new Map()
 const cleanCaptionRegCache = new Map()
@@ -11,7 +15,6 @@ const idAttrReg = /^#/
 const attrParseReg = /^(.*?)="?(.*)"?$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
 const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
-const imgCaptionMarkReg = markReg && markReg.img ? markReg.img : null
 const asciiLabelReg = /^[A-Za-z]/
 const trailingDigitsReg = /(\d+)\s*$/
 const CHECK_TYPE_TOKEN_MAP = {
@@ -27,6 +30,21 @@ const fallbackLabelDefaults = {
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const buildClassPrefix = (value) => (value ? value + '-' : '')
+const normalizeLanguages = (value) => {
+  if (!Array.isArray(value)) return ['en', 'ja']
+  const normalized = []
+  const seen = new Set()
+  for (let i = 0; i < value.length; i++) {
+    const lang = value[i]
+    if (typeof lang !== 'string') continue
+    const trimmed = lang.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    normalized.push(trimmed)
+  }
+  if (normalized.length === 0) return ['en', 'ja']
+  return normalized
+}
 const normalizeLabelPrefixMarkers = (value) => {
   if (typeof value === 'string') {
     return value ? [value] : []
@@ -365,6 +383,7 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
 }
 
 const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
+  const imgCaptionMarkReg = opt && opt.markReg && opt.markReg.img ? opt.markReg.img : null
   if (!opt.autoCaptionDetection) return ''
   if (!imgCaptionMarkReg && !opt.autoAltCaption && !opt.autoTitleCaption) return ''
   const tryMatch = (text) => {
@@ -568,8 +587,11 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   if (rangeEndMap) {
     figureEndToken.map = [rangeEndMap[0], rangeEndMap[1]]
   }
-  const breakToken = new TokenConstructor('text', '', 0)
-  breakToken.content = '\n'
+  const createBreakToken = () => {
+    const breakToken = new TokenConstructor('text', '', 0)
+    breakToken.content = '\n'
+    return breakToken
+  }
   if (opt.styleProcess && caption.isNext && sp.attrs.length > 0) {
     for (let i = 0; i < sp.attrs.length; i++) {
       const attr = sp.attrs[i]
@@ -584,12 +606,12 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     }
   }
   if (replaceInsteadOfWrap) {
-    tokens.splice(en, 1, breakToken, figureEndToken, breakToken)
-    tokens.splice(n, 1, figureStartToken, breakToken)
+    tokens.splice(en, 1, createBreakToken(), figureEndToken, createBreakToken())
+    tokens.splice(n, 1, figureStartToken, createBreakToken())
     en = en + 2
   } else {
-    tokens.splice(en+1, 0, figureEndToken, breakToken)
-    tokens.splice(n, 0, figureStartToken, breakToken)
+    tokens.splice(en+1, 0, figureEndToken, createBreakToken())
+    tokens.splice(n, 0, figureStartToken, createBreakToken())
     en = en + 3
   }
   range.start = n
@@ -698,6 +720,14 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   const content = token.content
   const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
   const hasBlueskyEmbed = hasBlueskyHint && blueskyEmbedReg.test(content)
+  if (!hasBlueskyHint
+      && content.indexOf('<video') === -1
+      && content.indexOf('<audio') === -1
+      && content.indexOf('<iframe') === -1
+      && content.indexOf('<blockquote') === -1
+      && content.indexOf('<div') === -1) {
+    return null
+  }
   let matchedTag = ''
   for (let i = 0; i < HTML_TAG_CANDIDATES.length; i++) {
     const candidate = HTML_TAG_CANDIDATES[i]
@@ -1029,6 +1059,9 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
 
 const mditFigureWithPCaption = (md, option) => {
   let opt = {
+    // Caption languages delegated to p-captions.
+    languages: ['en', 'ja'],
+
     // --- figure-wrapper behavior ---
     classPrefix: 'f',
     figureClassThatWrapsIframeTypeBlockquote: null,
@@ -1047,7 +1080,7 @@ const mditFigureWithPCaption = (md, option) => {
     // Applies only to the first image within an image-only paragraph (even when multipleImages is true).
     // Priority: caption paragraphs (before/after) > alt text > title attribute; auto detection only runs when no paragraph caption exists.
     autoCaptionDetection: true,
-    autoAltCaption: false, // allow alt text (when matching markReg.img or fallback) to build captions automatically
+    autoAltCaption: false, // allow alt text (when matching markReg.img) to build captions automatically
     autoTitleCaption: false, // same as above but reads from the title attribute when alt isn't usable
 
     // --- label prefix marker helpers ---
@@ -1074,6 +1107,9 @@ const mditFigureWithPCaption = (md, option) => {
   const hasExplicitFigureClassThatWrapsIframeTypeBlockquote = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsIframeTypeBlockquote')
   const hasExplicitFigureClassThatWrapsSlides = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsSlides')
   if (option) Object.assign(opt, option)
+  opt.languages = normalizeLanguages(opt.languages)
+  opt.markRegState = getMarkRegStateForLanguages(opt.languages)
+  opt.markReg = getMarkRegForLanguages(opt.languages)
   // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
   opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(opt.autoLabelNumberSets)
   if (opt.autoLabelNumber && !hasExplicitAutoLabelNumberSets) {

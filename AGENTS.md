@@ -31,6 +31,7 @@
 - `checkPrevCaption` / `checkNextCaption` call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens.
 - Caption detection trusts `sp.captionDecision.mark` from p-captions rather than re-parsing class strings.
 - `labelPrefixMarker` (optional) strips a prefix marker before a label; `allowLabelPrefixMarkerWithoutLabel` allows marker-only captions.
+- Caption regex resolution is language-aware via p-captions helpers (`getMarkRegStateForLanguages`, `getMarkRegForLanguages`); use `opt.languages` rather than module-global regexes.
 - Auto caption for images runs only when no caption paragraph exists:
   - uses labeled `alt` or `title` text (`markReg.img`),
   - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware defaults.
@@ -49,13 +50,17 @@
 ## 8. Performance Notes
 - Regex caches (`htmlRegCache`, `cleanCaptionRegCache`) reduce repeated allocations.
 - HTML detection uses tag hints before regex checks and skips regex when no `<` exists in the block.
+- `detectHtmlBlockToken` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - Numbering skips trailing-digit regex work unless the label actually ends with digits.
 - Label span lookups avoid `split()` allocations; alt text aggregation avoids temporary arrays.
+- `wrapWithFigure` must create distinct newline tokens; do not reuse one token object across multiple insert positions.
 
 ## 9. Tests
 - Fixtures under `test/*.txt` feed `test/test.js` (`npm test`).
 - Image-only coverage includes single/multi-image layouts, attrs, auto-caption detection, and invalid trailing text cases.
 - Dedicated examples cover slide class overrides and label class mirroring.
+- Additional dependency-focused checks run from repository-controlled paths: `npm run test:p-captions` and `npm run test:all`.
+- Do not rely on durable tests under `node_modules`; treat those as ephemeral.
 
 ## 10. Future Work
 - Investigate token pooling in `wrapWithFigure` to reduce GC churn on huge documents.
