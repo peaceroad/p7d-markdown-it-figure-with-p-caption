@@ -1,11 +1,9 @@
 import {
   setCaptionParagraph,
-  getMarkRegForLanguages,
   getMarkRegStateForLanguages,
 } from 'p7d-markdown-it-p-captions'
 
 const htmlRegCache = new Map()
-const cleanCaptionRegCache = new Map()
 const blueskyEmbedReg = /^<blockquote class="bluesky-embed"[^]*?>[\s\S]*?$/
 const videoIframeReg = /^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i
 const classNameReg = /^<[^>]*? class="(twitter-tweet|instagram-media|text-post-media|bluesky-embed|mastodon-embed)"/
@@ -15,8 +13,8 @@ const idAttrReg = /^#/
 const attrParseReg = /^(.*?)="?(.*)"?$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
 const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
+const iframeTagReg = /<iframe(?=[\s>])/i
 const asciiLabelReg = /^[A-Za-z]/
-const trailingDigitsReg = /(\d+)\s*$/
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
@@ -349,6 +347,28 @@ const updateInlineTokenContent = (inlineToken, originalText, newText) => {
     inlineToken.content.slice(index + originalText.length)
 }
 
+const parseTrailingPositiveInteger = (text) => {
+  if (typeof text !== 'string' || text.length === 0) return null
+  let end = text.length - 1
+  while (end >= 0 && text.charCodeAt(end) === 0x20) end--
+  if (end < 0) return null
+  const lastCode = text.charCodeAt(end)
+  if (lastCode < 0x30 || lastCode > 0x39) return null
+  let start = end
+  while (start >= 0) {
+    const code = text.charCodeAt(start)
+    if (code < 0x30 || code > 0x39) break
+    start--
+  }
+  let value = 0
+  let digitBase = 1
+  for (let i = end; i > start; i--) {
+    value += (text.charCodeAt(i) - 0x30) * digitBase
+    digitBase *= 10
+  }
+  return value
+}
+
 const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, opt) => {
   const captionType = caption.name === 'img' ? 'img' : (caption.name === 'table' ? 'table' : '')
   if (!captionType) return
@@ -363,10 +383,9 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
   if (end >= 0) {
     const code = originalText.charCodeAt(end)
     if (code >= 0x30 && code <= 0x39) {
-      const existingMatch = originalText.match(trailingDigitsReg)
-      if (existingMatch && existingMatch[1]) {
-        const explicitValue = parseInt(existingMatch[1], 10)
-        if (!Number.isNaN(explicitValue) && explicitValue > (figureNumberState[captionType] || 0)) {
+      const explicitValue = parseTrailingPositiveInteger(originalText)
+      if (explicitValue !== null) {
+        if (explicitValue > (figureNumberState[captionType] || 0)) {
           figureNumberState[captionType] = explicitValue
         }
         return
@@ -382,21 +401,20 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
   updateInlineTokenContent(inlineToken, originalText, newLabelText)
 }
 
+const matchAutoCaptionText = (text, reg) => {
+  if (!text || !reg) return ''
+  const trimmed = text.trim()
+  if (trimmed && reg.test(trimmed)) return trimmed
+  return ''
+}
+
 const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
-  const imgCaptionMarkReg = opt && opt.markReg && opt.markReg.img ? opt.markReg.img : null
+  const imgCaptionMarkReg = opt && opt.imgCaptionMarkReg ? opt.imgCaptionMarkReg : null
   if (!opt.autoCaptionDetection) return ''
   if (!imgCaptionMarkReg && !opt.autoAltCaption && !opt.autoTitleCaption) return ''
-  const tryMatch = (text) => {
-    if (!text) return ''
-    const trimmed = text.trim()
-    if (trimmed && imgCaptionMarkReg && imgCaptionMarkReg.test(trimmed)) {
-      return trimmed
-    }
-    return ''
-  }
 
   const altText = getImageAltText(imageToken)
-  let caption = tryMatch(altText)
+  let caption = matchAutoCaptionText(altText, imgCaptionMarkReg)
   if (caption) {
     clearImageAltAttr(imageToken)
     return caption
@@ -411,7 +429,7 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
   if (caption) return caption
 
   const titleText = getImageTitleText(imageToken)
-  caption = tryMatch(titleText)
+  caption = matchAutoCaptionText(titleText, imgCaptionMarkReg)
   if (caption) {
     clearImageTitleAttr(imageToken)
     return caption
@@ -487,10 +505,13 @@ const cleanCaptionTokenAttrs = (token, captionName, opt) => {
   const prefix = opt.captionClassPrefix || ''
   const targetClass = prefix + captionName
   if (!targetClass) return
-  let reg = cleanCaptionRegCache.get(targetClass)
+  const cleanCaptionRegCache = opt.cleanCaptionRegCache
+  let reg = cleanCaptionRegCache && cleanCaptionRegCache.get(targetClass)
   if (!reg) {
     reg = new RegExp('(?:^|\\s)' + escapeRegExp(targetClass) + '(?=\\s|$)', 'g')
-    cleanCaptionRegCache.set(targetClass, reg)
+    if (cleanCaptionRegCache) {
+      cleanCaptionRegCache.set(targetClass, reg)
+    }
   }
   for (let i = token.attrs.length - 1; i >= 0; i--) {
     if (token.attrs[i][0] === 'class') {
@@ -719,13 +740,19 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   if (!token || token.type !== 'html_block') return null
   const content = token.content
   const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
+  const hasVideoHint = content.indexOf('<video') !== -1
+  const hasAudioHint = content.indexOf('<audio') !== -1
+  const hasIframeHint = content.indexOf('<iframe') !== -1
+  const hasBlockquoteHint = content.indexOf('<blockquote') !== -1
+  const hasDivHint = content.indexOf('<div') !== -1
+  const hasIframeTag = hasIframeHint || (hasDivHint && iframeTagReg.test(content))
   const hasBlueskyEmbed = hasBlueskyHint && blueskyEmbedReg.test(content)
   if (!hasBlueskyHint
-      && content.indexOf('<video') === -1
-      && content.indexOf('<audio') === -1
-      && content.indexOf('<iframe') === -1
-      && content.indexOf('<blockquote') === -1
-      && content.indexOf('<div') === -1) {
+      && !hasVideoHint
+      && !hasAudioHint
+      && !hasIframeHint
+      && !hasBlockquoteHint
+      && !hasDivHint) {
     return null
   }
   let matchedTag = ''
@@ -733,7 +760,19 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
     const candidate = HTML_TAG_CANDIDATES[i]
     const treatDivAsIframe = candidate === 'div'
     const lookupTag = treatDivAsIframe ? 'div' : candidate
-    const hasTagHint = content.indexOf('<' + lookupTag) !== -1
+    let hasTagHint = false
+    if (candidate === 'video') {
+      hasTagHint = hasVideoHint
+    } else if (candidate === 'audio') {
+      hasTagHint = hasAudioHint
+    } else if (candidate === 'iframe') {
+      hasTagHint = hasIframeHint
+    } else if (candidate === 'blockquote') {
+      hasTagHint = hasBlockquoteHint
+    } else {
+      hasTagHint = hasDivHint
+    }
+    if (candidate === 'div' && !hasIframeTag) continue
     if (!hasTagHint && !(candidate === 'blockquote' && hasBlueskyEmbed)) continue
     const hasTag = hasTagHint ? content.match(getHtmlReg(lookupTag)) : null
     const isBlueskyBlockquote = !hasTag && hasBlueskyEmbed && candidate === 'blockquote'
@@ -778,7 +817,7 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   }
   if (!matchedTag) return null
   if (matchedTag === 'blockquote') {
-    if (classNameReg.test(token.content)) {
+    if (token.content.indexOf('class="') !== -1 && classNameReg.test(token.content)) {
       sp.isIframeTypeBlockquote = true
     } else {
       return null
@@ -789,14 +828,11 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   }
   caption.name = matchedTag
   let wrapWithoutCaption = false
-  if (matchedTag === 'iframe' && opt.iframeWithoutCaption) {
-    wrapWithoutCaption = true
-  } else if (matchedTag === 'video' && opt.videoWithoutCaption) {
-    wrapWithoutCaption = true
-  } else if (matchedTag === 'audio' && opt.audioWithoutCaption) {
-    wrapWithoutCaption = true
-  } else if (matchedTag === 'blockquote' && sp.isIframeTypeBlockquote && opt.iframeTypeBlockquoteWithoutCaption) {
-    wrapWithoutCaption = true
+  const htmlWrapWithoutCaption = opt.htmlWrapWithoutCaption
+  if (matchedTag === 'blockquote') {
+    wrapWithoutCaption = !!(sp.isIframeTypeBlockquote && htmlWrapWithoutCaption && htmlWrapWithoutCaption.iframeTypeBlockquote)
+  } else if (htmlWrapWithoutCaption) {
+    wrapWithoutCaption = !!htmlWrapWithoutCaption[matchedTag]
   }
   return {
     type: 'html',
@@ -813,6 +849,9 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
   if (!nextToken || nextToken.type !== 'inline' || !nextToken.children || nextToken.children.length === 0) return null
   if (nextToken.children[0].type !== 'image') return null
 
+  const multipleImagesEnabled = !!opt.multipleImages
+  const styleProcessEnabled = !!opt.styleProcess
+  const allowSingleImageWithoutCaption = !!opt.oneImageWithoutCaption
   let imageNum = 1
   let isMultipleImagesHorizontal = true
   let isMultipleImagesVertical = true
@@ -820,11 +859,22 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
   caption.name = 'img'
   const children = nextToken.children
   const childrenLength = children.length
+  if (!multipleImagesEnabled && childrenLength > 2) {
+    return {
+      type: 'image',
+      tagName: 'img',
+      en: n + 2,
+      replaceInsteadOfWrap: true,
+      wrapWithoutCaption: false,
+      canWrap: false,
+      imageToken: children[0]
+    }
+  }
   for (let childIndex = 1; childIndex < childrenLength; childIndex++) {
     const child = children[childIndex]
     if (childIndex === childrenLength - 1 && child.type === 'text') {
       const rawContent = child.content
-      if (opt.styleProcess && rawContent && rawContent.indexOf('{') !== -1) {
+      if (styleProcessEnabled && rawContent && rawContent.indexOf('{') !== -1 && rawContent.indexOf('}') !== -1) {
         const imageAttrs = rawContent.match(imageAttrsReg)
         if (imageAttrs) {
           const parsedAttrs = parseImageAttrs(imageAttrs[1])
@@ -842,7 +892,7 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
       break
     }
 
-    if (!opt.multipleImages) {
+    if (!multipleImagesEnabled) {
       isValid = false
       break
     }
@@ -861,7 +911,7 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
     isValid = false
     break
   }
-  if (isValid && imageNum > 1 && opt.multipleImages) {
+  if (isValid && imageNum > 1 && multipleImagesEnabled) {
     if (isMultipleImagesHorizontal) {
       caption.nameSuffix = '-horizontal'
     } else if (isMultipleImagesVertical) {
@@ -884,7 +934,7 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
     tagName,
     en,
     replaceInsteadOfWrap: true,
-    wrapWithoutCaption: isValid && !!opt.oneImageWithoutCaption,
+    wrapWithoutCaption: isValid && allowSingleImageWithoutCaption,
     canWrap: isValid,
     imageToken: children[0]
   }
@@ -1102,14 +1152,28 @@ const mditFigureWithPCaption = (md, option) => {
     removeUnnumberedLabelExceptMarks: [],
     removeMarkNameInCaptionClass: false,
     wrapCaptionBody: false,
+    labelClassFollowsFigure: false,
+    figureToLabelClassMap: null,
   }
   const hasExplicitAutoLabelNumberSets = option && Object.prototype.hasOwnProperty.call(option, 'autoLabelNumberSets')
   const hasExplicitFigureClassThatWrapsIframeTypeBlockquote = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsIframeTypeBlockquote')
   const hasExplicitFigureClassThatWrapsSlides = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsSlides')
+  const hasExplicitLabelClassFollowsFigure = option && Object.prototype.hasOwnProperty.call(option, 'labelClassFollowsFigure')
   if (option) Object.assign(opt, option)
+  if (!hasExplicitLabelClassFollowsFigure && opt.figureToLabelClassMap) {
+    opt.labelClassFollowsFigure = true
+  }
   opt.languages = normalizeLanguages(opt.languages)
   opt.markRegState = getMarkRegStateForLanguages(opt.languages)
-  opt.markReg = getMarkRegForLanguages(opt.languages)
+  opt.imgCaptionMarkReg = opt.markRegState && opt.markRegState.markReg
+    ? opt.markRegState.markReg.img
+    : null
+  opt.htmlWrapWithoutCaption = {
+    iframe: !!opt.iframeWithoutCaption,
+    video: !!opt.videoWithoutCaption,
+    audio: !!opt.audioWithoutCaption,
+    iframeTypeBlockquote: !!opt.iframeTypeBlockquoteWithoutCaption,
+  }
   // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
   opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(opt.autoLabelNumberSets)
   if (opt.autoLabelNumber && !hasExplicitAutoLabelNumberSets) {
@@ -1129,6 +1193,7 @@ const mditFigureWithPCaption = (md, option) => {
   opt.labelClassLookup = buildLabelClassLookup(opt)
   const markerList = normalizeLabelPrefixMarkers(opt.labelPrefixMarker)
   opt.labelPrefixMarkerReg = buildLabelPrefixMarkerRegFromList(markerList)
+  opt.cleanCaptionRegCache = new Map()
   if (opt.allowLabelPrefixMarkerWithoutLabel === true) {
     const markerPair = resolveLabelPrefixMarkerPair(markerList)
     opt.labelPrefixMarkerWithoutLabelPrevReg = buildLabelPrefixMarkerRegFromList(markerPair.prev)

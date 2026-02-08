@@ -70,6 +70,16 @@ const mdLabelClassMap = mdit({ html: true }).use(mdFigureWithPCaption, {
   },
 }).use(mditAttrs).use(mditRndererFence);
 
+const mdLabelClassMapImplicit = mdit({ html: true }).use(mdFigureWithPCaption, {
+  wrapCaptionBody: true,
+  figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
+  figureToLabelClassMap: {
+    'f-embed': 'caption-embed caption-social',
+    'f-iframe': 'caption-slide-label caption-slide-extra',
+    'f-img': ['c-figure', 'alt-figure-body'],
+  },
+}).use(mditAttrs).use(mditRndererFence);
+
 const mdCustomSlideFigureClass = mdit({ html: true }).use(mdFigureWithPCaption, {
   figureClassThatWrapsSlides: 'f-slide-custom',
 }).use(mditAttrs).use(mditRndererFence);
@@ -368,6 +378,7 @@ const mdAllIframeTypeFigureClassName = mdit({html: true}).use(mdFigureWithPCapti
 pass = runTest(mdAllIframeTypeFigureClassName, testData.allIframeTypeFigureClassName, pass)
 pass = runTest(mdLabelClassFollowsFigure, testData.optionLabelClassFollowsFigure, pass)
 pass = runTest(mdLabelClassMap, testData.optionFigureToLabelClassMap, pass)
+pass = runTest(mdLabelClassMapImplicit, testData.optionFigureToLabelClassMap, pass)
 pass = runTest(mdCustomSlideFigureClass, testData.figureClassThatWrapsSlides, pass)
 
 const mdCaptionGuard = mdit({ html: true }).use(mdFigureWithPCaption).use(mutateCaptionClosePlugin)
@@ -401,6 +412,30 @@ try {
   console.log('Language isolation regression failed.')
   console.log('Expected:', languageIsolationExpected)
   console.log('Result:', languageIsolationActual)
+}
+
+// Regression guard: figure plugin must forward language-specific markRegState
+// to setCaptionParagraph when calling p-captions helper directly.
+const figureLanguageMarkdownEn = 'Figure. English caption.\n\n![alt](en.jpg)'
+const figureLanguageMarkdownJa = '図. 日本語キャプション\n\n![alt](ja.jpg)'
+const mdFigureEnOnly = mdit({ html: true }).use(mdFigureWithPCaption, { languages: ['en'] })
+const mdFigureJaOnly = mdit({ html: true }).use(mdFigureWithPCaption, { languages: ['ja'] })
+const figureLanguageEnHtml = mdFigureEnOnly.render(figureLanguageMarkdownEn)
+const figureLanguageJaHtmlFromEn = mdFigureEnOnly.render(figureLanguageMarkdownJa)
+const figureLanguageJaHtml = mdFigureJaOnly.render(figureLanguageMarkdownJa)
+const figureLanguageEnHtmlFromJa = mdFigureJaOnly.render(figureLanguageMarkdownEn)
+try {
+  assert.ok(figureLanguageEnHtml.includes('<figure class="f-img">'))
+  assert.ok(!figureLanguageJaHtmlFromEn.includes('<figure class="f-img">'))
+  assert.ok(figureLanguageJaHtml.includes('<figure class="f-img">'))
+  assert.ok(!figureLanguageEnHtmlFromJa.includes('<figure class="f-img">'))
+} catch (e) {
+  pass = false
+  console.log('Figure language option regression failed.')
+  console.log('en-only (en caption):', figureLanguageEnHtml)
+  console.log('en-only (ja caption):', figureLanguageJaHtmlFromEn)
+  console.log('ja-only (ja caption):', figureLanguageJaHtml)
+  console.log('ja-only (en caption):', figureLanguageEnHtmlFromJa)
 }
 
 if (pass) console.log('Passed all test.')

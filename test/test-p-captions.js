@@ -98,9 +98,28 @@ const testSetCaptionParagraphGuards = () => {
   )
 }
 
+const testSetCaptionParagraphInputSafety = () => {
+  const state = {
+    tokens: parser.parse('Figure. A cat.\n', {}),
+    Token,
+  }
+  const paragraphIndex = state.tokens.findIndex((token) => token.type === 'paragraph_open')
+  assert.notStrictEqual(paragraphIndex, -1, 'paragraph_open token should exist')
+
+  assert.doesNotThrow(() => {
+    setCaptionParagraph(paragraphIndex, state, null, { img: 0, table: 0 }, null, undefined)
+  })
+  assert.equal(state.tokens[paragraphIndex].attrGet('class'), 'caption-img')
+
+  assert.doesNotThrow(() => {
+    setCaptionParagraph(0, null, null, null, null, undefined)
+  })
+}
+
 testRenderBasics()
 testLanguageSpecificRegex()
 testMarkerMode()
 testSetCaptionParagraphGuards()
+testSetCaptionParagraphInputSafety()
 
 console.log('p7d-markdown-it-p-captions tests passed')

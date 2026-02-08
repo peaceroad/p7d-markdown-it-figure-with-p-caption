@@ -62,3 +62,26 @@ Slide. A caption.
 <figure class="f-video">
 <iframe src="https://player.vimeo.com/video/xxxxxxxxxxxxxxx" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
 </figure>
+
+
+[Markdown]
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/123" width="640" height="360"></iframe>
+</div>
+[HTML]
+<figure class="f-video">
+<div class="video-wrapper">
+<iframe src="https://player.vimeo.com/video/123" width="640" height="360"></iframe>
+</div>
+</figure>
+
+[Markdown]
+A paragraph.
+
+<div class="plain">hello</div>
+
+A paragraph.
+[HTML]
+<p>A paragraph.</p>
+<div class="plain">hello</div>
+<p>A paragraph.</p>

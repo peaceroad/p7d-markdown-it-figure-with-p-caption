@@ -908,3 +908,15 @@ Figure. Caption for image in dd.
 <li><img src="direct-no-caption.jpg" alt="Test2"></li>
 <li>Another list item</li>
 </ul>
+
+
+[Markdown]
+Video. Placeholder only.
+
+<div class="video-placeholder">Loading...</div>
+
+A paragraph.
+[HTML]
+<p>Video. Placeholder only.</p>
+<div class="video-placeholder">Loading...</div>
+<p>A paragraph.</p>
