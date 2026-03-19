@@ -369,6 +369,45 @@ const mdAutoTitleCaptionCustom = mdit({ html: true }).use(mdFigureWithPCaption, 
 }).use(mditAttrs).use(mditRndererFence);
 pass = runTest(mdAutoTitleCaptionCustom, testData.autoTitleCaptionCustom, pass)
 
+const mdStyleProcessNoAttrs = mdit({ html: true }).use(mdFigureWithPCaption, {
+  styleProcess: true,
+  oneImageWithoutCaption: true,
+})
+try {
+  assert.strictEqual(
+    mdStyleProcessNoAttrs.render('Figure. A Caption.\n\n![Figure](cat.jpg) {.style #id}'),
+    '<figure class="f-img style" id="id">\n<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>\n<img src="cat.jpg" alt="Figure">\n</figure>\n',
+  )
+  assert.strictEqual(
+    mdStyleProcessNoAttrs.render('![Figure](cat.jpg) {.solo}'),
+    '<figure class="f-img solo">\n<img src="cat.jpg" alt="Figure">\n</figure>\n',
+  )
+} catch (e) {
+  pass = false
+  console.log('styleProcess without markdown-it-attrs regression failed.')
+  console.log(e)
+}
+
+const mdTrimmedClassOptions = mdit({ html: true }).use(mdFigureWithPCaption, {
+  classPrefix: ' custom ',
+  allIframeTypeFigureClassName: '  f-embed  ',
+  iframeWithoutCaption: true,
+}).use(mditAttrs).use(mditRndererFence)
+const mdBlankOverrideFallbacks = mdit({ html: true }).use(mdFigureWithPCaption, {
+  figureClassThatWrapsIframeTypeBlockquote: '   ',
+  figureClassThatWrapsSlides: '   ',
+}).use(mditAttrs).use(mditRndererFence)
+try {
+  assert.ok(mdTrimmedClassOptions.render('Figure. A Caption.\n\n![Figure](cat.jpg)').includes('<figure class="custom-img">'))
+  assert.ok(mdTrimmedClassOptions.render('<iframe src="https://example.com/embed"></iframe>').includes('<figure class="f-embed">'))
+  assert.ok(mdBlankOverrideFallbacks.render('Figure. Social.\n\n<blockquote class="twitter-tweet"></blockquote>').includes('<figure class="f-img">'))
+  assert.ok(mdBlankOverrideFallbacks.render('Slide. Deck.\n\n<iframe src="https://speakerdeck.com/player/xxxx"></iframe>').includes('<figure class="f-slide">'))
+} catch (e) {
+  pass = false
+  console.log('class option normalization regression failed.')
+  console.log(e)
+}
+
 opt = {}
 opt.videoWithoutCaption = true
 opt.iframeWithoutCaption = true

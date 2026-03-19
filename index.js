@@ -20,14 +20,36 @@ const CHECK_TYPE_TOKEN_MAP = {
   pre_open: 'pre',
   blockquote_open: 'blockquote',
 }
-const HTML_TAG_CANDIDATES = ['video', 'audio', 'iframe', 'blockquote', 'div']
-const fallbackLabelDefaults = {
-  img: { en: 'Figure', ja: '図' },
-  table: { en: 'Table', ja: '表' },
-}
+const HTML_TAG_DETECTORS = [
+  { candidate: 'video', lookupTag: 'video', hintKey: 'hasVideoHint' },
+  { candidate: 'audio', lookupTag: 'audio', hintKey: 'hasAudioHint' },
+  { candidate: 'iframe', lookupTag: 'iframe', hintKey: 'hasIframeHint' },
+  { candidate: 'blockquote', lookupTag: 'blockquote', hintKey: 'hasBlockquoteHint' },
+  {
+    candidate: 'div',
+    lookupTag: 'div',
+    hintKey: 'hasDivHint',
+    requiresIframeTag: true,
+    matchedTag: 'iframe',
+    setVideoIframe: true,
+  },
+]
+const fallbackLabelDefaults = { en: 'Figure', ja: '図' }
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const buildClassPrefix = (value) => (value ? value + '-' : '')
+const normalizeOptionalClassName = (value) => {
+  if (value === null || value === undefined) return ''
+  const normalized = String(value).trim()
+  return normalized || ''
+}
+const buildClassPrefix = (value) => {
+  const normalized = normalizeOptionalClassName(value)
+  return normalized ? normalized + '-' : ''
+}
+const normalizeClassOptionWithFallback = (value, fallbackValue) => {
+  const normalized = normalizeOptionalClassName(value)
+  return normalized || fallbackValue
+}
 const normalizeLanguages = (value) => {
   if (!Array.isArray(value)) return ['en', 'ja']
   const normalized = []
@@ -244,31 +266,28 @@ const isSentenceBoundaryChar = (char) => {
   return char === '.' || char === '!' || char === '?' || char === '。' || char === '！' || char === '？'
 }
 
-const getAutoFallbackLabel = (text, captionType) => {
-  const type = captionType === 'table' ? 'table' : 'img'
+const getAutoFallbackLabel = (text) => {
   const lang = detectCaptionLanguage(text)
-  const defaults = fallbackLabelDefaults[type] || fallbackLabelDefaults.img
-  if (lang === 'ja') return defaults.ja || defaults.en || ''
-  return defaults.en || defaults.ja || ''
+  if (lang === 'ja') return fallbackLabelDefaults.ja || fallbackLabelDefaults.en || ''
+  return fallbackLabelDefaults.en || fallbackLabelDefaults.ja || ''
 }
 
-const getPersistedFallbackLabel = (text, captionType, fallbackState) => {
-  const type = captionType === 'table' ? 'table' : 'img'
-  if (!fallbackState) return getAutoFallbackLabel(text, type)
-  if (fallbackState[type]) return fallbackState[type]
-  const resolved = getAutoFallbackLabel(text, type)
-  fallbackState[type] = resolved
+const getPersistedFallbackLabel = (text, fallbackState) => {
+  if (!fallbackState) return getAutoFallbackLabel(text)
+  if (fallbackState.img) return fallbackState.img
+  const resolved = getAutoFallbackLabel(text)
+  fallbackState.img = resolved
   return resolved
 }
 
-const buildCaptionWithFallback = (text, fallbackOption, captionType = 'img', fallbackState) => {
+const buildCaptionWithFallback = (text, fallbackOption, fallbackState) => {
   const trimmedText = (text || '').trim()
   if (!fallbackOption) return ''
   let label = ''
   if (typeof fallbackOption === 'string') {
     label = fallbackOption.trim()
   } else if (fallbackOption === true) {
-    label = getPersistedFallbackLabel(trimmedText, captionType, fallbackState)
+    label = getPersistedFallbackLabel(trimmedText, fallbackState)
   }
   if (!label) return trimmedText
   const isAsciiLabel = asciiLabelReg.test(label)
@@ -421,7 +440,7 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
   }
   if (!caption && opt.autoAltCaption) {
     const altForFallback = altText || ''
-    caption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, 'img', fallbackLabelState)
+    caption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, fallbackLabelState)
     if (imageToken) {
       clearImageAltAttr(imageToken)
     }
@@ -436,7 +455,7 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
   }
   if (!caption && opt.autoTitleCaption) {
     const titleForFallback = titleText || ''
-    caption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, 'img', fallbackLabelState)
+    caption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, fallbackLabelState)
     if (imageToken) {
       clearImageTitleAttr(imageToken)
     }
@@ -445,21 +464,118 @@ const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
 }
 
 const getHtmlReg = (tag) => {
-  if (htmlRegCache.has(tag)) return htmlRegCache.get(tag)
+  const cached = htmlRegCache.get(tag)
+  if (cached) return cached
   const regexStr = `^<${tag} ?[^>]*?>[\\s\\S]*?<\\/${tag}>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)? *(\\n|$)`
   const reg = new RegExp(regexStr)
   htmlRegCache.set(tag, reg)
   return reg
 }
 
-const checkPrevCaption = (tokens, n, caption, fNum, sp, opt, captionState) => {
+const getHtmlDetectionHints = (content) => {
+  const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
+  const hasVideoHint = content.indexOf('<video') !== -1
+  const hasAudioHint = content.indexOf('<audio') !== -1
+  const hasIframeHint = content.indexOf('<iframe') !== -1
+  const hasBlockquoteHint = content.indexOf('<blockquote') !== -1
+  const hasDivHint = content.indexOf('<div') !== -1
+  return {
+    hasBlueskyHint,
+    hasVideoHint,
+    hasAudioHint,
+    hasIframeHint,
+    hasBlockquoteHint,
+    hasDivHint,
+    hasIframeTag: hasIframeHint || (hasDivHint && iframeTagReg.test(content)),
+    hasBlueskyEmbed: hasBlueskyHint && blueskyEmbedReg.test(content),
+  }
+}
+
+const hasAnyHtmlDetectionHint = (hints) => {
+  return !!(
+    hints.hasBlueskyHint ||
+    hints.hasVideoHint ||
+    hints.hasAudioHint ||
+    hints.hasIframeHint ||
+    hints.hasBlockquoteHint ||
+    hints.hasDivHint
+  )
+}
+
+const appendHtmlBlockNewlineIfNeeded = (token, hasTag) => {
+  if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
+    token.content += '\n'
+  }
+}
+
+const consumeBlockquoteEmbedScript = (tokens, token, startIndex) => {
+  let addedCont = ''
+  let j = startIndex + 1
+  while (j < tokens.length) {
+    const nextToken = tokens[j]
+    if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
+      addedCont += nextToken.content + '\n'
+      if (tokens[j + 1] && tokens[j + 1].type === 'paragraph_close') {
+        tokens.splice(j + 1, 1)
+      }
+      nextToken.content = ''
+      if (nextToken.children) {
+        for (let k = 0; k < nextToken.children.length; k++) {
+          nextToken.children[k].content = ''
+        }
+      }
+      break
+    }
+    if (nextToken.type === 'paragraph_open') {
+      addedCont += '\n'
+      tokens.splice(j, 1)
+      continue
+    }
+    j++
+  }
+  token.content += addedCont
+}
+
+const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints, sp) => {
+  if (detector.requiresIframeTag && !hints.hasIframeTag) return ''
+  const hasTagHint = !!(detector.hintKey && hints[detector.hintKey])
+  const allowBlueskyFallback = detector.candidate === 'blockquote' && hints.hasBlueskyEmbed
+  if (!hasTagHint && !allowBlueskyFallback) return ''
+  const hasTag = hasTagHint ? token.content.match(getHtmlReg(detector.lookupTag)) : null
+  const isBlueskyBlockquote = detector.candidate === 'blockquote' && !hasTag && hints.hasBlueskyEmbed
+  if (!hasTag && !isBlueskyBlockquote) return ''
+  if (hasTag) {
+    appendHtmlBlockNewlineIfNeeded(token, hasTag)
+    if (detector.setVideoIframe) {
+      sp.isVideoIframe = true
+    }
+    return detector.matchedTag || detector.candidate
+  }
+  consumeBlockquoteEmbedScript(tokens, token, startIndex)
+  return 'blockquote'
+}
+
+const isIframeTypeEmbedBlockquote = (content) => {
+  return content.indexOf('class="') !== -1 && classNameReg.test(content)
+}
+
+const resolveHtmlWrapWithoutCaption = (matchedTag, sp, opt) => {
+  const htmlWrapWithoutCaption = opt.htmlWrapWithoutCaption
+  if (!htmlWrapWithoutCaption) return false
+  if (matchedTag === 'blockquote') {
+    return !!(sp.isIframeTypeBlockquote && htmlWrapWithoutCaption.iframeTypeBlockquote)
+  }
+  return !!htmlWrapWithoutCaption[matchedTag]
+}
+
+const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
   if(n < 3) return caption
   const captionStartToken = tokens[n-3]
   const captionInlineToken = tokens[n-2]
   const captionEndToken = tokens[n-1]
   if (captionStartToken === undefined || captionEndToken === undefined) return
   if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setCaptionParagraph(n-3, captionState, caption, fNum, sp, opt)
+  setCaptionParagraph(n-3, captionState, caption, null, sp, opt)
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
   if(!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelPrevReg) {
@@ -476,14 +592,14 @@ const checkPrevCaption = (tokens, n, caption, fNum, sp, opt, captionState) => {
   return
 }
 
-const checkNextCaption = (tokens, en, caption, fNum, sp, opt, captionState) => {
+const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
   if (en + 2 > tokens.length) return
   const captionStartToken = tokens[en+1]
   const captionInlineToken = tokens[en+2]
   const captionEndToken = tokens[en+3]
   if (captionStartToken === undefined || captionEndToken === undefined) return
   if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setCaptionParagraph(en+1, captionState, caption, fNum, sp, opt)
+  setCaptionParagraph(en+1, captionState, caption, null, sp, opt)
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
   if(!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelNextReg) {
@@ -613,18 +729,18 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     breakToken.content = '\n'
     return breakToken
   }
-  if (opt.styleProcess && caption.isNext && sp.attrs.length > 0) {
-    for (let i = 0; i < sp.attrs.length; i++) {
-      const attr = sp.attrs[i]
-      figureStartToken.attrJoin(attr[0], attr[1])
+  if (caption.name === 'img') {
+    const joinAttrs = (attrs) => {
+      if (!attrs || attrs.length === 0) return
+      for (let i = 0; i < attrs.length; i++) {
+        const attr = attrs[i]
+        figureStartToken.attrJoin(attr[0], attr[1])
+      }
     }
-  }
-  // For vsce
-  if (caption.name === 'img' && tokens[n].attrs) {
-    for (let i = 0; i < tokens[n].attrs.length; i++) {
-      const attr = tokens[n].attrs[i]
-      figureStartToken.attrJoin(attr[0], attr[1])
-    }
+    // `styleProcess` should keep working even when markdown-it-attrs is absent.
+    if (opt.styleProcess) joinAttrs(sp.attrs)
+    // Forward attrs already materialized by markdown-it-attrs on the image paragraph.
+    joinAttrs(tokens[n].attrs)
   }
   if (replaceInsteadOfWrap) {
     tokens.splice(en, 1, createBreakToken(), figureEndToken, createBreakToken())
@@ -640,10 +756,10 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   return
 }
 
-const checkCaption = (tokens, n, en, caption, fNum, sp, opt, captionState) => {
-  checkPrevCaption(tokens, n, caption, fNum, sp, opt, captionState)
+const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
+  checkPrevCaption(tokens, n, caption, sp, opt, captionState)
   if (caption.isPrev) return
-  checkNextCaption(tokens, en, caption, fNum, sp, opt, captionState)
+  checkNextCaption(tokens, en, caption, sp, opt, captionState)
   return
 }
 
@@ -738,86 +854,16 @@ const detectFenceToken = (token, n, caption) => {
 
 const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   if (!token || token.type !== 'html_block') return null
-  const content = token.content
-  const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
-  const hasVideoHint = content.indexOf('<video') !== -1
-  const hasAudioHint = content.indexOf('<audio') !== -1
-  const hasIframeHint = content.indexOf('<iframe') !== -1
-  const hasBlockquoteHint = content.indexOf('<blockquote') !== -1
-  const hasDivHint = content.indexOf('<div') !== -1
-  const hasIframeTag = hasIframeHint || (hasDivHint && iframeTagReg.test(content))
-  const hasBlueskyEmbed = hasBlueskyHint && blueskyEmbedReg.test(content)
-  if (!hasBlueskyHint
-      && !hasVideoHint
-      && !hasAudioHint
-      && !hasIframeHint
-      && !hasBlockquoteHint
-      && !hasDivHint) {
-    return null
-  }
+  const hints = getHtmlDetectionHints(token.content)
+  if (!hasAnyHtmlDetectionHint(hints)) return null
   let matchedTag = ''
-  for (let i = 0; i < HTML_TAG_CANDIDATES.length; i++) {
-    const candidate = HTML_TAG_CANDIDATES[i]
-    const treatDivAsIframe = candidate === 'div'
-    const lookupTag = treatDivAsIframe ? 'div' : candidate
-    let hasTagHint = false
-    if (candidate === 'video') {
-      hasTagHint = hasVideoHint
-    } else if (candidate === 'audio') {
-      hasTagHint = hasAudioHint
-    } else if (candidate === 'iframe') {
-      hasTagHint = hasIframeHint
-    } else if (candidate === 'blockquote') {
-      hasTagHint = hasBlockquoteHint
-    } else {
-      hasTagHint = hasDivHint
-    }
-    if (candidate === 'div' && !hasIframeTag) continue
-    if (!hasTagHint && !(candidate === 'blockquote' && hasBlueskyEmbed)) continue
-    const hasTag = hasTagHint ? content.match(getHtmlReg(lookupTag)) : null
-    const isBlueskyBlockquote = !hasTag && hasBlueskyEmbed && candidate === 'blockquote'
-    if (!(hasTag || isBlueskyBlockquote)) continue
-    if (hasTag) {
-      if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
-        token.content += '\n'
-      }
-      matchedTag = treatDivAsIframe ? 'iframe' : candidate
-      if (treatDivAsIframe) {
-        sp.isVideoIframe = true
-      }
-    } else {
-      let addedCont = ''
-      let j = n + 1
-      while (j < tokens.length) {
-        const nextToken = tokens[j]
-        if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
-          addedCont += nextToken.content + '\n'
-          if (tokens[j + 1] && tokens[j + 1].type === 'paragraph_close') {
-            tokens.splice(j + 1, 1)
-          }
-          nextToken.content = ''
-          if (nextToken.children) {
-            for (let k = 0; k < nextToken.children.length; k++) {
-              nextToken.children[k].content = ''
-            }
-          }
-          break
-        }
-        if (nextToken.type === 'paragraph_open') {
-          addedCont += '\n'
-          tokens.splice(j, 1)
-          continue
-        }
-        j++
-      }
-      token.content += addedCont
-      matchedTag = 'blockquote'
-    }
-    break
+  for (let i = 0; i < HTML_TAG_DETECTORS.length; i++) {
+    matchedTag = detectHtmlTagCandidate(tokens, token, n, HTML_TAG_DETECTORS[i], hints, sp)
+    if (matchedTag) break
   }
   if (!matchedTag) return null
   if (matchedTag === 'blockquote') {
-    if (token.content.indexOf('class="') !== -1 && classNameReg.test(token.content)) {
+    if (isIframeTypeEmbedBlockquote(token.content)) {
       sp.isIframeTypeBlockquote = true
     } else {
       return null
@@ -827,13 +873,7 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
     sp.isVideoIframe = true
   }
   caption.name = matchedTag
-  let wrapWithoutCaption = false
-  const htmlWrapWithoutCaption = opt.htmlWrapWithoutCaption
-  if (matchedTag === 'blockquote') {
-    wrapWithoutCaption = !!(sp.isIframeTypeBlockquote && htmlWrapWithoutCaption && htmlWrapWithoutCaption.iframeTypeBlockquote)
-  } else if (htmlWrapWithoutCaption) {
-    wrapWithoutCaption = !!htmlWrapWithoutCaption[matchedTag]
-  }
+  const wrapWithoutCaption = resolveHtmlWrapWithoutCaption(matchedTag, sp, opt)
   return {
     type: 'html',
     tagName: matchedTag,
@@ -844,21 +884,38 @@ const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
   }
 }
 
-const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => {
-  if (!token || token.type !== 'paragraph_open') return null
-  if (!nextToken || nextToken.type !== 'inline' || !nextToken.children || nextToken.children.length === 0) return null
-  if (nextToken.children[0].type !== 'image') return null
+const hasLeadingImageChild = (token) => {
+  return !!(token &&
+    token.type === 'inline' &&
+    token.children &&
+    token.children.length > 0 &&
+    token.children[0] &&
+    token.children[0].type === 'image')
+}
 
+const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
   const multipleImagesEnabled = !!opt.multipleImages
   const styleProcessEnabled = !!opt.styleProcess
   const allowSingleImageWithoutCaption = !!opt.oneImageWithoutCaption
+  const children = nextToken.children
+  const imageToken = children[0]
+  const childrenLength = children.length
   let imageNum = 1
   let isMultipleImagesHorizontal = true
   let isMultipleImagesVertical = true
   let isValid = true
   caption.name = 'img'
-  const children = nextToken.children
-  const childrenLength = children.length
+  if (childrenLength === 1) {
+    return {
+      type: 'image',
+      tagName: 'img',
+      en: n + 2,
+      replaceInsteadOfWrap: true,
+      wrapWithoutCaption: allowSingleImageWithoutCaption,
+      canWrap: true,
+      imageToken,
+    }
+  }
   if (!multipleImagesEnabled && childrenLength > 2) {
     return {
       type: 'image',
@@ -867,7 +924,7 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
       replaceInsteadOfWrap: true,
       wrapWithoutCaption: false,
       canWrap: false,
-      imageToken: children[0]
+      imageToken,
     }
   }
   for (let childIndex = 1; childIndex < childrenLength; childIndex++) {
@@ -882,6 +939,7 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
             for (let i = 0; i < parsedAttrs.length; i++) {
               sp.attrs.push(parsedAttrs[i])
             }
+            child.content = ''
           }
           break
         }
@@ -936,16 +994,11 @@ const detectImageParagraph = (tokens, token, nextToken, n, caption, sp, opt) => 
     replaceInsteadOfWrap: true,
     wrapWithoutCaption: isValid && allowSingleImageWithoutCaption,
     canWrap: isValid,
-    imageToken: children[0]
+    imageToken,
   }
 }
 
 const figureWithCaption = (state, opt) => {
-  let fNum = {
-    img: 0,
-    table: 0,
-  }
-
   const figureNumberState = {
     img: 0,
     table: 0,
@@ -953,14 +1006,13 @@ const figureWithCaption = (state, opt) => {
 
   const fallbackLabelState = {
     img: null,
-    table: null,
   }
 
   const captionState = { tokens: state.tokens, Token: state.Token }
-  figureWithCaptionCore(state.tokens, opt, fNum, figureNumberState, fallbackLabelState, state.Token, captionState, null, 0)
+  figureWithCaptionCore(state.tokens, opt, figureNumberState, fallbackLabelState, state.Token, captionState, null, 0)
 }
 
-const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
+const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
   const rRange = { start: startIndex, end: startIndex }
   const rCaption = {
     name: '', nameSuffix: '', isPrev: false, isNext: false
@@ -978,7 +1030,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     const containerType = getNestedContainerType(token)
 
     if (containerType && containerType !== 'blockquote') {
-      const closeIndex = figureWithCaptionCore(tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
+      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
       n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
       continue
     }
@@ -992,11 +1044,13 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     const tokenType = token.type
     const blockType = CHECK_TYPE_TOKEN_MAP[tokenType]
     if (tokenType === 'paragraph_open') {
-      resetRangeState(rRange, n)
-      resetCaptionState(rCaption)
-      resetSpecialState(rSp)
       const nextToken = tokens[n + 1]
-      detection = detectImageParagraph(tokens, token, nextToken, n, rCaption, rSp, opt)
+      if (hasLeadingImageChild(nextToken)) {
+        resetRangeState(rRange, n)
+        resetCaptionState(rCaption)
+        resetSpecialState(rSp)
+        detection = detectImageParagraph(nextToken, n, rCaption, rSp, opt)
+      }
     } else if (tokenType === 'html_block') {
       resetRangeState(rRange, n)
       resetCaptionState(rCaption)
@@ -1016,7 +1070,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
 
     if (!detection) {
       if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
+        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
         n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
       } else {
         n++
@@ -1027,7 +1081,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     rRange.end = detection.en
 
     rSp.figureClassName = resolveFigureClassName(detection.tagName, rSp, opt)
-    checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, captionState)
+    checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
     applyCaptionDrivenFigureClass(rCaption, rSp, opt)
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
@@ -1042,7 +1096,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     if (detection.canWrap === false) {
       let nextIndex = rRange.end + 1
       if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
+        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
         nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : rRange.end) + 1)
       }
       n = nextIndex
@@ -1069,7 +1123,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
         rRange.start += insertedLength
         rRange.end += insertedLength
         n += insertedLength
-        checkCaption(tokens, rRange.start, rRange.end, rCaption, fNum, rSp, opt, captionState)
+        checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
         applyCaptionDrivenFigureClass(rCaption, rSp, opt)
       }
       ensureAutoFigureNumbering(tokens, rRange, rCaption, figureNumberState, opt)
@@ -1097,7 +1151,7 @@ const figureWithCaptionCore = (tokens, opt, fNum, figureNumberState, fallbackLab
     }
 
     if (containerType === 'blockquote') {
-      const closeIndex = figureWithCaptionCore(tokens, opt, fNum, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
+      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
       const fallbackIndex = rCaption.name ? rRange.end : n
       nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : fallbackIndex) + 1)
     }
@@ -1116,7 +1170,7 @@ const mditFigureWithPCaption = (md, option) => {
     classPrefix: 'f',
     figureClassThatWrapsIframeTypeBlockquote: null,
     figureClassThatWrapsSlides: null,
-    styleProcess : true,
+    styleProcess: true,
     oneImageWithoutCaption: false,
     iframeWithoutCaption: false,
     videoWithoutCaption: false,
@@ -1163,6 +1217,8 @@ const mditFigureWithPCaption = (md, option) => {
   if (!hasExplicitLabelClassFollowsFigure && opt.figureToLabelClassMap) {
     opt.labelClassFollowsFigure = true
   }
+  opt.classPrefix = normalizeOptionalClassName(opt.classPrefix)
+  opt.allIframeTypeFigureClassName = normalizeOptionalClassName(opt.allIframeTypeFigureClassName)
   opt.languages = normalizeLanguages(opt.languages)
   opt.markRegState = getMarkRegStateForLanguages(opt.languages)
   opt.imgCaptionMarkReg = opt.markRegState && opt.markRegState.markReg
@@ -1183,11 +1239,23 @@ const mditFigureWithPCaption = (md, option) => {
   const classPrefix = buildClassPrefix(opt.classPrefix)
   opt.figureClassPrefix = classPrefix
   opt.captionClassPrefix = classPrefix
+  const defaultIframeTypeBlockquoteClass = classPrefix + 'img'
+  const defaultSlideFigureClass = classPrefix + 'slide'
   if (!hasExplicitFigureClassThatWrapsIframeTypeBlockquote) {
-    opt.figureClassThatWrapsIframeTypeBlockquote = classPrefix + 'img'
+    opt.figureClassThatWrapsIframeTypeBlockquote = defaultIframeTypeBlockquoteClass
+  } else {
+    opt.figureClassThatWrapsIframeTypeBlockquote = normalizeClassOptionWithFallback(
+      opt.figureClassThatWrapsIframeTypeBlockquote,
+      defaultIframeTypeBlockquoteClass,
+    )
   }
   if (!hasExplicitFigureClassThatWrapsSlides) {
-    opt.figureClassThatWrapsSlides = classPrefix + 'slide'
+    opt.figureClassThatWrapsSlides = defaultSlideFigureClass
+  } else {
+    opt.figureClassThatWrapsSlides = normalizeClassOptionWithFallback(
+      opt.figureClassThatWrapsSlides,
+      defaultSlideFigureClass,
+    )
   }
   // Precompute label-class permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)

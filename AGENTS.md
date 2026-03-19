@@ -27,6 +27,7 @@
 - Multi-image wrapping uses `multipleImages` and sets the figure class suffix:
   - `-horizontal` (spaces only), `-vertical` (softbreak only), or `-multiple` (mixed).
 - Trailing `{...}` attrs from inline text are parsed only when `styleProcess` is enabled; parsed attrs are forwarded to the `<figure>`.
+- The trailing `{...}` text is removed only after a successful attr parse; failed parses leave the original text untouched.
 - Image paragraph attrs already materialized on tokens by `markdown-it-attrs` are forwarded to `<figure>` regardless of `styleProcess`.
 
 ## 5. Caption Pairing & Auto Caption
@@ -47,6 +48,7 @@
 - `wrapWithFigure` inserts `figure_open` / `figure_close` and forwards:
   - figure class names (prefix + type, or iframe overrides),
   - attrs from image paragraphs/image tokens (`styleProcess` path), especially trailing `{...}` attrs on image-only paragraphs.
+- Wrapper/class-prefix options are trimmed during setup; whitespace-only overrides fall back to the default class for that option.
 - Caption paragraph attrs remain on the converted `figcaption` token (not moved onto `figure`).
 - `figure_open` / `figure_close` inherit `.map` from the wrapped range to improve VS Code click/scroll sync.
 
