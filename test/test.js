@@ -102,6 +102,26 @@ const mdConsole = mdit({
 const mdAutoCaptionDetection = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true }).use(mditAttrs).use(mditRndererFence);
 const mdAltCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoAltCaption: true }).use(mditAttrs).use(mditRndererFence);
 const mdTitleCaptionFallback = mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoTitleCaption: true }).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallbackJaOnly = mdit({ html: true }).use(mdFigureWithPCaption, {
+  languages: ['ja'],
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+}).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallbackPreferredJa = mdit({ html: true }).use(mdFigureWithPCaption, {
+  languages: ['ja', 'en'],
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+}).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallbackEnOnly = mdit({ html: true }).use(mdFigureWithPCaption, {
+  languages: ['en'],
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+}).use(mditAttrs).use(mditRndererFence);
+const mdAltCaptionFallbackUnsupported = mdit({ html: true }).use(mdFigureWithPCaption, {
+  languages: ['fr', 'de'],
+  autoCaptionDetection: true,
+  autoAltCaption: true,
+}).use(mditAttrs).use(mditRndererFence);
 const mdAltCaptionFallbackNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
   autoCaptionDetection: true,
   autoAltCaption: true,
@@ -402,6 +422,19 @@ try {
   assert.ok(mdTrimmedClassOptions.render('<iframe src="https://example.com/embed"></iframe>').includes('<figure class="f-embed">'))
   assert.ok(mdBlankOverrideFallbacks.render('Figure. Social.\n\n<blockquote class="twitter-tweet"></blockquote>').includes('<figure class="f-img">'))
   assert.ok(mdBlankOverrideFallbacks.render('Slide. Deck.\n\n<iframe src="https://speakerdeck.com/player/xxxx"></iframe>').includes('<figure class="f-slide">'))
+  assert.ok(mdAltCaptionFallbackJaOnly.render('![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
+  assert.ok(mdAltCaptionFallbackPreferredJa.render('![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
+  assert.ok(mdAltCaptionFallbackEnOnly.render('![ねこ](cat.jpg)').includes('<span class="f-img-label">Figure'))
+  assert.equal(mdAltCaptionFallbackUnsupported.render('![A cat](cat.jpg)'), '<p><img src="cat.jpg" alt="A cat"></p>\n')
+  assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { lang: 'ja' }).includes('<span class="f-img-label">図'))
+  assert.ok(mdAltCaptionFallback.render('日本語の本文です。\n\n![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
+  assert.ok(mdAltCaptionFallback.render('----\ntitle: Example\nlang: en\n---\n\n日本語の本文です。\n\n![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
+  assert.ok(!mdAutoAltCaptionCustom.render('![](empty.jpg)').includes('<figcaption>'))
+  assert.ok(!mdAutoTitleCaptionCustom.render('![Alt stays](empty.jpg "")').includes('<figcaption>'))
+  assert.ok(!mdRecommendedDefaultsNumbered.render('![](empty.jpg)').includes('f-img-label">Figure 1'))
+  const mixedFallbackHtml = mdAltCaptionFallback.render('![A cat](cat-en.jpg)\n\n![ねこ](cat-ja.jpg)')
+  assert.ok(mixedFallbackHtml.includes('<figcaption><span class="f-img-label">Figure'))
+  assert.ok(mixedFallbackHtml.includes('<figcaption><span class="f-img-label">図'))
 } catch (e) {
   pass = false
   console.log('class option normalization regression failed.')

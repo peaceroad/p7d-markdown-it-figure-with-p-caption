@@ -1,6 +1,12 @@
 import {
+  analyzeCaptionStart,
+  buildLabelClassLookup,
+  buildLabelPrefixMarkerRegFromMarkers,
+  getGeneratedLabelDefaults,
+  normalizeLabelPrefixMarkers,
   setCaptionParagraph,
   getMarkRegStateForLanguages,
+  stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
 
 const htmlRegCache = new Map()
@@ -34,9 +40,144 @@ const HTML_TAG_DETECTORS = [
     setVideoIframe: true,
   },
 ]
-const fallbackLabelDefaults = { en: 'Figure', ja: '図' }
-
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const normalizeLanguageCode = (value) => {
+  if (value === null || value === undefined) return ''
+  const normalized = String(value).trim().toLowerCase()
+  if (!normalized) return ''
+  const separatorIndex = normalized.search(/[-_]/)
+  return separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex)
+}
+const normalizePreferredLanguages = (value, availableLanguages) => {
+  if (!Array.isArray(availableLanguages) || availableLanguages.length === 0) return []
+  const source = typeof value === 'string' ? [value] : (Array.isArray(value) ? value : [])
+  if (source.length === 0) return []
+  const allowed = new Set(availableLanguages)
+  const languages = []
+  const seen = new Set()
+  for (let i = 0; i < source.length; i++) {
+    const lang = normalizeLanguageCode(source[i])
+    if (!lang || seen.has(lang) || !allowed.has(lang)) continue
+    seen.add(lang)
+    languages.push(lang)
+  }
+  return languages
+}
+const prioritizeLanguage = (languages, preferredLanguage) => {
+  if (!preferredLanguage || languages.length === 0) return languages.slice()
+  const prioritized = []
+  prioritized.push(preferredLanguage)
+  for (let i = 0; i < languages.length; i++) {
+    if (languages[i] === preferredLanguage) continue
+    prioritized.push(languages[i])
+  }
+  return prioritized
+}
+const isAsciiAlphaCode = (code) => {
+  return (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a)
+}
+const isJapaneseCharCode = (code) => {
+  return (
+    (code >= 0x3040 && code <= 0x30ff) ||
+    (code >= 0x31f0 && code <= 0x31ff) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xff66 && code <= 0xff9f)
+  )
+}
+const isHyphenFenceLine = (src, lineStart) => {
+  if (typeof src !== 'string' || lineStart < 0 || lineStart >= src.length) return 0
+  let index = lineStart
+  let hyphenCount = 0
+  while (index < src.length && src.charCodeAt(index) === 0x2d) {
+    hyphenCount++
+    index++
+  }
+  if (hyphenCount < 3) return 0
+  while (index < src.length && src.charCodeAt(index) === 0x20) {
+    index++
+  }
+  if (index >= src.length || src.charCodeAt(index) !== 0x0a) return 0
+  return hyphenCount
+}
+const skipLeadingFrontmatter = (src) => {
+  if (typeof src !== 'string' || isHyphenFenceLine(src, 0) === 0) return src
+  let lineStart = src.indexOf('\n')
+  if (lineStart === -1) return src
+  lineStart++
+  while (lineStart < src.length) {
+    if (isHyphenFenceLine(src, lineStart) > 0) {
+      const nextLineStart = src.indexOf('\n', lineStart)
+      if (nextLineStart === -1) return ''
+      return src.slice(nextLineStart + 1)
+    }
+    const nextLineStart = src.indexOf('\n', lineStart)
+    if (nextLineStart === -1) break
+    lineStart = nextLineStart + 1
+  }
+  return src
+}
+const detectDocumentPrimaryLanguage = (src, availableLanguages) => {
+  if (!src || availableLanguages.indexOf('ja') === -1) return ''
+  const body = skipLeadingFrontmatter(src)
+  const limit = Math.min(body.length, 8192)
+  let japaneseCount = 0
+  let asciiAlphaCount = 0
+  for (let i = 0; i < limit; i++) {
+    const code = body.charCodeAt(i)
+    if (isJapaneseCharCode(code)) {
+      japaneseCount++
+      continue
+    }
+    if (isAsciiAlphaCode(code)) {
+      asciiAlphaCount++
+    }
+  }
+  if (japaneseCount === 0) return ''
+  if (asciiAlphaCount === 0) return 'ja'
+  return japaneseCount * 2 >= asciiAlphaCount ? 'ja' : ''
+}
+const sourceMayNeedPreferredLanguages = (state) => {
+  const src = state && typeof state.src === 'string' ? state.src : ''
+  return src.indexOf('![') !== -1
+}
+const resolvePreferredLanguagesForState = (state, opt) => {
+  const availableLanguages = (
+    opt &&
+    opt.markRegState &&
+    Array.isArray(opt.markRegState.languages)
+  ) ? opt.markRegState.languages : []
+  if (availableLanguages.length === 0) return []
+
+  const explicitPreferred = opt && Array.isArray(opt.preferredLanguages)
+    ? opt.preferredLanguages
+    : []
+  if (explicitPreferred.length > 0) return explicitPreferred
+
+  const optionLanguages = opt && Array.isArray(opt.normalizedOptionLanguages)
+    ? opt.normalizedOptionLanguages
+    : []
+  const baseLanguages = optionLanguages.length > 0 ? optionLanguages : availableLanguages
+  const env = state && state.env ? state.env : null
+  const envPreferred = normalizePreferredLanguages(env && env.preferredLanguages, availableLanguages)
+  if (envPreferred.length > 0) return envPreferred
+
+  const envLanguage = normalizeLanguageCode(env && (env.preferredLanguage || env.lang || env.language || env.locale))
+  if (envLanguage && baseLanguages.indexOf(envLanguage) !== -1) {
+    return prioritizeLanguage(baseLanguages, envLanguage)
+  }
+
+  const detectedLanguage = detectDocumentPrimaryLanguage(state && state.src ? state.src : '', baseLanguages)
+  if (detectedLanguage) {
+    return prioritizeLanguage(baseLanguages, detectedLanguage)
+  }
+  return baseLanguages
+}
+const needsPreferredLanguagesResolution = (opt) => {
+  if (!opt || !opt.markRegState || !Array.isArray(opt.markRegState.languages)) return false
+  if (opt.markRegState.languages.length <= 1) return false
+  if (Array.isArray(opt.preferredLanguages) && opt.preferredLanguages.length > 0) return false
+  return opt.autoAltCaption === true || opt.autoTitleCaption === true
+}
 const normalizeOptionalClassName = (value) => {
   if (value === null || value === undefined) return ''
   const normalized = String(value).trim()
@@ -50,62 +191,12 @@ const normalizeClassOptionWithFallback = (value, fallbackValue) => {
   const normalized = normalizeOptionalClassName(value)
   return normalized || fallbackValue
 }
-const normalizeLanguages = (value) => {
-  if (!Array.isArray(value)) return ['en', 'ja']
-  const normalized = []
-  const seen = new Set()
-  for (let i = 0; i < value.length; i++) {
-    const lang = value[i]
-    if (typeof lang !== 'string') continue
-    const trimmed = lang.trim()
-    if (!trimmed || seen.has(trimmed)) continue
-    seen.add(trimmed)
-    normalized.push(trimmed)
-  }
-  if (normalized.length === 0) return ['en', 'ja']
-  return normalized
-}
-const normalizeLabelPrefixMarkers = (value) => {
-  if (typeof value === 'string') {
-    return value ? [value] : []
-  }
-  if (Array.isArray(value)) {
-    const normalized = value.map(entry => String(entry)).filter(Boolean)
-    return normalized.length > 2 ? normalized.slice(0, 2) : normalized
-  }
-  return []
-}
-const buildLabelPrefixMarkerRegFromList = (markers) => {
-  if (!markers || markers.length === 0) return null
-  const pattern = markers.map(escapeRegExp).join('|')
-  return new RegExp('^(?:' + pattern + ')(?:[ \\t　]+)?')
-}
 const resolveLabelPrefixMarkerPair = (markers) => {
   if (!markers || markers.length === 0) return { prev: [], next: [] }
   if (markers.length === 1) {
     return { prev: [markers[0]], next: [markers[0]] }
   }
   return { prev: [markers[0]], next: [markers[1]] }
-}
-const stripLeadingPrefix = (text, prefix) => {
-  if (typeof text !== 'string' || !text || !prefix) return text
-  if (text.startsWith(prefix)) return text.slice(prefix.length)
-  return text
-}
-const stripLabelPrefixMarkerFromInline = (inlineToken, markerText) => {
-  if (!inlineToken || !markerText) return
-  if (typeof inlineToken.content === 'string') {
-    inlineToken.content = stripLeadingPrefix(inlineToken.content, markerText)
-  }
-  if (inlineToken.children && inlineToken.children.length) {
-    for (let i = 0; i < inlineToken.children.length; i++) {
-      const child = inlineToken.children[i]
-      if (child && child.type === 'text' && typeof child.content === 'string') {
-        child.content = stripLeadingPrefix(child.content, markerText)
-        break
-      }
-    }
-  }
 }
 const getLabelPrefixMarkerMatch = (inlineToken, markerReg) => {
   if (!markerReg || !inlineToken || inlineToken.type !== 'inline') return null
@@ -147,20 +238,6 @@ const normalizeAutoLabelNumberSets = (value) => {
     return normalized
   }
   return normalized
-}
-
-const buildLabelClassLookup = (opt) => {
-  const classPrefix = opt.classPrefix ? opt.classPrefix + '-' : ''
-  const defaultClasses = [classPrefix + 'label']
-  const withType = (type) => {
-    if (opt.removeMarkNameInCaptionClass) return defaultClasses
-    return [classPrefix + type + '-label', ...defaultClasses]
-  }
-  return {
-    img: withType('img'),
-    table: withType('table'),
-    default: defaultClasses,
-  }
 }
 
 const shouldApplyLabelNumbering = (captionType, opt) => {
@@ -241,60 +318,23 @@ const getImageAltText = (token) => {
 
 const getImageTitleText = (token) => getTokenAttr(token, 'title')
 
-const detectCaptionLanguage = (text) => {
-  const target = (text || '').trim()
-  if (!target) return 'en'
-  for (let i = 0; i < target.length; i++) {
-    const char = target[i]
-    const code = target.charCodeAt(i)
-    if (isJapaneseCharCode(code)) return 'ja'
-    if (isSentenceBoundaryChar(char) || char === '\n') break
-  }
-  return 'en'
-}
-
-const isJapaneseCharCode = (code) => {
-  return (
-    (code >= 0x3040 && code <= 0x30ff) || // Hiragana + Katakana
-    (code >= 0x31f0 && code <= 0x31ff) || // Katakana extensions
-    (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
-    (code >= 0xff66 && code <= 0xff9f)    // Half-width Katakana
-  )
-}
-
-const isSentenceBoundaryChar = (char) => {
-  return char === '.' || char === '!' || char === '?' || char === '。' || char === '！' || char === '？'
-}
-
-const getAutoFallbackLabel = (text) => {
-  const lang = detectCaptionLanguage(text)
-  if (lang === 'ja') return fallbackLabelDefaults.ja || fallbackLabelDefaults.en || ''
-  return fallbackLabelDefaults.en || fallbackLabelDefaults.ja || ''
-}
-
-const getPersistedFallbackLabel = (text, fallbackState) => {
-  if (!fallbackState) return getAutoFallbackLabel(text)
-  if (fallbackState.img) return fallbackState.img
-  const resolved = getAutoFallbackLabel(text)
-  fallbackState.img = resolved
-  return resolved
-}
-
-const buildCaptionWithFallback = (text, fallbackOption, fallbackState) => {
+const buildCaptionWithFallback = (text, fallbackOption, mark, markRegState, preferredLanguages) => {
   const trimmedText = (text || '').trim()
   if (!fallbackOption) return ''
+  if (!trimmedText) return ''
   let label = ''
+  let generatedDefaults = null
   if (typeof fallbackOption === 'string') {
     label = fallbackOption.trim()
   } else if (fallbackOption === true) {
-    label = getPersistedFallbackLabel(trimmedText, fallbackState)
+    generatedDefaults = getGeneratedLabelDefaults(mark, trimmedText, markRegState, preferredLanguages)
+    label = generatedDefaults && generatedDefaults.label ? generatedDefaults.label : ''
   }
-  if (!label) return trimmedText
-  const isAsciiLabel = asciiLabelReg.test(label)
-  if (!trimmedText) {
-    return isAsciiLabel ? label + '.' : label
+  if (!label) return fallbackOption === true ? '' : trimmedText
+  if (generatedDefaults) {
+    return label + (generatedDefaults.joint || '') + (generatedDefaults.space || '') + trimmedText
   }
-  return label + (isAsciiLabel ? '. ' : '　') + trimmedText
+  return label + (asciiLabelReg.test(label) ? '. ' : '　') + trimmedText
 }
 
 const createAutoCaptionParagraph = (captionText, TokenConstructor) => {
@@ -420,45 +460,51 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
   updateInlineTokenContent(inlineToken, originalText, newLabelText)
 }
 
-const matchAutoCaptionText = (text, reg) => {
-  if (!text || !reg) return ''
+const matchAutoCaptionText = (text, opt, preferredMark = 'img') => {
+  if (!text || !opt || !opt.markRegState) return ''
   const trimmed = text.trim()
-  if (trimmed && reg.test(trimmed)) return trimmed
+  if (!trimmed) return ''
+  const analysis = analyzeCaptionStart(trimmed, {
+    markRegState: opt.markRegState,
+    preferredMark,
+  })
+  if (analysis) return trimmed
   return ''
 }
 
-const getAutoCaptionFromImage = (imageToken, opt, fallbackLabelState) => {
-  const imgCaptionMarkReg = opt && opt.imgCaptionMarkReg ? opt.imgCaptionMarkReg : null
+const getAutoCaptionFromImage = (imageToken, opt) => {
   if (!opt.autoCaptionDetection) return ''
-  if (!imgCaptionMarkReg && !opt.autoAltCaption && !opt.autoTitleCaption) return ''
+  if (!opt.autoAltCaption && !opt.autoTitleCaption && !(opt.markRegState && opt.markRegState.markReg && opt.markRegState.markReg.img)) return ''
 
   const altText = getImageAltText(imageToken)
-  let caption = matchAutoCaptionText(altText, imgCaptionMarkReg)
+  let caption = matchAutoCaptionText(altText, opt)
   if (caption) {
     clearImageAltAttr(imageToken)
     return caption
   }
   if (!caption && opt.autoAltCaption) {
     const altForFallback = altText || ''
-    caption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, fallbackLabelState)
-    if (imageToken) {
+    const fallbackCaption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, 'img', opt.markRegState, opt.preferredLanguages)
+    if (fallbackCaption && imageToken) {
       clearImageAltAttr(imageToken)
     }
+    caption = fallbackCaption
   }
   if (caption) return caption
 
   const titleText = getImageTitleText(imageToken)
-  caption = matchAutoCaptionText(titleText, imgCaptionMarkReg)
+  caption = matchAutoCaptionText(titleText, opt)
   if (caption) {
     clearImageTitleAttr(imageToken)
     return caption
   }
   if (!caption && opt.autoTitleCaption) {
     const titleForFallback = titleText || ''
-    caption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, fallbackLabelState)
-    if (imageToken) {
+    const fallbackCaption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, 'img', opt.markRegState, opt.preferredLanguages)
+    if (fallbackCaption && imageToken) {
       clearImageTitleAttr(imageToken)
     }
+    caption = fallbackCaption
   }
   return caption
 }
@@ -579,11 +625,11 @@ const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
   if(!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelPrevReg) {
-      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelPrevReg)
-      if (markerMatch) {
-        stripLabelPrefixMarkerFromInline(captionInlineToken, markerMatch)
-        caption.isPrev = true
-      }
+        const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelPrevReg)
+        if (markerMatch) {
+          stripLabelPrefixMarker(captionInlineToken, markerMatch)
+          caption.isPrev = true
+        }
     }
     return
   }
@@ -603,11 +649,11 @@ const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
   if(!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelNextReg) {
-      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelNextReg)
-      if (markerMatch) {
-        stripLabelPrefixMarkerFromInline(captionInlineToken, markerMatch)
-        caption.isNext = true
-      }
+        const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelNextReg)
+        if (markerMatch) {
+          stripLabelPrefixMarker(captionInlineToken, markerMatch)
+          caption.isNext = true
+        }
     }
     return
   }
@@ -1004,15 +1050,19 @@ const figureWithCaption = (state, opt) => {
     table: 0,
   }
 
-  const fallbackLabelState = {
-    img: null,
-  }
-
   const captionState = { tokens: state.tokens, Token: state.Token }
-  figureWithCaptionCore(state.tokens, opt, figureNumberState, fallbackLabelState, state.Token, captionState, null, 0)
+  const shouldResolvePreferredLanguages = !!(
+    opt.shouldResolvePreferredLanguages &&
+    sourceMayNeedPreferredLanguages(state)
+  )
+  const renderOpt = shouldResolvePreferredLanguages ? Object.create(opt) : opt
+  if (shouldResolvePreferredLanguages) {
+    renderOpt.preferredLanguages = resolvePreferredLanguagesForState(state, opt)
+  }
+  figureWithCaptionCore(state.tokens, renderOpt, figureNumberState, state.Token, captionState, null, 0)
 }
 
-const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
+const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
   const rRange = { start: startIndex, end: startIndex }
   const rCaption = {
     name: '', nameSuffix: '', isPrev: false, isNext: false
@@ -1030,7 +1080,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelStat
     const containerType = getNestedContainerType(token)
 
     if (containerType && containerType !== 'blockquote') {
-      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
+      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, TokenConstructor, captionState, containerType, n + 1)
       n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
       continue
     }
@@ -1070,7 +1120,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelStat
 
     if (!detection) {
       if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, n + 1)
+        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, TokenConstructor, captionState, containerType, n + 1)
         n = (typeof closeIndex === 'number' ? closeIndex : n) + 1
       } else {
         n++
@@ -1087,7 +1137,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelStat
     let hasCaption = rCaption.isPrev || rCaption.isNext
     let pendingAutoCaption = ''
     if (!hasCaption && detection.type === 'image' && opt.autoCaptionDetection) {
-      pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt, fallbackLabelState)
+      pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt)
       if (pendingAutoCaption) {
         hasCaption = true
       }
@@ -1096,7 +1146,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelStat
     if (detection.canWrap === false) {
       let nextIndex = rRange.end + 1
       if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
+        const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, TokenConstructor, captionState, containerType, rRange.start + 1)
         nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : rRange.end) + 1)
       }
       n = nextIndex
@@ -1151,7 +1201,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, fallbackLabelStat
     }
 
     if (containerType === 'blockquote') {
-      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, fallbackLabelState, TokenConstructor, captionState, containerType, rRange.start + 1)
+      const closeIndex = figureWithCaptionCore(tokens, opt, figureNumberState, TokenConstructor, captionState, containerType, rRange.start + 1)
       const fallbackIndex = rCaption.name ? rRange.end : n
       nextIndex = Math.max(nextIndex, (typeof closeIndex === 'number' ? closeIndex : fallbackIndex) + 1)
     }
@@ -1165,6 +1215,7 @@ const mditFigureWithPCaption = (md, option) => {
   let opt = {
     // Caption languages delegated to p-captions.
     languages: ['en', 'ja'],
+    preferredLanguages: null, // optional tie-break order for generated fallback labels; defaults to inferred document order / languages
 
     // --- figure-wrapper behavior ---
     classPrefix: 'f',
@@ -1219,11 +1270,11 @@ const mditFigureWithPCaption = (md, option) => {
   }
   opt.classPrefix = normalizeOptionalClassName(opt.classPrefix)
   opt.allIframeTypeFigureClassName = normalizeOptionalClassName(opt.allIframeTypeFigureClassName)
-  opt.languages = normalizeLanguages(opt.languages)
   opt.markRegState = getMarkRegStateForLanguages(opt.languages)
-  opt.imgCaptionMarkReg = opt.markRegState && opt.markRegState.markReg
-    ? opt.markRegState.markReg.img
-    : null
+  opt.preferredLanguages = normalizePreferredLanguages(opt.preferredLanguages, opt.markRegState.languages)
+  if (opt.preferredLanguages.length === 0) opt.preferredLanguages = null
+  opt.normalizedOptionLanguages = normalizePreferredLanguages(opt.languages, opt.markRegState.languages)
+  opt.shouldResolvePreferredLanguages = needsPreferredLanguagesResolution(opt)
   opt.htmlWrapWithoutCaption = {
     iframe: !!opt.iframeWithoutCaption,
     video: !!opt.videoWithoutCaption,
@@ -1260,12 +1311,12 @@ const mditFigureWithPCaption = (md, option) => {
   // Precompute label-class permutations so numbering lookup doesn't rebuild arrays per caption.
   opt.labelClassLookup = buildLabelClassLookup(opt)
   const markerList = normalizeLabelPrefixMarkers(opt.labelPrefixMarker)
-  opt.labelPrefixMarkerReg = buildLabelPrefixMarkerRegFromList(markerList)
+  opt.labelPrefixMarkerReg = buildLabelPrefixMarkerRegFromMarkers(markerList)
   opt.cleanCaptionRegCache = new Map()
   if (opt.allowLabelPrefixMarkerWithoutLabel === true) {
     const markerPair = resolveLabelPrefixMarkerPair(markerList)
-    opt.labelPrefixMarkerWithoutLabelPrevReg = buildLabelPrefixMarkerRegFromList(markerPair.prev)
-    opt.labelPrefixMarkerWithoutLabelNextReg = buildLabelPrefixMarkerRegFromList(markerPair.next)
+    opt.labelPrefixMarkerWithoutLabelPrevReg = buildLabelPrefixMarkerRegFromMarkers(markerPair.prev)
+    opt.labelPrefixMarkerWithoutLabelNextReg = buildLabelPrefixMarkerRegFromMarkers(markerPair.next)
   } else {
     opt.labelPrefixMarkerWithoutLabelPrevReg = null
     opt.labelPrefixMarkerWithoutLabelNextReg = null

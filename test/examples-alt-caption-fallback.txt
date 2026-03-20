@@ -24,6 +24,6 @@
 <img src="mix-en.jpg" alt="">
 </figure>
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> 日本語キャプション</figcaption>
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>日本語キャプション</figcaption>
 <img src="mix-ja.jpg" alt="">
 </figure>

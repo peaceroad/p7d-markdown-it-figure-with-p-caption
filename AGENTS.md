@@ -34,10 +34,12 @@
 - `checkPrevCaption` / `checkNextCaption` call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens.
 - Caption detection trusts `sp.captionDecision.mark` from p-captions rather than re-parsing class strings.
 - `labelPrefixMarker` (optional) strips a prefix marker before a label; `allowLabelPrefixMarkerWithoutLabel` allows marker-only captions.
-- Caption regex resolution is language-aware via p-captions helper state (`getMarkRegStateForLanguages`); image auto-caption uses precomputed `opt.imgCaptionMarkReg` from that state.
+- Caption regex resolution is language-aware via p-captions helper state (`getMarkRegStateForLanguages`); image auto-caption reuse goes through p-captions' pure `analyzeCaptionStart(...preferredMark:'img')` helper.
 - Auto caption for images runs only when no caption paragraph exists:
-  - uses labeled `alt` or `title` text (`markReg.img`),
-  - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware defaults.
+  - uses labeled `alt` or `title` text recognized by p-captions,
+  - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware generated-label defaults from p-captions.
+  - empty `alt` / `title` values do not synthesize label-only captions.
+- Generated fallback tie-break order comes from `preferredLanguages` when explicitly configured; otherwise this plugin derives it once per render from `env.preferredLanguages`, `env.lang` / `env.locale`, and finally a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline) before falling back to the raw `languages` order.
 - Consumed `alt`/`title` attributes are cleared to avoid duplicate captions in downstream renderers.
 
 ## 6. Numbering Integration
@@ -57,8 +59,10 @@
 - HTML detection uses tag hints before regex checks and skips regex when no `<` exists in the block.
 - `detectHtmlBlockToken` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.
+- `preferredLanguages` resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and the source contains Markdown image syntax; the no-override render path stays allocation-light.
+- Setup normalizes `preferredLanguages` / `languages` once; render-time fallback ordering reuses those arrays directly and only inspects `env` / source when it must derive a tie-break.
 - Numbering uses a trailing-integer parser (char scan) instead of regex on hot paths.
-- Label span lookups avoid `split()` allocations; alt text aggregation avoids temporary arrays.
+- Label span lookups avoid `split()` allocations; alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
 - `wrapWithFigure` must create distinct newline tokens; do not reuse one token object across multiple insert positions.
 
 ## 9. Tests

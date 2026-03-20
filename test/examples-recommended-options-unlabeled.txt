@@ -87,7 +87,6 @@ Figure. Captioned iframe.
 ![](empty.jpg)
 [HTML]
 <figure class="f-img">
-<figcaption></figcaption>
 <img src="empty.jpg" alt="">
 </figure>
 

@@ -24,6 +24,6 @@
 <img src="title-mix-en.jpg" alt="Keep English label">
 </figure>
 <figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> 日本語 キャプション</figcaption>
+<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>日本語 キャプション</figcaption>
 <img src="title-ja.jpg" alt="Alt stays jp">
 </figure>

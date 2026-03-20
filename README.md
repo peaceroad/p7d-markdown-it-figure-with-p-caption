@@ -15,10 +15,10 @@ Optionally, you can auto-number image and table caption paragraphs starting from
 - Pure image paragraphs (`![...](...)`) become `<figure class="f-img">` blocks as soon as a caption paragraph (previous or next) or an auto-detected caption exists.
 - Auto detection runs per image paragraph when `autoCaptionDetection` is `true` (default). The priority is:
     1. Caption paragraphs immediately before or after the image (standard syntax).
-    2. Image `alt` text that already matches p7d-markdown-it-p-captions label formats (`Figure. `, `Figure 1. `, `図　`,`図1　`, etc.).
+    2. Image `alt` text that `p7d-markdown-it-p-captions` recognizes as an image caption start (`Figure. `, `Figure 1. `, `図　`, `図1　`, etc.).
     3. Image `title` attribute that matches the same labels.
     4. Optional fallbacks (`autoAltCaption`, `autoTitleCaption`) that inject the label when the alt/title lacks one.
-        - `autoAltCaption`: `false` (default), `true`, or a string label. `true` inspects the first sentence of the caption text and picks `Figure` / `図` based on detected language; a string uses that label verbatim.
+        - `autoAltCaption`: `false` (default), `true`, or a string label. `true` uses locale-aware generated-label defaults from `p7d-markdown-it-p-captions`, so the label text and punctuation stay aligned with the upstream caption language data. A string uses that label verbatim. Empty alt text does not generate a fallback caption.
         - `autoTitleCaption`: same behavior but sourced from the image `title`. It stays off by default so other plugins can keep using the `title` attribute for metadata.
 - Set `autoCaptionDetection: false` to disable the auto-caption workflow entirely.
 - Multi-image paragraphs are still wrapped as one figure when `multipleImages: true` (default). Layout-specific classes help with styling:
@@ -85,13 +85,15 @@ Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which 
 - `strongFilename` / `dquoteFilename`: pull out filenames from captions using `**filename**` or `"filename"` syntax and wrap them in `<strong class="f-*-filename">`.
 - `jointSpaceUseHalfWidth`: replace full-width space between Japanese labels and caption body with half-width space.
 - `bLabel` / `strongLabel`: emphasize the label span itself.
-- `removeUnnumberedLabel`: drop the leading “Figure. Etext entirely when no label number is present. Use `removeUnnumberedLabelExceptMarks` to keep specific labels (e.g., `['blockquote']` keeps `Quote. `).
+- `removeUnnumberedLabel`: drop the leading label entirely when no label number is present. Use `removeUnnumberedLabelExceptMarks` to keep specific labels (e.g., `['blockquote']` keeps `Quote. `).
 - `removeMarkNameInCaptionClass`: replace `.f-img-label` / `.f-table-label` with the generic `.f-label`.
 - `wrapCaptionBody`: wrap the non-label caption text in a span element.
 - `hasNumClass`: add a class attribute to label span element if it has a label number.
 - `labelClassFollowsFigure`: mirror the resolved `<figure>` class onto the `figcaption` spans (`f-embed-label`, `f-embed-label-joint`, `f-embed-body`, etc.) when you want captions styled alongside the wrapper.
 - `figureToLabelClassMap`: extend `labelClassFollowsFigure` by mapping specific figure classes (e.g., `f-embed`) to custom caption label classes such as `caption-embed caption-social` for fine-grained control. When this map is provided and `labelClassFollowsFigure` is not set explicitly, figure-following mode is enabled automatically.
 - `labelPrefixMarker`: allow a leading marker before labels (string or array, e.g., `*Figure. ...`). Arrays are limited to two markers; extras are ignored.
+- Automatic image-label fallback text and punctuation (`Figure. `, `図　`, etc.) are generated from `p7d-markdown-it-p-captions` locale metadata, not from a local hardcoded map in this plugin.
+- `preferredLanguages`: optional tie-break order for generated fallback labels. When omitted, this plugin derives the order once per render from `env.preferredLanguages`, `env.lang` / `env.locale`, then a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline), and finally the raw `languages` order.
 
 ### Automatic numbering
 
@@ -454,7 +456,7 @@ Figure. Highlighted cat.
 
 ### Automatic detection fallbacks
 
-`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source.
+`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels, as long as the alt/title body is non-empty. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source. When these fallbacks are `true`, the generated label text and punctuation come from `p7d-markdown-it-p-captions` locale metadata rather than a local hardcoded map.
 
 ```
 [Markdown]

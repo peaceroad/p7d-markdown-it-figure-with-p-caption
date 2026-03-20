@@ -8,6 +8,6 @@
 <img src="ja-first.jpg" alt="">
 </figure>
 <figure class="f-img">
-<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Second caption</figcaption>
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Second caption</figcaption>
 <img src="en-second.jpg" alt="">
 </figure>
