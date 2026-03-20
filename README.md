@@ -50,9 +50,9 @@ Optionally, you can auto-number image and table caption paragraphs starting from
 
 ### Embedded content by iframe
 
-- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `youtube.com` / `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
+- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
 - `<div>` wrappers are treated as iframe-type embeds only when the same HTML block contains an `<iframe ...>` tag (for example common video wrapper markup).
-- Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their `class` matches those providers. By default they become `<figure class="f-img">` so the caption label behaves like an image label (Labels can also use quote labels). You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
+- Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes on the same blockquote do not block detection. By default they become `<figure class="f-img">` so the caption label behaves like an image label (Labels can also use quote labels). You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
 - `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper automatically switches to `f-slide` (or whatever you set via `figureClassThatWrapsSlides`) so slides can get their own layout. If `allIframeTypeFigureClassName` is also configured, that class takes precedence even for slides, so you get a uniform embed wrapper without touching the slide option.
 - All other iframes fall back to `<figure class="f-iframe">` unless you override the class via `allIframeTypeFigureClassName`.
 

@@ -33,6 +33,7 @@
   },
   "files": [
     "index.js",
+    "embeds/",
     "README.md",
     "LICENSE"
   ]

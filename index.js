@@ -8,38 +8,19 @@ import {
   getMarkRegStateForLanguages,
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
+import { detectHtmlFigureCandidate } from './embeds/detect.js'
 
-const htmlRegCache = new Map()
-const blueskyEmbedReg = /^<blockquote class="bluesky-embed"[^]*?>[\s\S]*?$/
-const videoIframeReg = /^<[^>]*? src="https:\/\/(?:www.youtube-nocookie.com|player.vimeo.com)\//i
-const classNameReg = /^<[^>]*? class="(twitter-tweet|instagram-media|text-post-media|bluesky-embed|mastodon-embed)"/
 const imageAttrsReg = /^ *\{(.*?)\} *$/
 const classAttrReg = /^\./
 const idAttrReg = /^#/
 const attrParseReg = /^(.*?)="?(.*)"?$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
-const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
-const iframeTagReg = /<iframe(?=[\s>])/i
 const asciiLabelReg = /^[A-Za-z]/
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
   blockquote_open: 'blockquote',
 }
-const HTML_TAG_DETECTORS = [
-  { candidate: 'video', lookupTag: 'video', hintKey: 'hasVideoHint' },
-  { candidate: 'audio', lookupTag: 'audio', hintKey: 'hasAudioHint' },
-  { candidate: 'iframe', lookupTag: 'iframe', hintKey: 'hasIframeHint' },
-  { candidate: 'blockquote', lookupTag: 'blockquote', hintKey: 'hasBlockquoteHint' },
-  {
-    candidate: 'div',
-    lookupTag: 'div',
-    hintKey: 'hasDivHint',
-    requiresIframeTag: true,
-    matchedTag: 'iframe',
-    setVideoIframe: true,
-  },
-]
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const normalizeLanguageCode = (value) => {
   if (value === null || value === undefined) return ''
@@ -509,111 +490,6 @@ const getAutoCaptionFromImage = (imageToken, opt) => {
   return caption
 }
 
-const getHtmlReg = (tag) => {
-  const cached = htmlRegCache.get(tag)
-  if (cached) return cached
-  const regexStr = `^<${tag} ?[^>]*?>[\\s\\S]*?<\\/${tag}>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)? *(\\n|$)`
-  const reg = new RegExp(regexStr)
-  htmlRegCache.set(tag, reg)
-  return reg
-}
-
-const getHtmlDetectionHints = (content) => {
-  const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
-  const hasVideoHint = content.indexOf('<video') !== -1
-  const hasAudioHint = content.indexOf('<audio') !== -1
-  const hasIframeHint = content.indexOf('<iframe') !== -1
-  const hasBlockquoteHint = content.indexOf('<blockquote') !== -1
-  const hasDivHint = content.indexOf('<div') !== -1
-  return {
-    hasBlueskyHint,
-    hasVideoHint,
-    hasAudioHint,
-    hasIframeHint,
-    hasBlockquoteHint,
-    hasDivHint,
-    hasIframeTag: hasIframeHint || (hasDivHint && iframeTagReg.test(content)),
-    hasBlueskyEmbed: hasBlueskyHint && blueskyEmbedReg.test(content),
-  }
-}
-
-const hasAnyHtmlDetectionHint = (hints) => {
-  return !!(
-    hints.hasBlueskyHint ||
-    hints.hasVideoHint ||
-    hints.hasAudioHint ||
-    hints.hasIframeHint ||
-    hints.hasBlockquoteHint ||
-    hints.hasDivHint
-  )
-}
-
-const appendHtmlBlockNewlineIfNeeded = (token, hasTag) => {
-  if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
-    token.content += '\n'
-  }
-}
-
-const consumeBlockquoteEmbedScript = (tokens, token, startIndex) => {
-  let addedCont = ''
-  let j = startIndex + 1
-  while (j < tokens.length) {
-    const nextToken = tokens[j]
-    if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
-      addedCont += nextToken.content + '\n'
-      if (tokens[j + 1] && tokens[j + 1].type === 'paragraph_close') {
-        tokens.splice(j + 1, 1)
-      }
-      nextToken.content = ''
-      if (nextToken.children) {
-        for (let k = 0; k < nextToken.children.length; k++) {
-          nextToken.children[k].content = ''
-        }
-      }
-      break
-    }
-    if (nextToken.type === 'paragraph_open') {
-      addedCont += '\n'
-      tokens.splice(j, 1)
-      continue
-    }
-    j++
-  }
-  token.content += addedCont
-}
-
-const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints, sp) => {
-  if (detector.requiresIframeTag && !hints.hasIframeTag) return ''
-  const hasTagHint = !!(detector.hintKey && hints[detector.hintKey])
-  const allowBlueskyFallback = detector.candidate === 'blockquote' && hints.hasBlueskyEmbed
-  if (!hasTagHint && !allowBlueskyFallback) return ''
-  const hasTag = hasTagHint ? token.content.match(getHtmlReg(detector.lookupTag)) : null
-  const isBlueskyBlockquote = detector.candidate === 'blockquote' && !hasTag && hints.hasBlueskyEmbed
-  if (!hasTag && !isBlueskyBlockquote) return ''
-  if (hasTag) {
-    appendHtmlBlockNewlineIfNeeded(token, hasTag)
-    if (detector.setVideoIframe) {
-      sp.isVideoIframe = true
-    }
-    return detector.matchedTag || detector.candidate
-  }
-  consumeBlockquoteEmbedScript(tokens, token, startIndex)
-  return 'blockquote'
-}
-
-const isIframeTypeEmbedBlockquote = (content) => {
-  return content.indexOf('class="') !== -1 && classNameReg.test(content)
-}
-
-const resolveHtmlWrapWithoutCaption = (matchedTag, sp, opt) => {
-  const htmlWrapWithoutCaption = opt.htmlWrapWithoutCaption
-  if (!htmlWrapWithoutCaption) return false
-  if (matchedTag === 'blockquote') {
-    return !!(sp.isIframeTypeBlockquote && htmlWrapWithoutCaption.iframeTypeBlockquote)
-  }
-  return !!htmlWrapWithoutCaption[matchedTag]
-}
-
 const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
   if(n < 3) return caption
   const captionStartToken = tokens[n-3]
@@ -898,38 +774,6 @@ const detectFenceToken = (token, n, caption) => {
   }
 }
 
-const detectHtmlBlockToken = (tokens, token, n, caption, sp, opt) => {
-  if (!token || token.type !== 'html_block') return null
-  const hints = getHtmlDetectionHints(token.content)
-  if (!hasAnyHtmlDetectionHint(hints)) return null
-  let matchedTag = ''
-  for (let i = 0; i < HTML_TAG_DETECTORS.length; i++) {
-    matchedTag = detectHtmlTagCandidate(tokens, token, n, HTML_TAG_DETECTORS[i], hints, sp)
-    if (matchedTag) break
-  }
-  if (!matchedTag) return null
-  if (matchedTag === 'blockquote') {
-    if (isIframeTypeEmbedBlockquote(token.content)) {
-      sp.isIframeTypeBlockquote = true
-    } else {
-      return null
-    }
-  }
-  if (matchedTag === 'iframe' && videoIframeReg.test(token.content)) {
-    sp.isVideoIframe = true
-  }
-  caption.name = matchedTag
-  const wrapWithoutCaption = resolveHtmlWrapWithoutCaption(matchedTag, sp, opt)
-  return {
-    type: 'html',
-    tagName: matchedTag,
-    en: n,
-    replaceInsteadOfWrap: false,
-    wrapWithoutCaption,
-    canWrap: true,
-  }
-}
-
 const hasLeadingImageChild = (token) => {
   return !!(token &&
     token.type === 'inline' &&
@@ -1105,7 +949,12 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
       resetRangeState(rRange, n)
       resetCaptionState(rCaption)
       resetSpecialState(rSp)
-      detection = detectHtmlBlockToken(tokens, token, n, rCaption, rSp, opt)
+      detection = detectHtmlFigureCandidate(tokens, token, n, opt.htmlWrapWithoutCaption)
+      if (detection) {
+        rCaption.name = detection.tagName
+        rSp.isVideoIframe = !!detection.isVideoIframe
+        rSp.isIframeTypeBlockquote = !!detection.isIframeTypeBlockquote
+      }
     } else if (tokenType === 'fence') {
       resetRangeState(rRange, n)
       resetCaptionState(rCaption)

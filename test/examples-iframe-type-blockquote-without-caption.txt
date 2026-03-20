@@ -21,6 +21,14 @@ A paragraph.
 
 
 [Markdown]
+<blockquote class="twitter-tweet social-card"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="twitter-tweet social-card"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</figure>
+
+
+[Markdown]
 <blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 <blockquote class="twitter-tweet"><p lang="ja" dir="ltr">XXXXX <a href="https://t.co/XXXXX">https://t.co/XXXXX</a></p>&mdash; User (@twitter) <a href="https://twitter.com/UserID/status/XXXXX">August 4, 2022</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
@@ -87,6 +95,5 @@ A paragraph.
 <figure class="f-img">
 <blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:xxxxxxxxxz/app.bsky.feed.post/xxxxxxxxxxxxxxxxxx" data-bluesky-cid="xxxxxxxxxxxxxxxxxxxxxxxxxx"><p lang="ja">.....<br><br><a href="https://bsky.app/profile/did:plc:xxxxxxxxxxx/post/xxxxxxxxxxxxxx?ref_src=embed">[image or embed]</a></p>&mdash; user (<a href="https://bsky.app/profile/did:plc:xxxxxxxxxx?ref_src=embed">user</a>) <a href="https://bsky.app/profile/did:plc:xxxxxxxxxxxx/post/xxxxxxxxxxxx?ref_src=embed">Jun 7, 2024 at 9:49</a></blockquote><script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
 </figure>
-
 
 

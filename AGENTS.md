@@ -15,6 +15,7 @@
 - Block tokens: `table_open`, `pre_open`, `blockquote_open` via `detectCheckTypeOpen`.
 - Fences: `fence` tokens become `pre-code` or `pre-samp` when info matches `samp|shell|console`.
 - HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
+- Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry + `detect.js` detector) so `index.js` only consumes detection results and wrapper policy.
 - Image paragraphs: inline children that start with an `image` and meet the image-only rules below.
 
 ## 4. Image Paragraph Rules
@@ -57,6 +58,7 @@
 ## 8. Performance Notes
 - Regex caches reduce repeated allocations; `htmlRegCache` is module-level and `cleanCaptionRegCache` is instance-scoped on `opt` to avoid cross-instance leakage.
 - HTML detection uses tag hints before regex checks and skips regex when no `<` exists in the block.
+- Social embed blockquotes are matched by class-token membership, so extra classes on the provider blockquote do not block detection.
 - `detectHtmlBlockToken` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.
 - `preferredLanguages` resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and the source contains Markdown image syntax; the no-override render path stays allocation-light.
