@@ -22,6 +22,9 @@ export const BLOCKQUOTE_EMBED_CLASS_NAMES = new Set([
 ])
 
 export const VIDEO_IFRAME_HOSTS = new Set([
+  'www.youtube.com',
+  'youtube.com',
   'www.youtube-nocookie.com',
+  'youtube-nocookie.com',
   'player.vimeo.com',
 ])

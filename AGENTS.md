@@ -14,7 +14,8 @@
 ## 3. Detection Inputs
 - Block tokens: `table_open`, `pre_open`, `blockquote_open` via `detectCheckTypeOpen`.
 - Fences: `fence` tokens become `pre-code` or `pre-samp` when info matches `samp|shell|console`.
-- HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
+- HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; tag detection is case-insensitive. Social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
+- Known video iframe hosts include `www.youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, and `player.vimeo.com`; known video iframes can be captionlessly wrapped by `videoWithoutCaption`.
 - Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry + `detect.js` detector) so `index.js` only consumes detection results and wrapper policy.
 - Image paragraphs: inline children that start with an `image` and meet the image-only rules below.
 
@@ -27,9 +28,10 @@
 - Any other text content invalidates wrapping (prevents accidental figures when text follows images).
 - Multi-image wrapping uses `multipleImages` and sets the figure class suffix:
   - `-horizontal` (spaces only), `-vertical` (softbreak only), or `-multiple` (mixed).
-- Trailing `{...}` attrs from inline text are parsed only when `styleProcess` is enabled; parsed attrs are forwarded to the `<figure>`.
-- The trailing `{...}` text is removed only after a successful attr parse; failed parses leave the original text untouched.
+- Trailing `{...}` attrs from inline text are parsed only when `styleProcess` is enabled; parsed attrs are forwarded to the `<figure>`. The fallback parser supports simple `.class`, `#id`, bare attrs, and quoted `key="value with spaces"` / `key='value with spaces'` pairs.
+- The trailing `{...}` text is removed only after a successful attr parse; failed parses leave the original text untouched and do not satisfy image-only wrapping.
 - Image paragraph attrs already materialized on tokens by `markdown-it-attrs` are forwarded to `<figure>` regardless of `styleProcess`.
+- `imageOnlyParagraphWithoutCaption` is the canonical captionless image wrapping option. `oneImageWithoutCaption` remains a legacy alias; when both are set, `imageOnlyParagraphWithoutCaption` wins. Multi-image image-only paragraphs keep their layout class suffixes (`-horizontal`, `-vertical`, `-multiple`) when wrapped captionlessly.
 
 ## 5. Caption Pairing & Auto Caption
 - `checkPrevCaption` / `checkNextCaption` call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens.
@@ -39,6 +41,7 @@
 - Auto caption for images runs only when no caption paragraph exists:
   - uses labeled `alt` or `title` text recognized by p-captions,
   - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware generated-label defaults from p-captions.
+  - string fallback labels are treated as p-captions-recognizable label stems; default joints/spaces are added unless the string already ends with punctuation such as `.`, `。`, or `:`.
   - empty `alt` / `title` values do not synthesize label-only captions.
 - Generated fallback tie-break order comes from `preferredLanguages` when explicitly configured; otherwise this plugin derives it once per render from `env.preferredLanguages`, `env.lang` / `env.locale`, and finally a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline) before falling back to the raw `languages` order.
 - Consumed `alt`/`title` attributes are cleared to avoid duplicate captions in downstream renderers.
@@ -57,7 +60,7 @@
 
 ## 8. Performance Notes
 - Regex caches reduce repeated allocations; `htmlRegCache` is module-level and `cleanCaptionRegCache` is instance-scoped on `opt` to avoid cross-instance leakage.
-- HTML detection uses tag hints before regex checks and skips regex when no `<` exists in the block.
+- HTML detection uses case-insensitive tag hints before regex checks and skips regex when no target tag hint exists in the block.
 - Social embed blockquotes are matched by class-token membership, so extra classes on the provider blockquote do not block detection.
 - `detectHtmlBlockToken` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.

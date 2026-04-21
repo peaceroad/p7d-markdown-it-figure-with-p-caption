@@ -14,18 +14,19 @@ const getHtmlReg = (tag) => {
   const cached = htmlRegCache.get(tag)
   if (cached) return cached
   const regexStr = `^<${tag} ?[^>]*?>[\\s\\S]*?<\\/${tag}>(\\n| *?)(<script [^>]*?>(?:<\\/script>)?)? *(\\n|$)`
-  const reg = new RegExp(regexStr)
+  const reg = new RegExp(regexStr, 'i')
   htmlRegCache.set(tag, reg)
   return reg
 }
 
 const getHtmlDetectionHints = (content) => {
-  const hasBlueskyHint = content.indexOf('bluesky-embed') !== -1
-  const hasVideoHint = content.indexOf('<video') !== -1
-  const hasAudioHint = content.indexOf('<audio') !== -1
-  const hasIframeHint = content.indexOf('<iframe') !== -1
-  const hasBlockquoteHint = content.indexOf('<blockquote') !== -1
-  const hasDivHint = content.indexOf('<div') !== -1
+  const normalized = typeof content === 'string' ? content.toLowerCase() : ''
+  const hasBlueskyHint = normalized.indexOf('bluesky-embed') !== -1
+  const hasVideoHint = normalized.indexOf('<video') !== -1
+  const hasAudioHint = normalized.indexOf('<audio') !== -1
+  const hasIframeHint = normalized.indexOf('<iframe') !== -1
+  const hasBlockquoteHint = normalized.indexOf('<blockquote') !== -1
+  const hasDivHint = normalized.indexOf('<div') !== -1
   return {
     hasBlueskyHint,
     hasVideoHint,
@@ -135,6 +136,9 @@ const resolveHtmlWrapWithoutCaption = (matchedTag, result, htmlWrapWithoutCaptio
   if (!htmlWrapWithoutCaption) return false
   if (matchedTag === 'blockquote') {
     return !!(result.isIframeTypeBlockquote && htmlWrapWithoutCaption.iframeTypeBlockquote)
+  }
+  if (matchedTag === 'iframe' && result.isVideoIframe) {
+    return !!(htmlWrapWithoutCaption.video || htmlWrapWithoutCaption.iframe)
   }
   return !!htmlWrapWithoutCaption[matchedTag]
 }

@@ -402,9 +402,79 @@ try {
     mdStyleProcessNoAttrs.render('![Figure](cat.jpg) {.solo}'),
     '<figure class="f-img solo">\n<img src="cat.jpg" alt="Figure">\n</figure>\n',
   )
+  assert.strictEqual(
+    mdStyleProcessNoAttrs.render('![Figure](cat.jpg) {.solo data-title="hello world" data-note=\'single quoted\'}'),
+    '<figure class="f-img solo" data-title="hello world" data-note="single quoted">\n<img src="cat.jpg" alt="Figure">\n</figure>\n',
+  )
+  assert.ok(!mdStyleProcessNoAttrs.render('![Figure](cat.jpg) {data-title="unterminated value}').includes('<figure'))
 } catch (e) {
   pass = false
   console.log('styleProcess without markdown-it-attrs regression failed.')
+  console.log(e)
+}
+
+const mdImageOnlyParagraphWithoutCaption = mdit({ html: true }).use(mdFigureWithPCaption, {
+  imageOnlyParagraphWithoutCaption: true,
+})
+const mdImageOnlyParagraphWithoutCaptionPrecedence = mdit({ html: true }).use(mdFigureWithPCaption, {
+  imageOnlyParagraphWithoutCaption: false,
+  oneImageWithoutCaption: true,
+})
+const mdVideoWithoutCaptionOnly = mdit({ html: true }).use(mdFigureWithPCaption, {
+  videoWithoutCaption: true,
+})
+const mdHtmlDisabled = mdit({ html: false }).use(mdFigureWithPCaption, {
+  iframeWithoutCaption: true,
+  videoWithoutCaption: true,
+})
+const mdAutoAltCaptionFigureDot = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoCaptionDetection: true,
+  autoAltCaption: 'Figure.',
+})
+const mdTokenMetadata = mdit({ html: true }).use(mdFigureWithPCaption)
+try {
+  assert.strictEqual(
+    mdImageOnlyParagraphWithoutCaption.render('![A](a.jpg) ![B](b.jpg)'),
+    '<figure class="f-img-horizontal">\n<img src="a.jpg" alt="A"><img src="b.jpg" alt="B">\n</figure>\n',
+  )
+  assert.strictEqual(
+    mdImageOnlyParagraphWithoutCaptionPrecedence.render('![A](a.jpg)'),
+    '<p><img src="a.jpg" alt="A"></p>\n',
+  )
+  assert.strictEqual(
+    mdVideoWithoutCaptionOnly.render('<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>'),
+    '<figure class="f-video">\n<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>\n</figure>\n',
+  )
+  assert.ok(!mdHtmlDisabled.render('<iframe src="https://www.youtube.com/embed/x"></iframe>').includes('<figure'))
+  assert.strictEqual(
+    mdAutoAltCaptionFigureDot.render('![Plain alt](plain.jpg)'),
+    '<figure class="f-img">\n<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain alt</figcaption>\n<img src="plain.jpg" alt="">\n</figure>\n',
+  )
+  const imageMetadataTokens = mdTokenMetadata.parse('Figure. Caption.\n\n![Figure](cat.jpg)', {})
+  const imageFigureOpen = imageMetadataTokens.find((token) => token.type === 'figure_open')
+  const imageFigureClose = imageMetadataTokens.find((token) => token.type === 'figure_close')
+  const imageFigcaptionOpen = imageMetadataTokens.find((token) => token.type === 'figcaption_open')
+  assert.deepStrictEqual(imageFigureOpen.map, [2, 3])
+  assert.deepStrictEqual(imageFigureClose.map, [2, 3])
+  assert.strictEqual(imageFigureOpen.block, true)
+  assert.strictEqual(imageFigureClose.block, true)
+  assert.strictEqual(imageFigureOpen.level, 0)
+  assert.strictEqual(imageFigureClose.level, 0)
+  assert.strictEqual(imageFigcaptionOpen.level, 1)
+  const tableMetadataTokens = mdTokenMetadata.parse('Table. Caption.\n\n| A |\n| - |', {})
+  const tableFigureOpen = tableMetadataTokens.find((token) => token.type === 'figure_open')
+  const tableFigureClose = tableMetadataTokens.find((token) => token.type === 'figure_close')
+  const tableOpen = tableMetadataTokens.find((token) => token.type === 'table_open')
+  assert.deepStrictEqual(tableFigureOpen.map, [2, 4])
+  assert.deepStrictEqual(tableFigureClose.map, [2, 4])
+  assert.strictEqual(tableFigureOpen.block, true)
+  assert.strictEqual(tableFigureClose.block, true)
+  assert.strictEqual(tableFigureOpen.level, 0)
+  assert.strictEqual(tableFigureClose.level, 0)
+  assert.strictEqual(tableOpen.level, 1)
+} catch (e) {
+  pass = false
+  console.log('new behavior regression failed.')
   console.log(e)
 }
 

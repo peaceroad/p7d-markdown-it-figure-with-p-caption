@@ -13,9 +13,10 @@ import { detectHtmlFigureCandidate } from './embeds/detect.js'
 const imageAttrsReg = /^ *\{(.*?)\} *$/
 const classAttrReg = /^\./
 const idAttrReg = /^#/
-const attrParseReg = /^(.*?)="?(.*)"?$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
 const asciiLabelReg = /^[A-Za-z]/
+const attrNameReg = /^[^\s=]+$/
+const labelTrailingJointReg = /[.\u3002\uff0e:：]\s*$/
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
@@ -190,10 +191,62 @@ const getLabelPrefixMarkerMatch = (inlineToken, markerReg) => {
   return match[0]
 }
 
-const parseImageAttrs = (raw) => {
+const splitImageAttrParts = (raw) => {
   if (raw === null || raw === undefined) return null
+  const parts = []
+  let current = ''
+  let quote = ''
+  let escaped = false
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]
+    if (quote) {
+      current += ch
+      if (escaped) {
+        escaped = false
+        continue
+      }
+      if (ch === '\\') {
+        escaped = true
+        continue
+      }
+      if (ch === quote) {
+        quote = ''
+      }
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      current += ch
+      continue
+    }
+    if (ch === ' ') {
+      if (current) {
+        parts.push(current)
+        current = ''
+      }
+      continue
+    }
+    current += ch
+  }
+  if (quote) return null
+  if (current) parts.push(current)
+  return parts
+}
+
+const unquoteAttrValue = (value) => {
+  if (typeof value !== 'string' || value.length < 2) return value || ''
+  const first = value[0]
+  const last = value[value.length - 1]
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return value.slice(1, -1).replace(/\\(["'\\])/g, '$1')
+  }
+  return value
+}
+
+const parseImageAttrs = (raw) => {
+  const parts = splitImageAttrParts(raw)
+  if (!parts || parts.length === 0) return null
   const attrs = []
-  const parts = raw.split(/ +/)
   for (let i = 0; i < parts.length; i++) {
     let entry = parts[i]
     if (!entry) continue
@@ -202,9 +255,15 @@ const parseImageAttrs = (raw) => {
     } else if (idAttrReg.test(entry)) {
       entry = entry.replace(idAttrReg, 'id=')
     }
-    const imageAttr = entry.match(attrParseReg)
-    if (!imageAttr || !imageAttr[1]) continue
-    attrs.push([imageAttr[1], imageAttr[2]])
+    const equalIndex = entry.indexOf('=')
+    if (equalIndex === -1) {
+      if (!attrNameReg.test(entry)) return null
+      attrs.push([entry, ''])
+      continue
+    }
+    const name = entry.slice(0, equalIndex)
+    if (!name || !attrNameReg.test(name)) return null
+    attrs.push([name, unquoteAttrValue(entry.slice(equalIndex + 1))])
   }
   return attrs
 }
@@ -299,6 +358,14 @@ const getImageAltText = (token) => {
 
 const getImageTitleText = (token) => getTokenAttr(token, 'title')
 
+const getFallbackStringLabelJoint = (label) => {
+  if (!label) return ''
+  if (labelTrailingJointReg.test(label)) {
+    return asciiLabelReg.test(label) ? ' ' : ''
+  }
+  return asciiLabelReg.test(label) ? '. ' : '　'
+}
+
 const buildCaptionWithFallback = (text, fallbackOption, mark, markRegState, preferredLanguages) => {
   const trimmedText = (text || '').trim()
   if (!fallbackOption) return ''
@@ -315,7 +382,7 @@ const buildCaptionWithFallback = (text, fallbackOption, mark, markRegState, pref
   if (generatedDefaults) {
     return label + (generatedDefaults.joint || '') + (generatedDefaults.space || '') + trimmedText
   }
-  return label + (asciiLabelReg.test(label) ? '. ' : '　') + trimmedText
+  return label + getFallbackStringLabelJoint(label) + trimmedText
 }
 
 const createAutoCaptionParagraph = (captionText, TokenConstructor) => {
@@ -598,12 +665,18 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   const captionStartToken = tokens[n-3]
   const captionInlineToken = tokens[n-2]
   const captionEndToken = tokens[n-1]
+  const figureBaseLevel = getTokenLevel(tokens[n])
 
   cleanCaptionTokenAttrs(captionStartToken, caption.name, opt)
   captionStartToken.type = 'figcaption_open'
   captionStartToken.tag = 'figcaption'
+  captionStartToken.block = true
+  captionStartToken.level = figureBaseLevel + 1
+  captionInlineToken.level = figureBaseLevel + 2
   captionEndToken.type = 'figcaption_close'
   captionEndToken.tag = 'figcaption'
+  captionEndToken.block = true
+  captionEndToken.level = figureBaseLevel + 1
   tokens.splice(n + 2, 0, captionStartToken, captionInlineToken, captionEndToken)
   tokens.splice(n-3, 3)
   return true
@@ -613,33 +686,69 @@ const changeNextCaptionPosition = (tokens, en, caption, opt) => {
   const captionStartToken = tokens[en+2] // +1: text node for figure.
   const captionInlineToken = tokens[en+3]
   const captionEndToken = tokens[en+4]
+  const figureBaseLevel = getTokenLevel(tokens[en])
   cleanCaptionTokenAttrs(captionStartToken, caption.name, opt)
   captionStartToken.type = 'figcaption_open'
   captionStartToken.tag = 'figcaption'
+  captionStartToken.block = true
+  captionStartToken.level = figureBaseLevel + 1
+  captionInlineToken.level = figureBaseLevel + 2
   captionEndToken.type = 'figcaption_close'
   captionEndToken.tag = 'figcaption'
+  captionEndToken.block = true
+  captionEndToken.level = figureBaseLevel + 1
   tokens.splice(en, 0, captionStartToken, captionInlineToken, captionEndToken)
   tokens.splice(en+5, 3)
   return true
 }
 
+const getTokenMap = (token) => {
+  return token && Array.isArray(token.map) && token.map.length === 2 ? token.map : null
+}
+
+const findNearestMapInRange = (tokens, start, end, step) => {
+  let i = start
+  while (step > 0 ? i <= end : i >= end) {
+    const map = getTokenMap(tokens[i])
+    if (map) return map
+    i += step
+  }
+  return null
+}
+
+const getTokenLevel = (token, fallback = 0) => {
+  return token && typeof token.level === 'number' ? token.level : fallback
+}
+
+const adjustTokenLevels = (tokens, start, end, delta) => {
+  if (!delta) return
+  for (let i = start; i <= end; i++) {
+    const token = tokens[i]
+    if (token && typeof token.level === 'number') {
+      token.level += delta
+    }
+  }
+}
+
 const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInsteadOfWrap, sp, opt, TokenConstructor) => {
   let n = range.start
   let en = range.end
+  const baseLevel = getTokenLevel(tokens[n])
+  const childLevel = baseLevel + 1
   const figureStartToken = new TokenConstructor('figure_open', 'figure', 1)
   const figureClassName = sp.figureClassName || resolveFigureClassName(checkTokenTagName, sp, opt)
   figureStartToken.attrSet('class', figureClassName)
+  figureStartToken.block = true
+  figureStartToken.level = baseLevel
 
   if (opt.roleDocExample && (checkTokenTagName === 'pre-code' || checkTokenTagName === 'pre-samp')) {
     figureStartToken.attrSet('role', 'doc-example')
   }
   const figureEndToken = new TokenConstructor('figure_close', 'figure', -1)
-  const rangeStartMap = tokens[n] && Array.isArray(tokens[n].map) && tokens[n].map.length === 2
-    ? tokens[n].map
-    : null
-  const rangeEndMap = tokens[en] && Array.isArray(tokens[en].map) && tokens[en].map.length === 2
-    ? tokens[en].map
-    : rangeStartMap
+  figureEndToken.block = true
+  figureEndToken.level = baseLevel
+  const rangeStartMap = getTokenMap(tokens[n]) || findNearestMapInRange(tokens, n, en, 1)
+  const rangeEndMap = getTokenMap(tokens[en]) || rangeStartMap || findNearestMapInRange(tokens, en, n, -1)
   if (rangeStartMap) {
     figureStartToken.map = [rangeStartMap[0], rangeStartMap[1]]
   }
@@ -649,6 +758,7 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   const createBreakToken = () => {
     const breakToken = new TokenConstructor('text', '', 0)
     breakToken.content = '\n'
+    breakToken.level = childLevel
     return breakToken
   }
   if (caption.name === 'img') {
@@ -669,6 +779,7 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     tokens.splice(n, 1, figureStartToken, createBreakToken())
     en = en + 2
   } else {
+    adjustTokenLevels(tokens, n, en, 1)
     tokens.splice(en+1, 0, figureEndToken, createBreakToken())
     tokens.splice(n, 0, figureStartToken, createBreakToken())
     en = en + 3
@@ -676,6 +787,17 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   range.start = n
   range.end = en
   return
+}
+
+const renderFigureTokenWithoutBlockNewline = (tokens, idx, options, env, slf) => {
+  const token = tokens[idx]
+  const originalBlock = token.block
+  token.block = false
+  try {
+    return slf.renderToken(tokens, idx, options)
+  } finally {
+    token.block = originalBlock
+  }
 }
 
 const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
@@ -786,7 +908,7 @@ const hasLeadingImageChild = (token) => {
 const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
   const multipleImagesEnabled = !!opt.multipleImages
   const styleProcessEnabled = !!opt.styleProcess
-  const allowSingleImageWithoutCaption = !!opt.oneImageWithoutCaption
+  const allowImageParagraphWithoutCaption = !!opt.imageOnlyParagraphWithoutCaption
   const children = nextToken.children
   const imageToken = children[0]
   const childrenLength = children.length
@@ -801,7 +923,7 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
       tagName: 'img',
       en: n + 2,
       replaceInsteadOfWrap: true,
-      wrapWithoutCaption: allowSingleImageWithoutCaption,
+      wrapWithoutCaption: allowImageParagraphWithoutCaption,
       canWrap: true,
       imageToken,
     }
@@ -825,13 +947,13 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
         const imageAttrs = rawContent.match(imageAttrsReg)
         if (imageAttrs) {
           const parsedAttrs = parseImageAttrs(imageAttrs[1])
-          if (parsedAttrs && parsedAttrs.length) {
+          if (parsedAttrs) {
             for (let i = 0; i < parsedAttrs.length; i++) {
               sp.attrs.push(parsedAttrs[i])
             }
             child.content = ''
+            break
           }
-          break
         }
       }
       if (typeof rawContent === 'string' && rawContent.trim()) {
@@ -882,7 +1004,7 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
     tagName,
     en,
     replaceInsteadOfWrap: true,
-    wrapWithoutCaption: isValid && allowSingleImageWithoutCaption,
+    wrapWithoutCaption: isValid && allowImageParagraphWithoutCaption,
     canWrap: isValid,
     imageToken,
   }
@@ -1071,7 +1193,8 @@ const mditFigureWithPCaption = (md, option) => {
     figureClassThatWrapsIframeTypeBlockquote: null,
     figureClassThatWrapsSlides: null,
     styleProcess: true,
-    oneImageWithoutCaption: false,
+    imageOnlyParagraphWithoutCaption: false,
+    oneImageWithoutCaption: false, // legacy alias for imageOnlyParagraphWithoutCaption
     iframeWithoutCaption: false,
     videoWithoutCaption: false,
     audioWithoutCaption: false,
@@ -1110,10 +1233,15 @@ const mditFigureWithPCaption = (md, option) => {
     figureToLabelClassMap: null,
   }
   const hasExplicitAutoLabelNumberSets = option && Object.prototype.hasOwnProperty.call(option, 'autoLabelNumberSets')
+  const hasExplicitImageOnlyParagraphWithoutCaption = option && Object.prototype.hasOwnProperty.call(option, 'imageOnlyParagraphWithoutCaption')
   const hasExplicitFigureClassThatWrapsIframeTypeBlockquote = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsIframeTypeBlockquote')
   const hasExplicitFigureClassThatWrapsSlides = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsSlides')
   const hasExplicitLabelClassFollowsFigure = option && Object.prototype.hasOwnProperty.call(option, 'labelClassFollowsFigure')
   if (option) Object.assign(opt, option)
+  opt.imageOnlyParagraphWithoutCaption = hasExplicitImageOnlyParagraphWithoutCaption
+    ? !!opt.imageOnlyParagraphWithoutCaption
+    : !!opt.oneImageWithoutCaption
+  opt.oneImageWithoutCaption = !!opt.oneImageWithoutCaption
   if (!hasExplicitLabelClassFollowsFigure && opt.figureToLabelClassMap) {
     opt.labelClassFollowsFigure = true
   }
@@ -1175,6 +1303,8 @@ const mditFigureWithPCaption = (md, option) => {
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {
     figureWithCaption(state, opt)
   })
+  md.renderer.rules.figure_open = renderFigureTokenWithoutBlockNewline
+  md.renderer.rules.figure_close = renderFigureTokenWithoutBlockNewline
 }
 
 export default mditFigureWithPCaption
