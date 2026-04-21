@@ -29,6 +29,7 @@
 - Multi-image wrapping uses `multipleImages` and sets the figure class suffix:
   - `-horizontal` (spaces only), `-vertical` (softbreak only), or `-multiple` (mixed).
 - Trailing `{...}` attrs from inline text are parsed only when `styleProcess` is enabled; parsed attrs are forwarded to the `<figure>`. The fallback parser supports simple `.class`, `#id`, bare attrs, and quoted `key="value with spaces"` / `key='value with spaces'` pairs.
+- Attribute forwarding and the `styleProcess` fallback parser are not sanitizers. Keep untrusted-input sanitization as a host/application responsibility; this plugin only preserves or moves attributes.
 - The trailing `{...}` text is removed only after a successful attr parse; failed parses leave the original text untouched and do not satisfy image-only wrapping.
 - Image paragraph attrs already materialized on tokens by `markdown-it-attrs` are forwarded to `<figure>` regardless of `styleProcess`.
 - `imageOnlyParagraphWithoutCaption` is the canonical captionless image wrapping option. `oneImageWithoutCaption` remains a legacy alias; when both are set, `imageOnlyParagraphWithoutCaption` wins. Multi-image image-only paragraphs keep their layout class suffixes (`-horizontal`, `-vertical`, `-multiple`) when wrapped captionlessly.
@@ -43,7 +44,8 @@
   - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware generated-label defaults from p-captions.
   - string fallback labels are treated as p-captions-recognizable label stems; invalid strings fail during plugin setup. Default joints/spaces are added unless the string already ends with punctuation such as `.`, `。`, or `:`.
   - empty `alt` / `title` values do not synthesize label-only captions.
-- Generated fallback tie-break order comes from `preferredLanguages` when explicitly configured; otherwise this plugin derives it once per render from `env.preferredLanguages`, `env.lang` / `env.locale`, and finally a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline) before falling back to the raw `languages` order.
+- `languages` remains the optional available caption-catalog/recognition-dictionary list delegated to p-captions; default `['en', 'ja']` is enough for normal English/Japanese use. It is not the active locale.
+- Generated fallback tie-break order is an active-locale concern and is resolved once per render. Canonical runtime inputs are `env.locale` and `env.preferredLocales`; compatibility fallbacks are `preferredLanguages`, `env.preferredLanguages`, `env.lang`, and `env.language`. The cheap document-script heuristic remains the last fallback before raw `languages` order. `env.locale` / `env.preferredLocales` intentionally override legacy `preferredLanguages` for generated fallback labels.
 - Consumed `alt`/`title` attributes are cleared to avoid duplicate captions in downstream renderers.
 
 ## 6. Numbering Integration
@@ -65,8 +67,8 @@
 - Social embed blockquotes are matched by class-token membership, so extra classes on the provider blockquote do not block detection.
 - `detectHtmlBlockToken` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.
-- `preferredLanguages` resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and the source contains Markdown image syntax; the no-override render path stays allocation-light.
-- Setup normalizes `preferredLanguages` / `languages` once; render-time fallback ordering reuses those arrays directly and only inspects `env` / source when it must derive a tie-break.
+- Generated fallback locale resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and the source contains Markdown image syntax; the no-override render path stays allocation-light.
+- Setup normalizes `languages` and compatibility `preferredLanguages` once; render-time fallback ordering reuses those arrays directly and only inspects `env` / source when it must derive a tie-break.
 - Numbering uses a trailing-integer parser (char scan) instead of regex on hot paths.
 - Label span lookups avoid `split()` allocations; alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
 - `wrapWithFigure` must create distinct newline tokens; do not reuse one token object across multiple insert positions.

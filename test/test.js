@@ -80,6 +80,14 @@ const mdLabelClassMapImplicit = mdit({ html: true }).use(mdFigureWithPCaption, {
   },
 }).use(mditAttrs).use(mditRndererFence);
 
+const mdLabelClassBoundaryNumbering = mdit({ html: true }).use(mdFigureWithPCaption, {
+  autoLabelNumber: true,
+  labelClassFollowsFigure: true,
+  figureToLabelClassMap: {
+    'f-img': 'prefix-f-img-label',
+  },
+}).use(mditAttrs).use(mditRndererFence);
+
 const mdCustomSlideFigureClass = mdit({ html: true }).use(mdFigureWithPCaption, {
   figureClassThatWrapsSlides: 'f-slide-custom',
 }).use(mditAttrs).use(mditRndererFence);
@@ -504,7 +512,17 @@ try {
   assert.ok(mdAltCaptionFallbackPreferredJa.render('![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallbackEnOnly.render('![ねこ](cat.jpg)').includes('<span class="f-img-label">Figure'))
   assert.equal(mdAltCaptionFallbackUnsupported.render('![A cat](cat.jpg)'), '<p><img src="cat.jpg" alt="A cat"></p>\n')
+  assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { locale: 'ja-JP' }).includes('<span class="f-img-label">図'))
+  assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { preferredLocales: ['ja-JP', 'en-US'] }).includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { lang: 'ja' }).includes('<span class="f-img-label">図'))
+  const mdAltCaptionFallbackOptionPreferredEn = mdit({ html: true }).use(mdFigureWithPCaption, {
+    languages: ['en', 'ja'],
+    preferredLanguages: ['en'],
+    autoCaptionDetection: true,
+    autoAltCaption: true,
+  })
+  assert.ok(mdAltCaptionFallbackOptionPreferredEn.render('![A cat](cat.jpg)').includes('<span class="f-img-label">Figure'))
+  assert.ok(mdAltCaptionFallbackOptionPreferredEn.render('![A cat](cat.jpg)', { locale: 'ja' }).includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallback.render('日本語の本文です。\n\n![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallback.render('----\ntitle: Example\nlang: en\n---\n\n日本語の本文です。\n\n![A cat](cat.jpg)').includes('<span class="f-img-label">図'))
   assert.ok(!mdAutoAltCaptionCustom.render('![](empty.jpg)').includes('<figcaption>'))
@@ -513,6 +531,9 @@ try {
   const mixedFallbackHtml = mdAltCaptionFallback.render('![A cat](cat-en.jpg)\n\n![ねこ](cat-ja.jpg)')
   assert.ok(mixedFallbackHtml.includes('<figcaption><span class="f-img-label">Figure'))
   assert.ok(mixedFallbackHtml.includes('<figcaption><span class="f-img-label">図'))
+  const labelBoundaryHtml = mdLabelClassBoundaryNumbering.render('Figure. Boundary.\n\n![Figure](cat.jpg)')
+  assert.ok(labelBoundaryHtml.includes('class="prefix-f-img-label f-img-label"'))
+  assert.ok(labelBoundaryHtml.includes('Figure 1'))
 } catch (e) {
   pass = false
   console.log('class option normalization regression failed.')

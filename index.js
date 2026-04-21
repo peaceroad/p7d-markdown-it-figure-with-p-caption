@@ -30,28 +30,47 @@ const normalizeLanguageCode = (value) => {
   const separatorIndex = normalized.search(/[-_]/)
   return separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex)
 }
+const appendAvailableLanguage = (target, lang, availableLanguages) => {
+  if (!lang) return false
+  if (availableLanguages.indexOf(lang) === -1) return false
+  if (target.indexOf(lang) !== -1) return false
+  target.push(lang)
+  return true
+}
 const normalizePreferredLanguages = (value, availableLanguages) => {
   if (!Array.isArray(availableLanguages) || availableLanguages.length === 0) return []
-  const source = typeof value === 'string' ? [value] : (Array.isArray(value) ? value : [])
-  if (source.length === 0) return []
-  const allowed = new Set(availableLanguages)
   const languages = []
-  const seen = new Set()
+  if (typeof value === 'string') {
+    appendAvailableLanguage(languages, normalizeLanguageCode(value), availableLanguages)
+    return languages
+  }
+  const source = Array.isArray(value) ? value : []
+  if (source.length === 0) return languages
   for (let i = 0; i < source.length; i++) {
     const lang = normalizeLanguageCode(source[i])
-    if (!lang || seen.has(lang) || !allowed.has(lang)) continue
-    seen.add(lang)
-    languages.push(lang)
+    appendAvailableLanguage(languages, lang, availableLanguages)
   }
   return languages
 }
-const prioritizeLanguage = (languages, preferredLanguage) => {
-  if (!preferredLanguage || languages.length === 0) return languages.slice()
+const prioritizeLanguages = (languages, preferredLanguages) => {
+  if (!Array.isArray(languages) || languages.length === 0) return []
+  if (typeof preferredLanguages === 'string') {
+    if (!preferredLanguages || languages.indexOf(preferredLanguages) === -1) return languages
+    if (languages[0] === preferredLanguages) return languages
+    const prioritized = [preferredLanguages]
+    for (let i = 0; i < languages.length; i++) {
+      appendAvailableLanguage(prioritized, languages[i], languages)
+    }
+    return prioritized
+  }
+  if (!Array.isArray(preferredLanguages) || preferredLanguages.length === 0) return languages
   const prioritized = []
-  prioritized.push(preferredLanguage)
+  for (let i = 0; i < preferredLanguages.length; i++) {
+    appendAvailableLanguage(prioritized, preferredLanguages[i], languages)
+  }
+  if (prioritized.length === 0) return languages
   for (let i = 0; i < languages.length; i++) {
-    if (languages[i] === preferredLanguage) continue
-    prioritized.push(languages[i])
+    appendAvailableLanguage(prioritized, languages[i], languages)
   }
   return prioritized
 }
@@ -130,34 +149,48 @@ const resolvePreferredLanguagesForState = (state, opt) => {
   ) ? opt.markRegState.languages : []
   if (availableLanguages.length === 0) return []
 
-  const explicitPreferred = opt && Array.isArray(opt.preferredLanguages)
-    ? opt.preferredLanguages
-    : []
-  if (explicitPreferred.length > 0) return explicitPreferred
-
   const optionLanguages = opt && Array.isArray(opt.normalizedOptionLanguages)
     ? opt.normalizedOptionLanguages
     : []
   const baseLanguages = optionLanguages.length > 0 ? optionLanguages : availableLanguages
   const env = state && state.env ? state.env : null
-  const envPreferred = normalizePreferredLanguages(env && env.preferredLanguages, availableLanguages)
-  if (envPreferred.length > 0) return envPreferred
 
-  const envLanguage = normalizeLanguageCode(env && (env.preferredLanguage || env.lang || env.language || env.locale))
+  const envLocale = normalizeLanguageCode(env && env.locale)
+  if (envLocale && baseLanguages.indexOf(envLocale) !== -1) {
+    return prioritizeLanguages(baseLanguages, envLocale)
+  }
+
+  const envPreferredLocales = normalizePreferredLanguages(env && env.preferredLocales, baseLanguages)
+  if (envPreferredLocales.length > 0) {
+    return prioritizeLanguages(baseLanguages, envPreferredLocales)
+  }
+
+  const explicitPreferred = opt && Array.isArray(opt.preferredLanguages)
+    ? opt.preferredLanguages
+    : []
+  if (explicitPreferred.length > 0) {
+    return prioritizeLanguages(baseLanguages, explicitPreferred)
+  }
+
+  const envPreferred = normalizePreferredLanguages(env && env.preferredLanguages, baseLanguages)
+  if (envPreferred.length > 0) {
+    return prioritizeLanguages(baseLanguages, envPreferred)
+  }
+
+  const envLanguage = normalizeLanguageCode(env && (env.preferredLanguage || env.lang || env.language))
   if (envLanguage && baseLanguages.indexOf(envLanguage) !== -1) {
-    return prioritizeLanguage(baseLanguages, envLanguage)
+    return prioritizeLanguages(baseLanguages, envLanguage)
   }
 
   const detectedLanguage = detectDocumentPrimaryLanguage(state && state.src ? state.src : '', baseLanguages)
   if (detectedLanguage) {
-    return prioritizeLanguage(baseLanguages, detectedLanguage)
+    return prioritizeLanguages(baseLanguages, detectedLanguage)
   }
   return baseLanguages
 }
 const needsPreferredLanguagesResolution = (opt) => {
   if (!opt || !opt.markRegState || !Array.isArray(opt.markRegState.languages)) return false
   if (opt.markRegState.languages.length <= 1) return false
-  if (Array.isArray(opt.preferredLanguages) && opt.preferredLanguages.length > 0) return false
   return opt.autoAltCaption === true || opt.autoTitleCaption === true
 }
 const normalizeOptionalClassName = (value) => {
@@ -422,12 +455,18 @@ const getCaptionInlineToken = (tokens, range, caption) => {
 }
 
 const hasClassName = (classAttr, className) => {
-  const index = classAttr.indexOf(className)
-  if (index === -1) return false
-  const end = index + className.length
-  if (index > 0 && classAttr.charCodeAt(index - 1) > 0x20) return false
-  if (end < classAttr.length && classAttr.charCodeAt(end) > 0x20) return false
-  return true
+  if (!classAttr || !className) return false
+  let index = 0
+  while (index < classAttr.length) {
+    index = classAttr.indexOf(className, index)
+    if (index === -1) return false
+    const end = index + className.length
+    const beforeBoundary = index === 0 || classAttr.charCodeAt(index - 1) <= 0x20
+    const afterBoundary = end >= classAttr.length || classAttr.charCodeAt(end) <= 0x20
+    if (beforeBoundary && afterBoundary) return true
+    index = end
+  }
+  return false
 }
 
 const hasAnyClassName = (classAttr, classNames) => {
@@ -1202,7 +1241,7 @@ const mditFigureWithPCaption = (md, option) => {
   let opt = {
     // Caption languages delegated to p-captions.
     languages: ['en', 'ja'],
-    preferredLanguages: null, // optional tie-break order for generated fallback labels; defaults to inferred document order / languages
+    preferredLanguages: null, // compatibility tie-break for generated fallback labels; prefer env.locale / env.preferredLocales per render
 
     // --- figure-wrapper behavior ---
     classPrefix: 'f',

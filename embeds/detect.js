@@ -31,15 +31,7 @@ const getHtmlDetectionHints = (content) => {
   const hasTargetHtmlHint = targetHtmlHintReg.test(source)
   const hasBlueskyHint = blueskyEmbedHintReg.test(source)
   if (!hasTargetHtmlHint && !hasBlueskyHint) {
-    return {
-      hasBlueskyHint: false,
-      hasVideoHint: false,
-      hasAudioHint: false,
-      hasIframeHint: false,
-      hasBlockquoteHint: false,
-      hasDivHint: false,
-      hasIframeTag: false,
-    }
+    return null
   }
   const hasVideoHint = videoTagHintReg.test(source)
   const hasAudioHint = audioTagHintReg.test(source)
@@ -53,19 +45,8 @@ const getHtmlDetectionHints = (content) => {
     hasIframeHint,
     hasBlockquoteHint,
     hasDivHint,
-    hasIframeTag: hasIframeHint || (hasDivHint && iframeTagReg.test(content)),
+    hasIframeTag: hasIframeHint || (hasDivHint && iframeTagReg.test(source)),
   }
-}
-
-const hasAnyHtmlDetectionHint = (hints) => {
-  return !!(
-    hints.hasBlueskyHint ||
-    hints.hasVideoHint ||
-    hints.hasAudioHint ||
-    hints.hasIframeHint ||
-    hints.hasBlockquoteHint ||
-    hints.hasDivHint
-  )
 }
 
 const appendHtmlBlockNewlineIfNeeded = (token, hasTag) => {
@@ -165,7 +146,7 @@ const resolveHtmlWrapWithoutCaption = (matchedTag, result, htmlWrapWithoutCaptio
 export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWithoutCaption) => {
   if (!token || token.type !== 'html_block') return null
   const hints = getHtmlDetectionHints(token.content)
-  if (!hasAnyHtmlDetectionHint(hints)) return null
+  if (!hints) return null
 
   const result = {
     isVideoIframe: false,
