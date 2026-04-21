@@ -385,6 +385,18 @@ const buildCaptionWithFallback = (text, fallbackOption, mark, markRegState, pref
   return label + getFallbackStringLabelJoint(label) + trimmedText
 }
 
+const validateFallbackCaptionLabelOption = (optionName, fallbackOption, markRegState) => {
+  if (typeof fallbackOption !== 'string') return
+  const sampleCaption = buildCaptionWithFallback('caption', fallbackOption, 'img', markRegState, null)
+  const analysis = analyzeCaptionStart(sampleCaption, {
+    markRegState,
+    preferredMark: 'img',
+  })
+  if (!analysis || analysis.mark !== 'img' || analysis.kind !== 'caption') {
+    throw new Error(`${optionName} must be a string label recognized as an image caption by p7d-markdown-it-p-captions: ${fallbackOption}`)
+  }
+}
+
 const createAutoCaptionParagraph = (captionText, TokenConstructor) => {
   const paragraphOpen = new TokenConstructor('paragraph_open', 'p', 1)
   paragraphOpen.block = true
@@ -683,9 +695,9 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
 }
 
 const changeNextCaptionPosition = (tokens, en, caption, opt) => {
-  const captionStartToken = tokens[en+2] // +1: text node for figure.
-  const captionInlineToken = tokens[en+3]
-  const captionEndToken = tokens[en+4]
+  const captionStartToken = tokens[en+1]
+  const captionInlineToken = tokens[en+2]
+  const captionEndToken = tokens[en+3]
   const figureBaseLevel = getTokenLevel(tokens[en])
   cleanCaptionTokenAttrs(captionStartToken, caption.name, opt)
   captionStartToken.type = 'figcaption_open'
@@ -698,7 +710,7 @@ const changeNextCaptionPosition = (tokens, en, caption, opt) => {
   captionEndToken.block = true
   captionEndToken.level = figureBaseLevel + 1
   tokens.splice(en, 0, captionStartToken, captionInlineToken, captionEndToken)
-  tokens.splice(en+5, 3)
+  tokens.splice(en+4, 3)
   return true
 }
 
@@ -714,6 +726,18 @@ const findNearestMapInRange = (tokens, start, end, step) => {
     i += step
   }
   return null
+}
+
+const getRangeMap = (tokens, start, end) => {
+  const startMap = getTokenMap(tokens[start]) || findNearestMapInRange(tokens, start, end, 1)
+  if (!startMap) return null
+  const endMap = getTokenMap(tokens[end]) || findNearestMapInRange(tokens, end, start, -1) || startMap
+  const startLine = startMap[0]
+  const endLine = Math.max(startMap[1], endMap[1])
+  if (typeof startLine !== 'number' || typeof endLine !== 'number' || endLine < startLine) {
+    return [startMap[0], startMap[1]]
+  }
+  return [startLine, endLine]
 }
 
 const getTokenLevel = (token, fallback = 0) => {
@@ -747,19 +771,22 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   const figureEndToken = new TokenConstructor('figure_close', 'figure', -1)
   figureEndToken.block = true
   figureEndToken.level = baseLevel
-  const rangeStartMap = getTokenMap(tokens[n]) || findNearestMapInRange(tokens, n, en, 1)
-  const rangeEndMap = getTokenMap(tokens[en]) || rangeStartMap || findNearestMapInRange(tokens, en, n, -1)
-  if (rangeStartMap) {
-    figureStartToken.map = [rangeStartMap[0], rangeStartMap[1]]
-  }
-  if (rangeEndMap) {
-    figureEndToken.map = [rangeEndMap[0], rangeEndMap[1]]
+  const rangeMap = getRangeMap(tokens, n, en)
+  if (rangeMap) {
+    figureStartToken.map = [rangeMap[0], rangeMap[1]]
+    figureEndToken.map = [rangeMap[0], rangeMap[1]]
   }
   const createBreakToken = () => {
     const breakToken = new TokenConstructor('text', '', 0)
     breakToken.content = '\n'
     breakToken.level = childLevel
     return breakToken
+  }
+  const createEmptyTextToken = () => {
+    const emptyToken = new TokenConstructor('text', '', 0)
+    emptyToken.content = ''
+    emptyToken.level = childLevel
+    return emptyToken
   }
   if (caption.name === 'img') {
     const joinAttrs = (attrs) => {
@@ -775,29 +802,18 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     joinAttrs(tokens[n].attrs)
   }
   if (replaceInsteadOfWrap) {
-    tokens.splice(en, 1, createBreakToken(), figureEndToken, createBreakToken())
-    tokens.splice(n, 1, figureStartToken, createBreakToken())
+    tokens.splice(en, 1, createBreakToken(), figureEndToken)
+    tokens.splice(n, 1, figureStartToken, createEmptyTextToken())
     en = en + 2
   } else {
     adjustTokenLevels(tokens, n, en, 1)
-    tokens.splice(en+1, 0, figureEndToken, createBreakToken())
-    tokens.splice(n, 0, figureStartToken, createBreakToken())
+    tokens.splice(en+1, 0, figureEndToken)
+    tokens.splice(n, 0, figureStartToken, createEmptyTextToken())
     en = en + 3
   }
   range.start = n
   range.end = en
   return
-}
-
-const renderFigureTokenWithoutBlockNewline = (tokens, idx, options, env, slf) => {
-  const token = tokens[idx]
-  const originalBlock = token.block
-  token.block = false
-  try {
-    return slf.renderToken(tokens, idx, options)
-  } finally {
-    token.block = originalBlock
-  }
 }
 
 const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
@@ -1252,6 +1268,8 @@ const mditFigureWithPCaption = (md, option) => {
   if (opt.preferredLanguages.length === 0) opt.preferredLanguages = null
   opt.normalizedOptionLanguages = normalizePreferredLanguages(opt.languages, opt.markRegState.languages)
   opt.shouldResolvePreferredLanguages = needsPreferredLanguagesResolution(opt)
+  validateFallbackCaptionLabelOption('autoAltCaption', opt.autoAltCaption, opt.markRegState)
+  validateFallbackCaptionLabelOption('autoTitleCaption', opt.autoTitleCaption, opt.markRegState)
   opt.htmlWrapWithoutCaption = {
     iframe: !!opt.iframeWithoutCaption,
     video: !!opt.videoWithoutCaption,
@@ -1303,8 +1321,6 @@ const mditFigureWithPCaption = (md, option) => {
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {
     figureWithCaption(state, opt)
   })
-  md.renderer.rules.figure_open = renderFigureTokenWithoutBlockNewline
-  md.renderer.rules.figure_close = renderFigureTokenWithoutBlockNewline
 }
 
 export default mditFigureWithPCaption

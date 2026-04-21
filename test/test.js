@@ -472,6 +472,14 @@ try {
   assert.strictEqual(tableFigureOpen.level, 0)
   assert.strictEqual(tableFigureClose.level, 0)
   assert.strictEqual(tableOpen.level, 1)
+  assert.throws(
+    () => mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoAltCaption: 'Foo' }),
+    /autoAltCaption/,
+  )
+  assert.throws(
+    () => mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoTitleCaption: 'Foo' }),
+    /autoTitleCaption/,
+  )
 } catch (e) {
   pass = false
   console.log('new behavior regression failed.')

@@ -15,7 +15,7 @@
 - Block tokens: `table_open`, `pre_open`, `blockquote_open` via `detectCheckTypeOpen`.
 - Fences: `fence` tokens become `pre-code` or `pre-samp` when info matches `samp|shell|console`.
 - HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; tag detection is case-insensitive. Social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
-- Known video iframe hosts include `www.youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, and `player.vimeo.com`; known video iframes can be captionlessly wrapped by `videoWithoutCaption`.
+- Known video iframe hosts include `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, and `player.vimeo.com`; known video iframes can be captionlessly wrapped by `videoWithoutCaption`.
 - Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry + `detect.js` detector) so `index.js` only consumes detection results and wrapper policy.
 - Image paragraphs: inline children that start with an `image` and meet the image-only rules below.
 
@@ -41,7 +41,7 @@
 - Auto caption for images runs only when no caption paragraph exists:
   - uses labeled `alt` or `title` text recognized by p-captions,
   - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware generated-label defaults from p-captions.
-  - string fallback labels are treated as p-captions-recognizable label stems; default joints/spaces are added unless the string already ends with punctuation such as `.`, `。`, or `:`.
+  - string fallback labels are treated as p-captions-recognizable label stems; invalid strings fail during plugin setup. Default joints/spaces are added unless the string already ends with punctuation such as `.`, `。`, or `:`.
   - empty `alt` / `title` values do not synthesize label-only captions.
 - Generated fallback tie-break order comes from `preferredLanguages` when explicitly configured; otherwise this plugin derives it once per render from `env.preferredLanguages`, `env.lang` / `env.locale`, and finally a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline) before falling back to the raw `languages` order.
 - Consumed `alt`/`title` attributes are cleared to avoid duplicate captions in downstream renderers.
@@ -56,7 +56,8 @@
   - attrs from image paragraphs/image tokens (`styleProcess` path), especially trailing `{...}` attrs on image-only paragraphs.
 - Wrapper/class-prefix options are trimmed during setup; whitespace-only overrides fall back to the default class for that option.
 - Caption paragraph attrs remain on the converted `figcaption` token (not moved onto `figure`).
-- `figure_open` / `figure_close` inherit `.map` from the wrapped range to improve VS Code click/scroll sync.
+- `figure_open` / `figure_close` inherit `.map` from the wrapped source-line range to improve VS Code click/scroll sync.
+- `figure_open` / `figure_close` are block-level tokens, but this plugin still does not install renderer rules. `wrapWithFigure` inserts a distinct empty text token immediately after `figure_open` so markdown-it's default renderer emits the opening-tag newline without adding a blank line; image paragraph replacement still inserts an explicit newline before `figure_close`.
 
 ## 8. Performance Notes
 - Regex caches reduce repeated allocations; `htmlRegCache` is module-level and `cleanCaptionRegCache` is instance-scoped on `opt` to avoid cross-instance leakage.

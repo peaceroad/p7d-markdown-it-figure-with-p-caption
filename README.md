@@ -18,7 +18,7 @@ Optionally, you can auto-number image and table caption paragraphs starting from
     2. Image `alt` text that `p7d-markdown-it-p-captions` recognizes as an image caption start (`Figure. `, `Figure 1. `, `図　`, `図1　`, etc.).
     3. Image `title` attribute that matches the same labels.
     4. Optional fallbacks (`autoAltCaption`, `autoTitleCaption`) that inject the label when the alt/title lacks one.
-        - `autoAltCaption`: `false` (default), `true`, or a string label. `true` uses locale-aware generated-label defaults from `p7d-markdown-it-p-captions`, so the label text and punctuation stay aligned with the upstream caption language data. A string is treated as a label stem that should be recognized by `p7d-markdown-it-p-captions`; this plugin appends the default joint/space unless the string already ends with punctuation such as `.` / `。` / `:`. Empty alt text does not generate a fallback caption.
+        - `autoAltCaption`: `false` (default), `true`, or a string label. `true` uses locale-aware generated-label defaults from `p7d-markdown-it-p-captions`, so the label text and punctuation stay aligned with the upstream caption language data. A string is treated as a label stem that must be recognized by `p7d-markdown-it-p-captions`; setup throws if it cannot be parsed as an image caption label. This plugin appends the default joint/space unless the string already ends with punctuation such as `.` / `。` / `:`. Empty alt text does not generate a fallback caption.
         - `autoTitleCaption`: same behavior but sourced from the image `title`. It stays off by default so other plugins can keep using the `title` attribute for metadata.
 - Set `autoCaptionDetection: false` to disable the auto-caption workflow entirely.
 - Multi-image paragraphs are still wrapped as one figure when `multipleImages: true` (default). Layout-specific classes help with styling:
@@ -50,7 +50,7 @@ Optionally, you can auto-number image and table caption paragraphs starting from
 
 ### Embedded content by iframe
 
-- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
+- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
 - `<div>` wrappers are treated as iframe-type embeds only when the same HTML block contains an `<iframe ...>` tag (for example common video wrapper markup).
 - Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes on the same blockquote do not block detection. By default they become `<figure class="f-img">` so the caption label behaves like an image label (Labels can also use quote labels). You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
 - `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper automatically switches to `f-slide` (or whatever you set via `figureClassThatWrapsSlides`) so slides can get their own layout. If `allIframeTypeFigureClassName` is also configured, that class takes precedence even for slides, so you get a uniform embed wrapper without touching the slide option.
@@ -457,7 +457,7 @@ Figure. Highlighted cat.
 
 ### Automatic detection fallbacks
 
-`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels, as long as the alt/title body is non-empty. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source. When these fallbacks are `true`, the generated label text and punctuation come from `p7d-markdown-it-p-captions` locale metadata rather than a local hardcoded map.
+`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels, as long as the alt/title body is non-empty. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source. When these fallbacks are `true`, the generated label text and punctuation come from `p7d-markdown-it-p-captions` locale metadata rather than a local hardcoded map. When these fallbacks are strings, the string must be a label stem recognized as an image caption label by `p7d-markdown-it-p-captions`; invalid strings fail during plugin setup instead of producing a stray paragraph.
 
 ```
 [Markdown]
@@ -511,7 +511,7 @@ If `imageOnlyParagraphWithoutCaption` (or the legacy alias `oneImageWithoutCapti
 </figure>
 ```
 
-If `videoWithoutCaption` is enabled, `<video>` elements and iframes pointing to known video hosts (such as `www.youtube.com`, `www.youtube-nocookie.com`, or Vimeo) will be wrapped with `<figure class="f-video">`.
+If `videoWithoutCaption` is enabled, `<video>` elements and iframes pointing to known video hosts (such as `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, or Vimeo) will be wrapped with `<figure class="f-video">`.
 
 ```
 [Markdown]

@@ -7,7 +7,14 @@ import {
 const htmlRegCache = new Map()
 const openingClassAttrReg = /^<[^>]*?\bclass=(?:"([^"]*)"|'([^']*)')/i
 const openingSrcAttrReg = /^<[^>]*?\bsrc=(?:"([^"]*)"|'([^']*)')/i
-const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/
+const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/i
+const targetHtmlHintReg = /<(?:video|audio|iframe|blockquote|div)\b/i
+const blueskyEmbedHintReg = /bluesky-embed/i
+const videoTagHintReg = /<video\b/i
+const audioTagHintReg = /<audio\b/i
+const iframeTagHintReg = /<iframe\b/i
+const blockquoteTagHintReg = /<blockquote\b/i
+const divTagHintReg = /<div\b/i
 const iframeTagReg = /<iframe(?=[\s>])/i
 
 const getHtmlReg = (tag) => {
@@ -20,13 +27,25 @@ const getHtmlReg = (tag) => {
 }
 
 const getHtmlDetectionHints = (content) => {
-  const normalized = typeof content === 'string' ? content.toLowerCase() : ''
-  const hasBlueskyHint = normalized.indexOf('bluesky-embed') !== -1
-  const hasVideoHint = normalized.indexOf('<video') !== -1
-  const hasAudioHint = normalized.indexOf('<audio') !== -1
-  const hasIframeHint = normalized.indexOf('<iframe') !== -1
-  const hasBlockquoteHint = normalized.indexOf('<blockquote') !== -1
-  const hasDivHint = normalized.indexOf('<div') !== -1
+  const source = typeof content === 'string' ? content : ''
+  const hasTargetHtmlHint = targetHtmlHintReg.test(source)
+  const hasBlueskyHint = blueskyEmbedHintReg.test(source)
+  if (!hasTargetHtmlHint && !hasBlueskyHint) {
+    return {
+      hasBlueskyHint: false,
+      hasVideoHint: false,
+      hasAudioHint: false,
+      hasIframeHint: false,
+      hasBlockquoteHint: false,
+      hasDivHint: false,
+      hasIframeTag: false,
+    }
+  }
+  const hasVideoHint = videoTagHintReg.test(source)
+  const hasAudioHint = audioTagHintReg.test(source)
+  const hasIframeHint = iframeTagHintReg.test(source)
+  const hasBlockquoteHint = blockquoteTagHintReg.test(source)
+  const hasDivHint = divTagHintReg.test(source)
   return {
     hasBlueskyHint,
     hasVideoHint,
