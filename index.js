@@ -22,6 +22,9 @@ const CHECK_TYPE_TOKEN_MAP = {
   pre_open: 'pre',
   blockquote_open: 'blockquote',
 }
+const hasOwnOption = (option, name) => !!(
+  option && Object.prototype.hasOwnProperty.call(option, name)
+)
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const normalizeLanguageCode = (value) => {
   if (value === null || value === undefined) return ''
@@ -190,6 +193,7 @@ const resolvePreferredLanguagesForState = (state, opt) => {
 }
 const needsPreferredLanguagesResolution = (opt) => {
   if (!opt || !opt.markRegState || !Array.isArray(opt.markRegState.languages)) return false
+  if (!opt.autoCaptionDetection) return false
   if (opt.markRegState.languages.length <= 1) return false
   return opt.autoAltCaption === true || opt.autoTitleCaption === true
 }
@@ -306,7 +310,7 @@ const normalizeAutoLabelNumberSets = (value) => {
   if (!value) return normalized
   if (Array.isArray(value)) {
     for (const entry of value) {
-      if (normalized.hasOwnProperty(entry)) normalized[entry] = true
+      if (entry === 'img' || entry === 'table') normalized[entry] = true
     }
     return normalized
   }
@@ -505,29 +509,18 @@ const updateInlineTokenContent = (inlineToken, originalText, newText) => {
     inlineToken.content.slice(index + originalText.length)
 }
 
-const parseTrailingPositiveInteger = (text) => {
+const parsePositiveInteger = (text) => {
   if (typeof text !== 'string' || text.length === 0) return null
-  let end = text.length - 1
-  while (end >= 0 && text.charCodeAt(end) === 0x20) end--
-  if (end < 0) return null
-  const lastCode = text.charCodeAt(end)
-  if (lastCode < 0x30 || lastCode > 0x39) return null
-  let start = end
-  while (start >= 0) {
-    const code = text.charCodeAt(start)
-    if (code < 0x30 || code > 0x39) break
-    start--
-  }
   let value = 0
-  let digitBase = 1
-  for (let i = end; i > start; i--) {
-    value += (text.charCodeAt(i) - 0x30) * digitBase
-    digitBase *= 10
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    if (code < 0x30 || code > 0x39) return null
+    value = value * 10 + code - 0x30
   }
   return value
 }
 
-const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, opt) => {
+const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, sp, opt) => {
   const captionType = caption.name === 'img' ? 'img' : (caption.name === 'table' ? 'table' : '')
   if (!captionType) return
   if (!shouldApplyLabelNumbering(captionType, opt)) return
@@ -536,19 +529,12 @@ const ensureAutoFigureNumbering = (tokens, range, caption, figureNumberState, op
   const labelTextToken = getInlineLabelTextToken(inlineToken, captionType, opt)
   if (!labelTextToken || typeof labelTextToken.content !== 'string') return
   const originalText = labelTextToken.content
-  let end = originalText.length - 1
-  while (end >= 0 && originalText.charCodeAt(end) === 0x20) end--
-  if (end >= 0) {
-    const code = originalText.charCodeAt(end)
-    if (code >= 0x30 && code <= 0x39) {
-      const explicitValue = parseTrailingPositiveInteger(originalText)
-      if (explicitValue !== null) {
-        if (explicitValue > (figureNumberState[captionType] || 0)) {
-          figureNumberState[captionType] = explicitValue
-        }
-        return
-      }
+  if (sp && sp.captionDecision && sp.captionDecision.hasExplicitNumber) {
+    const explicitValue = parsePositiveInteger(sp.captionDecision.number)
+    if (explicitValue !== null && explicitValue > (figureNumberState[captionType] || 0)) {
+      figureNumberState[captionType] = explicitValue
     }
+    return
   }
   figureNumberState[captionType] = (figureNumberState[captionType] || 0) + 1
   const baseLabel = originalText.trim()
@@ -571,89 +557,87 @@ const matchAutoCaptionText = (text, opt, preferredMark = 'img') => {
   return ''
 }
 
-const getAutoCaptionFromImage = (imageToken, opt) => {
-  if (!opt.autoCaptionDetection) return ''
-  if (!opt.autoAltCaption && !opt.autoTitleCaption && !(opt.markRegState && opt.markRegState.markReg && opt.markRegState.markReg.img)) return ''
+const getAutoCaptionFromImage = (imageToken, opt, preferredLanguages) => {
+  if (!opt.autoAltCaption && !opt.autoTitleCaption && !(opt.markRegState && opt.markRegState.markReg && opt.markRegState.markReg.img)) return null
 
   const altText = getImageAltText(imageToken)
   let caption = matchAutoCaptionText(altText, opt)
   if (caption) {
-    clearImageAltAttr(imageToken)
-    return caption
+    return { text: caption, source: 'alt' }
   }
-  if (!caption && opt.autoAltCaption) {
+  if (opt.autoAltCaption) {
     const altForFallback = altText || ''
-    const fallbackCaption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, 'img', opt.markRegState, opt.preferredLanguages)
-    if (fallbackCaption && imageToken) {
-      clearImageAltAttr(imageToken)
-    }
+    const fallbackCaption = buildCaptionWithFallback(altForFallback, opt.autoAltCaption, 'img', opt.markRegState, preferredLanguages)
     caption = fallbackCaption
   }
-  if (caption) return caption
+  if (caption) return { text: caption, source: 'alt' }
 
   const titleText = getImageTitleText(imageToken)
   caption = matchAutoCaptionText(titleText, opt)
   if (caption) {
-    clearImageTitleAttr(imageToken)
-    return caption
+    return { text: caption, source: 'title' }
   }
-  if (!caption && opt.autoTitleCaption) {
+  if (opt.autoTitleCaption) {
     const titleForFallback = titleText || ''
-    const fallbackCaption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, 'img', opt.markRegState, opt.preferredLanguages)
-    if (fallbackCaption && imageToken) {
-      clearImageTitleAttr(imageToken)
-    }
+    const fallbackCaption = buildCaptionWithFallback(titleForFallback, opt.autoTitleCaption, 'img', opt.markRegState, preferredLanguages)
     caption = fallbackCaption
   }
-  return caption
+  return caption ? { text: caption, source: 'title' } : null
+}
+
+const consumeAutoCaptionSource = (imageToken, autoCaption) => {
+  if (!imageToken || !autoCaption) return
+  if (autoCaption.source === 'alt') {
+    clearImageAltAttr(imageToken)
+  } else if (autoCaption.source === 'title') {
+    clearImageTitleAttr(imageToken)
+  }
 }
 
 const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
-  if(n < 3) return caption
-  const captionStartToken = tokens[n-3]
-  const captionInlineToken = tokens[n-2]
-  const captionEndToken = tokens[n-1]
+  if (n < 3) return
+  const captionStartToken = tokens[n - 3]
+  const captionInlineToken = tokens[n - 2]
+  const captionEndToken = tokens[n - 1]
   if (captionStartToken === undefined || captionEndToken === undefined) return
   if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setCaptionParagraph(n-3, captionState, caption, null, sp, opt)
+  setCaptionParagraph(n - 3, captionState, caption, null, sp, opt)
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
-  if(!captionName) {
+  if (!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelPrevReg) {
-        const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelPrevReg)
-        if (markerMatch) {
-          stripLabelPrefixMarker(captionInlineToken, markerMatch)
-          caption.isPrev = true
-        }
+      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelPrevReg)
+      if (markerMatch) {
+        stripLabelPrefixMarker(captionInlineToken, markerMatch)
+        caption.isPrev = true
+      }
     }
     return
   }
   caption.name = captionName
   caption.isPrev = true
-  return
 }
 
 const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
-  if (en + 2 > tokens.length) return
-  const captionStartToken = tokens[en+1]
-  const captionInlineToken = tokens[en+2]
-  const captionEndToken = tokens[en+3]
+  if (en + 3 >= tokens.length) return
+  const captionStartToken = tokens[en + 1]
+  const captionInlineToken = tokens[en + 2]
+  const captionEndToken = tokens[en + 3]
   if (captionStartToken === undefined || captionEndToken === undefined) return
   if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setCaptionParagraph(en+1, captionState, caption, null, sp, opt)
+  setCaptionParagraph(en + 1, captionState, caption, null, sp, opt)
   const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
-  if(!captionName) {
+  if (!captionName) {
     if (opt.labelPrefixMarkerWithoutLabelNextReg) {
-        const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelNextReg)
-        if (markerMatch) {
-          stripLabelPrefixMarker(captionInlineToken, markerMatch)
-          caption.isNext = true
-        }
+      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelNextReg)
+      if (markerMatch) {
+        stripLabelPrefixMarker(captionInlineToken, markerMatch)
+        caption.isNext = true
+      }
     }
     return
   }
   caption.name = captionName
   caption.isNext = true
-  return
 }
 
 const cleanCaptionTokenAttrs = (token, captionName, opt) => {
@@ -730,7 +714,6 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   captionEndToken.level = figureBaseLevel + 1
   tokens.splice(n + 2, 0, captionStartToken, captionInlineToken, captionEndToken)
   tokens.splice(n-3, 3)
-  return true
 }
 
 const changeNextCaptionPosition = (tokens, en, caption, opt) => {
@@ -750,7 +733,6 @@ const changeNextCaptionPosition = (tokens, en, caption, opt) => {
   captionEndToken.level = figureBaseLevel + 1
   tokens.splice(en, 0, captionStartToken, captionInlineToken, captionEndToken)
   tokens.splice(en+4, 3)
-  return true
 }
 
 const getTokenMap = (token) => {
@@ -852,14 +834,12 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   }
   range.start = n
   range.end = en
-  return
 }
 
 const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
   checkPrevCaption(tokens, n, caption, sp, opt, captionState)
   if (caption.isPrev) return
   checkNextCaption(tokens, en, caption, sp, opt, captionState)
-  return
 }
 
 const getNestedContainerType = (token) => {
@@ -971,6 +951,7 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
   let isMultipleImagesHorizontal = true
   let isMultipleImagesVertical = true
   let isValid = true
+  let trailingAttrToken = null
   caption.name = 'img'
   if (childrenLength === 1) {
     return {
@@ -1006,7 +987,7 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
             for (let i = 0; i < parsedAttrs.length; i++) {
               sp.attrs.push(parsedAttrs[i])
             }
-            child.content = ''
+            trailingAttrToken = child
             break
           }
         }
@@ -1044,12 +1025,6 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
     } else {
       caption.nameSuffix = '-multiple'
     }
-    for (let i = 0; i < childrenLength; i++) {
-      const child = children[i]
-      if (isOnlySpacesText(child)) {
-        child.content = ''
-      }
-    }
   }
   const en = n + 2
   let tagName = 'img'
@@ -1062,6 +1037,22 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
     wrapWithoutCaption: isValid && allowImageParagraphWithoutCaption,
     canWrap: isValid,
     imageToken,
+    inlineToken: nextToken,
+    trailingAttrToken,
+  }
+}
+
+const applyImageParagraphTransform = (detection) => {
+  if (!detection || detection.type !== 'image') return
+  if (detection.trailingAttrToken) {
+    detection.trailingAttrToken.content = ''
+  }
+  if (!detection.inlineToken || detection.tagName === 'img') return
+  const children = detection.inlineToken.children
+  for (let i = 0; i < children.length; i++) {
+    if (isOnlySpacesText(children[i])) {
+      children[i].content = ''
+    }
   }
 }
 
@@ -1071,16 +1062,19 @@ const figureWithCaption = (state, opt) => {
     table: 0,
   }
 
-  const captionState = { tokens: state.tokens, Token: state.Token }
+  const captionState = {
+    tokens: state.tokens,
+    Token: state.Token,
+    preferredLanguages: opt.preferredLanguages,
+  }
   const shouldResolvePreferredLanguages = !!(
     opt.shouldResolvePreferredLanguages &&
     sourceMayNeedPreferredLanguages(state)
   )
-  const renderOpt = shouldResolvePreferredLanguages ? Object.create(opt) : opt
   if (shouldResolvePreferredLanguages) {
-    renderOpt.preferredLanguages = resolvePreferredLanguagesForState(state, opt)
+    captionState.preferredLanguages = resolvePreferredLanguagesForState(state, opt)
   }
-  figureWithCaptionCore(state.tokens, renderOpt, figureNumberState, state.Token, captionState, null, 0)
+  figureWithCaptionCore(state.tokens, opt, figureNumberState, state.Token, captionState, null, 0)
 }
 
 const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
@@ -1161,9 +1155,9 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
     applyCaptionDrivenFigureClass(rCaption, rSp, opt)
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
-    let pendingAutoCaption = ''
+    let pendingAutoCaption = null
     if (!hasCaption && detection.type === 'image' && opt.autoCaptionDetection) {
-      pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt)
+      pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt, captionState.preferredLanguages)
       if (pendingAutoCaption) {
         hasCaption = true
       }
@@ -1179,21 +1173,18 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
       continue
     }
 
-    let shouldWrap = false
-    if (detection.type === 'html') {
-      shouldWrap = detection.canWrap !== false && (hasCaption || detection.wrapWithoutCaption)
-    } else if (detection.type === 'image') {
-      shouldWrap = detection.canWrap !== false && (hasCaption || detection.wrapWithoutCaption)
-      if (token.hidden === true) {
-        shouldWrap = false
-      }
-    } else {
-      shouldWrap = detection.canWrap !== false && hasCaption
+    let shouldWrap = hasCaption
+    if (detection.type === 'html' || detection.type === 'image') {
+      shouldWrap = shouldWrap || detection.wrapWithoutCaption
+    }
+    if (detection.type === 'image' && token.hidden === true) {
+      shouldWrap = false
     }
 
     if (shouldWrap) {
       if (pendingAutoCaption) {
-        const captionTokens = createAutoCaptionParagraph(pendingAutoCaption, TokenConstructor)
+        consumeAutoCaptionSource(detection.imageToken, pendingAutoCaption)
+        const captionTokens = createAutoCaptionParagraph(pendingAutoCaption.text, TokenConstructor)
         tokens.splice(rRange.start, 0, ...captionTokens)
         const insertedLength = captionTokens.length
         rRange.start += insertedLength
@@ -1202,7 +1193,8 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
         checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
         applyCaptionDrivenFigureClass(rCaption, rSp, opt)
       }
-      ensureAutoFigureNumbering(tokens, rRange, rCaption, figureNumberState, opt)
+      applyImageParagraphTransform(detection)
+      ensureAutoFigureNumbering(tokens, rRange, rCaption, figureNumberState, rSp, opt)
       wrapWithFigure(tokens, rRange, detection.tagName, rCaption, detection.replaceInsteadOfWrap, rSp, opt, TokenConstructor)
     }
 
@@ -1221,8 +1213,6 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
       } else if (rCaption.isNext) {
         changeNextCaptionPosition(tokens, en, rCaption, opt)
         nextIndex = en + 4
-      } else {
-        nextIndex = en + 1
       }
     }
 
@@ -1238,7 +1228,7 @@ const figureWithCaptionCore = (tokens, opt, figureNumberState, TokenConstructor,
 }
 
 const mditFigureWithPCaption = (md, option) => {
-  let opt = {
+  const opt = {
     // Caption languages delegated to p-captions.
     languages: ['en', 'ja'],
     preferredLanguages: null, // compatibility tie-break for generated fallback labels; prefer env.locale / env.preferredLocales per render
@@ -1287,16 +1277,18 @@ const mditFigureWithPCaption = (md, option) => {
     labelClassFollowsFigure: false,
     figureToLabelClassMap: null,
   }
-  const hasExplicitAutoLabelNumberSets = option && Object.prototype.hasOwnProperty.call(option, 'autoLabelNumberSets')
-  const hasExplicitImageOnlyParagraphWithoutCaption = option && Object.prototype.hasOwnProperty.call(option, 'imageOnlyParagraphWithoutCaption')
-  const hasExplicitFigureClassThatWrapsIframeTypeBlockquote = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsIframeTypeBlockquote')
-  const hasExplicitFigureClassThatWrapsSlides = option && Object.prototype.hasOwnProperty.call(option, 'figureClassThatWrapsSlides')
-  const hasExplicitLabelClassFollowsFigure = option && Object.prototype.hasOwnProperty.call(option, 'labelClassFollowsFigure')
+  const hasExplicitAutoLabelNumberSets = hasOwnOption(option, 'autoLabelNumberSets')
+  const hasExplicitImageOnlyParagraphWithoutCaption = hasOwnOption(option, 'imageOnlyParagraphWithoutCaption')
+  const hasExplicitFigureClassThatWrapsIframeTypeBlockquote = hasOwnOption(option, 'figureClassThatWrapsIframeTypeBlockquote')
+  const hasExplicitFigureClassThatWrapsSlides = hasOwnOption(option, 'figureClassThatWrapsSlides')
+  const hasExplicitLabelClassFollowsFigure = hasOwnOption(option, 'labelClassFollowsFigure')
+  if (hasOwnOption(option, 'setFigureNumber')) {
+    throw new Error('setFigureNumber is not supported by figure-with-p-caption; use autoLabelNumber or autoLabelNumberSets')
+  }
   if (option) Object.assign(opt, option)
   opt.imageOnlyParagraphWithoutCaption = hasExplicitImageOnlyParagraphWithoutCaption
     ? !!opt.imageOnlyParagraphWithoutCaption
     : !!opt.oneImageWithoutCaption
-  opt.oneImageWithoutCaption = !!opt.oneImageWithoutCaption
   if (!hasExplicitLabelClassFollowsFigure && opt.figureToLabelClassMap) {
     opt.labelClassFollowsFigure = true
   }
@@ -1356,7 +1348,7 @@ const mditFigureWithPCaption = (md, option) => {
     opt.labelPrefixMarkerWithoutLabelNextReg = null
   }
 
-  //If nextCaption has `{}` style and `f-img-multipleImages`, when upgraded to markdown-it-attrs@4.2.0, the existing script will have `{}` style on nextCaption. Therefore, since markdown-it-attrs is md.core.ruler.before('linkify'), figure_with_caption will be processed after it.
+  // Run after markdown-it-attrs has attached paragraph attrs, but before text replacements.
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {
     figureWithCaption(state, opt)
   })

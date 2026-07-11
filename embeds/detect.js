@@ -6,7 +6,7 @@ import {
 
 const htmlRegCache = new Map()
 const openingClassAttrReg = /^<[^>]*?\bclass=(?:"([^"]*)"|'([^']*)')/i
-const openingSrcAttrReg = /^<[^>]*?\bsrc=(?:"([^"]*)"|'([^']*)')/i
+const iframeSrcAttrReg = /<iframe\b[^>]*?\bsrc=(?:"([^"]*)"|'([^']*)')/i
 const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/i
 const targetHtmlHintReg = /<(?:video|audio|iframe|blockquote|div)\b/i
 const blueskyEmbedHintReg = /bluesky-embed/i
@@ -90,6 +90,13 @@ const getOpeningAttrValue = (content, reg) => {
   return match[1] || match[2] || ''
 }
 
+const getAttrValue = (content, reg) => {
+  if (typeof content !== 'string') return ''
+  const match = content.match(reg)
+  if (!match) return ''
+  return match[1] || match[2] || ''
+}
+
 const hasKnownBlockquoteEmbedClass = (content) => {
   const classAttr = getOpeningAttrValue(content, openingClassAttrReg)
   if (!classAttr) return false
@@ -106,14 +113,14 @@ const hasKnownBlockquoteEmbedClass = (content) => {
 }
 
 const isKnownVideoIframe = (content) => {
-  const src = getOpeningAttrValue(content, openingSrcAttrReg)
+  const src = getAttrValue(content, iframeSrcAttrReg)
   if (!src || src.slice(0, 8).toLowerCase() !== 'https://') return false
   const slashIndex = src.indexOf('/', 8)
   const host = (slashIndex === -1 ? src.slice(8) : src.slice(8, slashIndex)).toLowerCase()
   return VIDEO_IFRAME_HOSTS.has(host)
 }
 
-const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints, result) => {
+const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints) => {
   if (detector.requiresIframeTag && !hints.hasIframeTag) return ''
   const hasTagHint = !!(detector.hintKey && hints[detector.hintKey])
   const allowBlueskyFallback = detector.candidate === 'blockquote' && hints.hasBlueskyHint
@@ -123,9 +130,6 @@ const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints, resu
   if (!hasTag && !isBlueskyFallback) return ''
   if (hasTag) {
     appendHtmlBlockNewlineIfNeeded(token, hasTag)
-    if (detector.treatAsVideoIframe) {
-      result.isVideoIframe = true
-    }
     return detector.matchedTag || detector.candidate
   }
   consumeBlockquoteEmbedScript(tokens, token, startIndex)
@@ -155,7 +159,7 @@ export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWit
 
   let matchedTag = ''
   for (let i = 0; i < HTML_EMBED_CANDIDATES.length; i++) {
-    matchedTag = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints, result)
+    matchedTag = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints)
     if (matchedTag) break
   }
   if (!matchedTag) return null

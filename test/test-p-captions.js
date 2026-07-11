@@ -3,7 +3,9 @@ import mdit from 'markdown-it'
 import Token from 'markdown-it/lib/token.mjs'
 
 import mditPCaption, {
+  analyzeCaptionParagraph,
   analyzeCaptionStart,
+  applyCaptionParagraph,
   buildLabelClassLookup,
   buildLabelPrefixMarkerRegFromMarkers,
   getGeneratedLabelDefaults,
@@ -241,6 +243,57 @@ const testSetCaptionParagraphInputSafety = () => {
   })
 }
 
+const testParagraphAnalyzeApplyApi = () => {
+  const opt = createOptionForSetCaption()
+  const tokens = parser.parse('Figure A.5. Compound number.\n', {})
+  const state = { tokens, Token }
+  const paragraphIndex = tokens.findIndex((token) => token.type === 'paragraph_open')
+  const inlineToken = tokens[paragraphIndex + 1]
+  const before = {
+    paragraphAttrs: tokens[paragraphIndex].attrs,
+    inlineContent: inlineToken.content,
+    children: inlineToken.children.slice(),
+    childContent: inlineToken.children.map((child) => child.content),
+  }
+  const context = { captionName: 'img' }
+  const decision = analyzeCaptionParagraph(paragraphIndex, state, context, opt)
+
+  assert.ok(decision)
+  assert.ok(Object.isFrozen(decision))
+  assert.equal(decision.mark, 'img')
+  assert.equal(decision.number, 'A.5')
+  assert.equal(decision.hasExplicitNumber, true)
+  assert.equal(tokens[paragraphIndex].attrs, before.paragraphAttrs)
+  assert.equal(inlineToken.content, before.inlineContent)
+  assert.deepEqual(inlineToken.children, before.children)
+  assert.deepEqual(inlineToken.children.map((child) => child.content), before.childContent)
+  assert.equal(context.captionDecision, undefined)
+
+  assert.equal(applyCaptionParagraph({ ...decision }, state, context, null, opt), false)
+  assert.equal(applyCaptionParagraph(decision, state, context, null, opt), true)
+  assert.equal(context.captionDecision, decision)
+  assert.equal(tokens[paragraphIndex].attrGet('class'), 'caption-img')
+
+  const staleTokens = parser.parse('Figure 2. Stale decision.\n', {})
+  const staleState = { tokens: staleTokens, Token }
+  const staleIndex = staleTokens.findIndex((token) => token.type === 'paragraph_open')
+  const staleDecision = analyzeCaptionParagraph(staleIndex, staleState, { captionName: 'img' }, opt)
+  assert.ok(staleDecision)
+  staleTokens[staleIndex + 1].children[0].content = 'changed'
+  assert.equal(applyCaptionParagraph(staleDecision, staleState, {}, null, opt), false)
+
+  const wrapperTokens = parser.parse('Figure A.5. Wrapper decision.\n', {})
+  const wrapperState = { tokens: wrapperTokens, Token }
+  const wrapperIndex = wrapperTokens.findIndex((token) => token.type === 'paragraph_open')
+  const wrapperContext = {}
+  assert.equal(
+    setCaptionParagraph(wrapperIndex, wrapperState, { name: 'img' }, null, wrapperContext, opt),
+    true,
+  )
+  assert.equal(wrapperContext.captionDecision.number, 'A.5')
+  assert.equal(wrapperContext.captionDecision.hasExplicitNumber, true)
+}
+
 testRenderBasics()
 testLanguageSpecificRegex()
 testFallbackLabelResolution()
@@ -249,5 +302,6 @@ testSharedHelpers()
 testMarkerMode()
 testSetCaptionParagraphGuards()
 testSetCaptionParagraphInputSafety()
+testParagraphAnalyzeApplyApi()
 
 console.log('p7d-markdown-it-p-captions tests passed')

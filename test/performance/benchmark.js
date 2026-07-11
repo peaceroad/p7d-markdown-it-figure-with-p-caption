@@ -116,6 +116,26 @@ const runDepthProbe = (md, depths) => {
   return results
 }
 
+const buildSiblingFigureDocument = (count) => {
+  const figures = []
+  for (let i = 0; i < count; i++) {
+    figures.push(`Figure. Sibling ${i}\n\n![Sibling ${i}](https://example.com/${i}.png)`)
+  }
+  return figures.join('\n\n')
+}
+
+const runSiblingProbe = (md, counts) => {
+  const results = []
+  console.log('\nSibling probe (dense figure documents):')
+  for (let i = 0; i < counts.length; i++) {
+    const count = counts[i]
+    const doc = buildSiblingFigureDocument(count)
+    const result = runRenderBench(`siblings/${count}`, md, doc, 7, 2)
+    results.push({ count, ...result })
+  }
+  return results
+}
+
 const markdownSections = loadMarkdownSections(fixturePath)
 const corpusSmall = markdownSections.slice(0, 8).join('\n\n')
 const corpusFull = markdownSections.join('\n\n')
@@ -134,3 +154,4 @@ runRenderBench('baseline/full', baseMd, corpusFull)
 runRenderBench('plugin/full', pluginMd, corpusFull)
 
 runDepthProbe(pluginMd, [5, 10, 20, 40, 80, 120, 180, 260, 360, 500, 700, 900])
+runSiblingProbe(pluginMd, [100, 500, 1000])

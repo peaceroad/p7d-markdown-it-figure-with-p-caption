@@ -306,7 +306,7 @@ const runTest = (process, pat, pass, testId) => {
   console.log('===========================================================')
   console.log(pat)
   let ms = getTestData(pat)
-  if (ms.length === 0) return
+  if (ms.length === 0) return pass
   let n = 1;
   let end = ms.length - 1
   if(testId) {
@@ -401,6 +401,9 @@ const mdStyleProcessNoAttrs = mdit({ html: true }).use(mdFigureWithPCaption, {
   styleProcess: true,
   oneImageWithoutCaption: true,
 })
+const mdStyleProcessNoWrap = mdit({ html: true }).use(mdFigureWithPCaption, {
+  styleProcess: true,
+})
 try {
   assert.strictEqual(
     mdStyleProcessNoAttrs.render('Figure. A Caption.\n\n![Figure](cat.jpg) {.style #id}'),
@@ -415,6 +418,14 @@ try {
     '<figure class="f-img solo" data-title="hello world" data-note="single quoted">\n<img src="cat.jpg" alt="Figure">\n</figure>\n',
   )
   assert.ok(!mdStyleProcessNoAttrs.render('![Figure](cat.jpg) {data-title="unterminated value}').includes('<figure'))
+  assert.strictEqual(
+    mdStyleProcessNoWrap.render('![Figure](cat.jpg) {.style}'),
+    '<p><img src="cat.jpg" alt="Figure"> {.style}</p>\n',
+  )
+  assert.strictEqual(
+    mdStyleProcessNoWrap.render('![One](one.jpg) ![Two](two.jpg)'),
+    '<p><img src="one.jpg" alt="One"> <img src="two.jpg" alt="Two"></p>\n',
+  )
 } catch (e) {
   pass = false
   console.log('styleProcess without markdown-it-attrs regression failed.')
@@ -453,6 +464,14 @@ try {
     mdVideoWithoutCaptionOnly.render('<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>'),
     '<figure class="f-video">\n<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>\n</figure>\n',
   )
+  assert.strictEqual(
+    mdVideoWithoutCaptionOnly.render('<div class="embed"><iframe src="https://example.com/embed"></iframe></div>'),
+    '<div class="embed"><iframe src="https://example.com/embed"></iframe></div>\n',
+  )
+  assert.strictEqual(
+    mdVideoWithoutCaptionOnly.render('<div class="embed"><iframe src="https://www.youtube.com/embed/x"></iframe></div>'),
+    '<figure class="f-video">\n<div class="embed"><iframe src="https://www.youtube.com/embed/x"></iframe></div>\n</figure>\n',
+  )
   assert.ok(!mdHtmlDisabled.render('<iframe src="https://www.youtube.com/embed/x"></iframe>').includes('<figure'))
   assert.strictEqual(
     mdAutoAltCaptionFigureDot.render('![Plain alt](plain.jpg)'),
@@ -488,6 +507,26 @@ try {
     () => mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoTitleCaption: 'Foo' }),
     /autoTitleCaption/,
   )
+  assert.throws(
+    () => mdit({ html: true }).use(mdFigureWithPCaption, { setFigureNumber: true }),
+    /autoLabelNumber or autoLabelNumberSets/,
+  )
+  assert.strictEqual(
+    mdAutoCaptionDetection.render('- ![Figure. Tight-list alt](tight.jpg)'),
+    '<ul>\n<li><img src="tight.jpg" alt="Figure. Tight-list alt"></li>\n</ul>\n',
+  )
+  assert.strictEqual(
+    mdAutoCaptionDetection.render('![Figure. Invalid target](invalid.jpg) trailing text'),
+    '<p><img src="invalid.jpg" alt="Figure. Invalid target"> trailing text</p>\n',
+  )
+  const mdCompoundManualNumber = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+  })
+  const compoundNumberHtml = mdCompoundManualNumber.render(
+    'Figure A.5. Compound number.\n\n![A](a.jpg)\n\nFigure. Next number.\n\n![B](b.jpg)',
+  )
+  assert.ok(compoundNumberHtml.includes('>Figure A.5<span'))
+  assert.ok(compoundNumberHtml.includes('>Figure 1<span'))
 } catch (e) {
   pass = false
   console.log('new behavior regression failed.')
@@ -609,4 +648,8 @@ try {
   console.log('ja-only (en caption):', figureLanguageEnHtmlFromJa)
 }
 
-if (pass) console.log('Passed all test.')
+if (pass) {
+  console.log('Passed all test.')
+} else {
+  process.exitCode = 1
+}

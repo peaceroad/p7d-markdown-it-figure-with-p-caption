@@ -9,7 +9,6 @@ export const HTML_EMBED_CANDIDATES = Object.freeze([
     hintKey: 'hasDivHint',
     requiresIframeTag: true,
     matchedTag: 'iframe',
-    treatAsVideoIframe: true,
   },
 ])
 

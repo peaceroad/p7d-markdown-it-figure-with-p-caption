@@ -52,6 +52,7 @@ Optionally, you can auto-number image and table caption paragraphs starting from
 
 - Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
 - `<div>` wrappers are treated as iframe-type embeds only when the same HTML block contains an `<iframe ...>` tag (for example common video wrapper markup).
+- `videoWithoutCaption` classifies an iframe (including one nested in a `<div>` wrapper) as video only when its `src` host is one of the known YouTube/Vimeo hosts. A generic iframe wrapper still requires `iframeWithoutCaption`.
 - Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes on the same blockquote do not block detection. By default they become `<figure class="f-img">` so the caption label behaves like an image label (Labels can also use quote labels). You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
 - `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper automatically switches to `f-slide` (or whatever you set via `figureClassThatWrapsSlides`) so slides can get their own layout. If `allIframeTypeFigureClassName` is also configured, that class takes precedence even for slides, so you get a uniform embed wrapper without touching the slide option.
 - All other iframes fall back to `<figure class="f-iframe">` unless you override the class via `allIframeTypeFigureClassName`.
@@ -102,9 +103,10 @@ Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which 
 
 - `autoLabelNumberSets`: enable numbering per media type. Pass an array such as `['img']`, `['table']`, or `['img', 'table']`.
 - `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `autoLabelNumberSets` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
+- Do not pass p-captions' lower-level `setFigureNumber` option to this plugin. Figure numbering is owned by `autoLabelNumber` / `autoLabelNumberSets`; `setFigureNumber` is rejected during setup to prevent two numbering systems from mutating the same caption.
 - Counters start at `1` near the top of the document and increment sequentially per media type. Figures and tables keep independent counters even when mixed together.
 - The counter only advances when a real caption exists (paragraph, auto-detected alt/title, or fallback text). Figures emitted solely because of `imageOnlyParagraphWithoutCaption` / `oneImageWithoutCaption` stay unnumbered.
-- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin updates its internal counter so the next automatic number becomes `6`. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
+- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin reads the exact `captionDecision.number` supplied by `p7d-markdown-it-p-captions` and updates its decimal counter so the next automatic number becomes `6`. Explicit compound/alphanumeric numbers (e.g., `Figure A.` or `Figure A.5.`) are preserved without appending an automatic number and do not seed the decimal counter. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
 
 ## Basic Usage
 
@@ -361,6 +363,8 @@ Slide. A Speaker Deck.
 ~~~
 
 ### Auto alt/title detection
+
+The consumed `alt` or `title` value is cleared only after the image paragraph is confirmed to be wrappable. Tight-list images and image paragraphs with trailing non-image text keep their original accessibility attributes and baseline rendering.
 
 ```
 [Markdown]
