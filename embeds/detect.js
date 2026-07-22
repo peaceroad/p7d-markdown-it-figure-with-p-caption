@@ -8,14 +8,13 @@ const htmlRegCache = new Map()
 const openingClassAttrReg = /^<[^>]*?\bclass=(?:"([^"]*)"|'([^']*)')/i
 const iframeSrcAttrReg = /<iframe\b[^>]*?\bsrc=(?:"([^"]*)"|'([^']*)')/i
 const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/i
-const targetHtmlHintReg = /<(?:video|audio|iframe|blockquote|div)\b/i
+const targetHtmlHintReg = /<(?:video|audio|iframe|blockquote|div)(?=[\s>])/i
 const blueskyEmbedHintReg = /bluesky-embed/i
-const videoTagHintReg = /<video\b/i
-const audioTagHintReg = /<audio\b/i
-const iframeTagHintReg = /<iframe\b/i
-const blockquoteTagHintReg = /<blockquote\b/i
-const divTagHintReg = /<div\b/i
-const iframeTagReg = /<iframe(?=[\s>])/i
+const videoTagHintReg = /<video(?=[\s>])/i
+const audioTagHintReg = /<audio(?=[\s>])/i
+const iframeTagHintReg = /<iframe(?=[\s>])/i
+const blockquoteTagHintReg = /<blockquote(?=[\s>])/i
+const divTagHintReg = /<div(?=[\s>])/i
 
 const getHtmlReg = (tag) => {
   const cached = htmlRegCache.get(tag)
@@ -45,42 +44,35 @@ const getHtmlDetectionHints = (content) => {
     hasIframeHint,
     hasBlockquoteHint,
     hasDivHint,
-    hasIframeTag: hasIframeHint || (hasDivHint && iframeTagReg.test(source)),
   }
 }
 
-const appendHtmlBlockNewlineIfNeeded = (token, hasTag) => {
-  if ((hasTag[2] && hasTag[3] !== '\n') || (hasTag[1] !== '\n' && hasTag[2] === undefined)) {
-    token.content += '\n'
-  }
-}
+const needsHtmlBlockNewline = (hasTag) => !!(
+  (hasTag[2] && hasTag[3] !== '\n') ||
+  (hasTag[1] !== '\n' && hasTag[2] === undefined)
+)
 
-const consumeBlockquoteEmbedScript = (tokens, token, startIndex) => {
+const findBlockquoteEmbedScriptTransform = (tokens, token, startIndex) => {
   let addedContent = ''
   let i = startIndex + 1
-  while (i < tokens.length) {
-    const nextToken = tokens[i]
-    if (nextToken.type === 'inline' && endBlockquoteScriptReg.test(nextToken.content)) {
-      addedContent += nextToken.content + '\n'
-      if (tokens[i + 1] && tokens[i + 1].type === 'paragraph_close') {
-        tokens.splice(i + 1, 1)
-      }
-      nextToken.content = ''
-      if (nextToken.children) {
-        for (let j = 0; j < nextToken.children.length; j++) {
-          nextToken.children[j].content = ''
-        }
-      }
-      break
-    }
-    if (nextToken.type === 'paragraph_open') {
-      addedContent += '\n'
-      tokens.splice(i, 1)
-      continue
-    }
+  if (tokens[i] && tokens[i].type === 'paragraph_open') {
+    addedContent = '\n'
     i++
   }
-  token.content += addedContent
+  const inlineToken = tokens[i]
+  if (!inlineToken || inlineToken.type !== 'inline' || !endBlockquoteScriptReg.test(inlineToken.content)) {
+    return null
+  }
+  addedContent += inlineToken.content + '\n'
+  let endIndex = i
+  if (tokens[i + 1] && tokens[i + 1].type === 'paragraph_close') endIndex++
+  return {
+    type: 'merge-blockquote-script',
+    token,
+    startIndex,
+    endIndex,
+    addedContent,
+  }
 }
 
 const getOpeningAttrValue = (content, reg) => {
@@ -121,27 +113,39 @@ const isKnownVideoIframe = (content) => {
 }
 
 const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints) => {
-  if (detector.requiresIframeTag && !hints.hasIframeTag) return ''
+  if (detector.requiresIframeTag && !hints.hasIframeHint) return null
   const hasTagHint = !!(detector.hintKey && hints[detector.hintKey])
   const allowBlueskyFallback = detector.candidate === 'blockquote' && hints.hasBlueskyHint
-  if (!hasTagHint && !allowBlueskyFallback) return ''
+  if (!hasTagHint && !allowBlueskyFallback) return null
   const hasTag = hasTagHint ? token.content.match(getHtmlReg(detector.lookupTag)) : null
   const isBlueskyFallback = detector.candidate === 'blockquote' && !hasTag && hints.hasBlueskyHint
-  if (!hasTag && !isBlueskyFallback) return ''
+  if (!hasTag && !isBlueskyFallback) return null
   if (hasTag) {
-    appendHtmlBlockNewlineIfNeeded(token, hasTag)
-    return detector.matchedTag || detector.candidate
+    return {
+      matchedTag: detector.matchedTag || detector.candidate,
+      endIndex: startIndex,
+      transform: needsHtmlBlockNewline(hasTag)
+        ? { type: 'append-newline', token }
+        : null,
+    }
   }
-  consumeBlockquoteEmbedScript(tokens, token, startIndex)
-  return 'blockquote'
+  const transform = findBlockquoteEmbedScriptTransform(tokens, token, startIndex)
+  return transform
+    ? { matchedTag: 'blockquote', endIndex: transform.endIndex, transform }
+    : null
 }
 
-const resolveHtmlWrapWithoutCaption = (matchedTag, result, htmlWrapWithoutCaption) => {
+const resolveHtmlWrapWithoutCaption = (
+  matchedTag,
+  isVideoIframe,
+  isIframeTypeBlockquote,
+  htmlWrapWithoutCaption,
+) => {
   if (!htmlWrapWithoutCaption) return false
   if (matchedTag === 'blockquote') {
-    return !!(result.isIframeTypeBlockquote && htmlWrapWithoutCaption.iframeTypeBlockquote)
+    return !!(isIframeTypeBlockquote && htmlWrapWithoutCaption.iframeTypeBlockquote)
   }
-  if (matchedTag === 'iframe' && result.isVideoIframe) {
+  if (matchedTag === 'iframe' && isVideoIframe) {
     return !!(htmlWrapWithoutCaption.video || htmlWrapWithoutCaption.iframe)
   }
   return !!htmlWrapWithoutCaption[matchedTag]
@@ -152,35 +156,53 @@ export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWit
   const hints = getHtmlDetectionHints(token.content)
   if (!hints) return null
 
-  const result = {
-    isVideoIframe: false,
-    isIframeTypeBlockquote: false,
-  }
-
-  let matchedTag = ''
+  let candidate = null
   for (let i = 0; i < HTML_EMBED_CANDIDATES.length; i++) {
-    matchedTag = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints)
-    if (matchedTag) break
+    candidate = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints)
+    if (candidate) break
   }
-  if (!matchedTag) return null
+  if (!candidate) return null
+  const matchedTag = candidate.matchedTag
+  let isIframeTypeBlockquote = false
 
   if (matchedTag === 'blockquote') {
     if (!hasKnownBlockquoteEmbedClass(token.content)) return null
-    result.isIframeTypeBlockquote = true
+    isIframeTypeBlockquote = true
   }
-
-  if (matchedTag === 'iframe' && isKnownVideoIframe(token.content)) {
-    result.isVideoIframe = true
-  }
+  const isVideoIframe = matchedTag === 'iframe' && isKnownVideoIframe(token.content)
 
   return {
     type: 'html',
     tagName: matchedTag,
-    en: startIndex,
+    en: candidate.endIndex,
     replaceInsteadOfWrap: false,
-    wrapWithoutCaption: resolveHtmlWrapWithoutCaption(matchedTag, result, htmlWrapWithoutCaption),
+    wrapWithoutCaption: resolveHtmlWrapWithoutCaption(
+      matchedTag,
+      isVideoIframe,
+      isIframeTypeBlockquote,
+      htmlWrapWithoutCaption,
+    ),
     canWrap: true,
-    isVideoIframe: result.isVideoIframe,
-    isIframeTypeBlockquote: result.isIframeTypeBlockquote,
+    isVideoIframe,
+    isIframeTypeBlockquote,
+    transform: candidate.transform,
   }
+}
+
+export const applyHtmlFigureTransform = (tokens, detection) => {
+  const transform = detection && detection.transform
+  if (!transform) return detection ? detection.en : 0
+  detection.transform = null
+  if (transform.type === 'append-newline') {
+    transform.token.content += '\n'
+    return detection.en
+  }
+  if (transform.type === 'merge-blockquote-script') {
+    transform.token.content += transform.addedContent
+    const removeCount = transform.endIndex - transform.startIndex
+    if (removeCount > 0) tokens.splice(transform.startIndex + 1, removeCount)
+    detection.en = transform.startIndex
+    return detection.en
+  }
+  return detection.en
 }

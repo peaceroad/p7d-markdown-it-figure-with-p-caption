@@ -7,9 +7,14 @@
 
 ## 2. Core Pipeline
 - Registers the `figure_with_caption` core rule before `replacements` (after markdown-it-attrs has decorated paragraphs).
+- Repeated `.use(mditFigureWithPCaption)` calls on one markdown-it instance are ignored; use separate instances for different option sets.
 - `figureWithCaptionCore` walks token arrays recursively, respecting container boundaries (`blockquote`, `list_item`, `dd`).
 - Tight list paragraphs (`token.hidden`) are skipped to avoid invalid HTML.
 - Caption detection (delegated to p-captions) intentionally skips paragraphs that appear immediately after `list_item_open`; first-block captions inside list items are treated as non-captions.
+- Final structural eligibility (`canWrap`, hidden/tight-list guards) is established before adjacent-caption or auto-caption mutation. Invalid candidates must preserve the original caption tokens.
+- Unbalanced block-container token ranges fail closed instead of wrapping a lone open token.
+- When advanced numbering uses heading scopes, only configured top-level headings update the render-local scope state. Recursive container walkers inherit that state but do not create nested heading scopes.
+- After a captioned blockquote, its recursive walker must return at that blockquote's close token so following top-level headings remain visible to the top-level scope walker.
 
 ## 3. Detection Inputs
 - Block tokens: `table_open`, `pre_open`, `blockquote_open` via `detectCheckTypeOpen`.
@@ -35,23 +40,30 @@
 - `imageOnlyParagraphWithoutCaption` is the canonical captionless image wrapping option. `oneImageWithoutCaption` remains a legacy alias; when both are set, `imageOnlyParagraphWithoutCaption` wins. Multi-image image-only paragraphs keep their layout class suffixes (`-horizontal`, `-vertical`, `-multiple`) when wrapped captionlessly.
 
 ## 5. Caption Pairing & Auto Caption
-- `checkPrevCaption` / `checkNextCaption` call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens.
+- `checkPrevCaption` / `checkNextCaption` normally call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens. The iframe + figure-class-mirroring path uses p-captions' analyze/apply pair so a caption-driven slide class is final before label/body spans are constructed.
 - Caption detection trusts `sp.captionDecision.mark` from p-captions rather than re-parsing class strings.
 - `labelPrefixMarker` (optional) strips a prefix marker before a label; `allowLabelPrefixMarkerWithoutLabel` allows marker-only captions.
 - Caption regex resolution is language-aware via p-captions helper state (`getMarkRegStateForLanguages`); image auto-caption reuse goes through p-captions' pure `analyzeCaptionStart(...preferredMark:'img')` helper.
 - Auto caption for images runs only when no caption paragraph exists:
   - uses labeled `alt` or `title` text recognized by p-captions,
   - or fallback labels (`autoAltCaption` / `autoTitleCaption`) with language-aware generated-label defaults from p-captions.
-  - string fallback labels are treated as p-captions-recognizable label stems; invalid strings fail during plugin setup. Default joints/spaces are added unless the string already ends with punctuation such as `.`, `。`, or `:`.
+  - string fallback labels are treated as p-captions-recognizable label stems; invalid strings fail during plugin setup. Fallback values are limited to `false`/`null`, `true`, or a recognized string label. Default joints/spaces are added unless the string already ends with a recognized joint; a trailing full-width joint space (`U+3000`) is preserved rather than duplicated.
   - empty `alt` / `title` values do not synthesize label-only captions.
 - `languages` remains the optional available caption-catalog/recognition-dictionary list delegated to p-captions; default `['en', 'ja']` is enough for normal English/Japanese use. It is not the active locale.
-- Generated fallback tie-break order is an active-locale concern and is resolved once per render. Canonical runtime inputs are `env.locale` and `env.preferredLocales`; compatibility fallbacks are `preferredLanguages`, `env.preferredLanguages`, `env.lang`, and `env.language`. The cheap document-script heuristic remains the last fallback before raw `languages` order. `env.locale` / `env.preferredLocales` intentionally override legacy `preferredLanguages` for generated fallback labels.
+- Generated fallback tie-break order is an active-locale concern and is resolved lazily at most once per render, when an actual image token needs an unlabeled fallback. Canonical runtime inputs are `env.locale` and `env.preferredLocales`; compatibility fallbacks are `preferredLanguages`, `env.preferredLanguages`, `env.lang`, and `env.language`. The cheap document-script heuristic remains the last fallback before raw `languages` order. `env.locale` / `env.preferredLocales` intentionally override legacy `preferredLanguages` for generated fallback labels.
 - Consumed `alt`/`title` attributes are cleared to avoid duplicate captions in downstream renderers.
 - Auto-caption source attributes and image-only separator/attribute text are mutated only after wrapping is confirmed; rejected candidates and tight-list paragraphs preserve baseline output.
 
 ## 6. Numbering Integration
-- `ensureAutoFigureNumbering` locates the label span via `opt.labelClassLookup` and updates counters only for enabled marks (`autoLabelNumberSets` / `autoLabelNumber`).
-- Manual numbers in captions win. Exact decimal `captionDecision.number` values update internal counters; compound/alphanumeric values are preserved but do not seed the decimal counter.
+- p-captions owns number resolution and label mutation through `createCaptionNumberingPolicy` / `createCaptionNumberingRuntime`; this plugin supplies the enabled marks and optional scope context. Do not reintroduce post-hoc label-span scanning.
+- Build one stable policy at setup and one runtime per render. All recursive walkers for that render share the runtime; separate renders, even on the same markdown-it instance, never share counters.
+- Default `autoLabelNumberSets` / `autoLabelNumber` behavior remains independent decimal image/table counters. Manual exact decimal `captionDecision.number` values seed the default counter; compound/alphanumeric values are preserved without seeding it.
+- `autoLabelNumberPolicy` is opt-in formatting/scope behavior and does not enable marks. Its separator is `-` or `.`, and scope sources are `frontmatter` and/or top-level `heading` with configured levels.
+- Advanced numbering passes normalized context on every caption, including the unscoped form with `scopeKey`, `sequenceKey` set to `null`. `repeatScope: continue` uses semantic `scopeKey` as the counter partition; `reset` allocates a new finite render-local `sequenceKey` per occurrence.
+- Heading/frontmatter scope recognition adds Chapter/Appendix/Japanese marker vocabulary, but delegates the suffix boundary to p-captions' `isCaptionLabelBoundary`. Visible heading prefixes are bounded and assembled conservatively from inline children; ambiguous token continuations, including formatted text attached immediately after a half-width joint, fail closed.
+- Canonical initial metadata is per-render `env.frontmatter.title`. Existing raw `front_matter` tokens require the explicit `resolveFrontmatterTitle` adapter; the plugin neither registers a frontmatter rule nor parses YAML. A validated `env.figureCaptionNumbering.scope` is a fixed per-render override.
+- `captionDecision` remains source-only. Generated numbers never overwrite its `number` / `hasExplicitNumber` fields.
+- All policy callbacks, explicit overrides, and generated-number validation complete before p-captions mutates tokens; counter commit follows successful label construction. Callback external side effects are outside rollback guarantees, so callbacks must be pure and synchronous.
 - Reject p-captions' `setFigureNumber` at setup. This plugin owns numbering through `autoLabelNumber` / `autoLabelNumberSets`; enabling both systems can duplicate labels and resets p-captions counters because helper calls are figure-local.
 
 ## 7. Figure Tokens, Classes, and Attrs
@@ -62,26 +74,32 @@
 - Caption paragraph attrs remain on the converted `figcaption` token (not moved onto `figure`).
 - `figure_open` / `figure_close` inherit `.map` from the wrapped source-line range to improve VS Code click/scroll sync.
 - `figure_open` / `figure_close` are block-level tokens, but this plugin still does not install renderer rules. `wrapWithFigure` inserts a distinct empty text token immediately after `figure_open` so markdown-it's default renderer emits the opening-tag newline without adding a blank line; image paragraph replacement still inserts an explicit newline before `figure_close`.
+- `labelClassFollowsFigure` and `figureToLabelClassMap` use the final wrapper class. For slide captions, resolve `figureClassThatWrapsSlides` before p-captions builds mirrored span classes; map keys therefore use `f-slide` (or the custom final slide class), not the preliminary `f-iframe` class.
 
 ## 8. Performance Notes
 - Regex caches reduce repeated allocations; `htmlRegCache` is module-level and `cleanCaptionRegCache` is instance-scoped on `opt` to avoid cross-instance leakage.
 - HTML detection uses case-insensitive tag hints before regex checks and skips regex when no target tag hint exists in the block.
+- HTML detection keeps newline/script normalization pending until the block is validated as a supported embed, so rejected HTML candidates remain untouched. Strict tag hints do not confuse custom tags such as `<iframe-widget>` or `<video-player>` with supported HTML elements.
 - Social embed blockquotes are matched by class-token membership, so extra classes on the provider blockquote do not block detection.
 - `detectHtmlFigureCandidate` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.
-- Generated fallback locale resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and the source contains Markdown image syntax; the no-override render path stays allocation-light.
+- Generated fallback locale resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and a valid image candidate actually needs fallback text. Resolve from the final token stream, not a raw `![` source hint, so image tokens injected by earlier core rules are handled correctly.
 - Setup normalizes `languages` and compatibility `preferredLanguages` once; render-time fallback ordering reuses those arrays directly and only inspects `env` / source when it must derive a tie-break.
 - Keep render-specific generated-label language order on per-render caption state rather than cloning the full option object. This lets p-captions reuse its normalized-option WeakMap entry across renders.
-- Numbering reads the exact `captionDecision.number` from p-captions and validates decimal values with a char scan instead of regex on hot paths.
-- Label span lookups avoid `split()` allocations; alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
-- `wrapWithFigure` must create distinct newline tokens; do not reuse one token object across multiple insert positions.
-- The current in-place walker is intentionally retained for nested-container correctness, but repeated `splice()` calls make very large documents with many sibling figures superlinear. p-captions 0.24.0 provides pure `analyzeCaptionParagraph()` plus validated `applyCaptionParagraph()` decisions for a future collect/plan/rebuild pass. Do not replace the compatibility wrapper one-for-one on the current immediate path: snapshot/freeze validation adds overhead unless it also enables batched token reconstruction.
+- Numbering-disabled renders allocate no numbering runtime. Scope catalogs and heading-prefix scans are used only when advanced numbering enables the corresponding source.
+- Heading-scope guards and parent close-token names are precomputed per walker. Captionless image wrapping resumes after the inserted figure instead of rescanning its new child tokens.
+- Raw frontmatter resolution checks only the initial token, matching frontmatter's document-start grammar instead of scanning ordinary paragraph tokens.
+- Default numbering no longer scans already-created label spans; p-captions resolves and applies the number during label-token construction.
+- Alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
+- `wrapWithFigure` uses module-level token/attribute helpers to avoid allocating helper closures per figure. It must still create distinct newline tokens; do not reuse one token object across multiple insert positions.
+- The current in-place walker is intentionally retained for nested-container correctness, but repeated `splice()` calls make very large documents with many sibling figures superlinear. p-captions 0.25.0 provides pure `analyzeCaptionParagraph()` plus validated `applyCaptionParagraph()` decisions for a future collect/plan/rebuild pass. Except for the narrow iframe/class-mirroring case above, do not replace the compatibility wrapper one-for-one on the current immediate path: snapshot/freeze validation adds overhead unless it also enables batched token reconstruction.
 
 ## 9. Tests
 - Fixtures under `test/*.txt` feed `test/test.js` (`npm test`).
 - Image-only coverage includes single/multi-image layouts, attrs, auto-caption detection, and invalid trailing text cases.
 - Dedicated examples cover slide class overrides and label class mirroring.
 - Additional dependency-focused checks run from repository-controlled paths: `npm run test:p-captions` and `npm run test:all`.
+- Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, frontmatter adapters, fixed env overrides, render reuse, and pre-mutation failure behavior.
 - Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95 and deep blockquote probe output.
 - Consumer repos may not include upstream dependency test files under `node_modules`; keep integration checks in root-owned scripts/tests.
 - Do not rely on durable tests under `node_modules`; treat those as ephemeral.

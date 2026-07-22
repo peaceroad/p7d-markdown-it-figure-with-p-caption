@@ -6,6 +6,7 @@ import mditAttrs from 'markdown-it-attrs'
 import mditRndererFence from '@peaceroad/markdown-it-renderer-fence'
 import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
 import mditBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
+import mditFrontMatter from 'markdown-it-front-matter'
 import mditPCaption from 'p7d-markdown-it-p-captions'
 
 import mdFigureWithPCaption from '../index.js'
@@ -65,7 +66,7 @@ const mdLabelClassMap = mdit({ html: true }).use(mdFigureWithPCaption, {
   figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
   figureToLabelClassMap: {
     'f-embed': 'caption-embed caption-social',
-    'f-iframe': 'caption-slide-label caption-slide-extra',
+    'f-slide': 'caption-slide-label caption-slide-extra',
     'f-img': ['c-figure', 'alt-figure-body'],
   },
 }).use(mditAttrs).use(mditRndererFence);
@@ -75,7 +76,7 @@ const mdLabelClassMapImplicit = mdit({ html: true }).use(mdFigureWithPCaption, {
   figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
   figureToLabelClassMap: {
     'f-embed': 'caption-embed caption-social',
-    'f-iframe': 'caption-slide-label caption-slide-extra',
+    'f-slide': 'caption-slide-label caption-slide-extra',
     'f-img': ['c-figure', 'alt-figure-body'],
   },
 }).use(mditAttrs).use(mditRndererFence);
@@ -451,7 +452,83 @@ const mdAutoAltCaptionFigureDot = mdit({ html: true }).use(mdFigureWithPCaption,
   autoAltCaption: 'Figure.',
 })
 const mdTokenMetadata = mdit({ html: true }).use(mdFigureWithPCaption)
+const mdHtmlNoopBaseline = mdit({ html: true })
+const mdHtmlNoopPlugin = mdit({ html: true }).use(mdFigureWithPCaption)
+const mdRepeatedPluginUse = mdit({ html: true })
+  .use(mdFigureWithPCaption)
+  .use(mdFigureWithPCaption, { classPrefix: 'ignored' })
 try {
+  assert.strictEqual(
+    mdRepeatedPluginUse.core.ruler.__rules__.filter((rule) => rule.name === 'figure_with_caption').length,
+    1,
+  )
+  assert.ok(mdRepeatedPluginUse.render('![A](a.jpg)\n\nFigure. Caption.').includes('class="f-img"'))
+  assert.ok(!mdRepeatedPluginUse.render('![A](a.jpg)\n\nFigure. Caption.').includes('ignored-img'))
+  assert.throws(
+    () => mdRepeatedPluginUse.use(mdFigureWithPCaption, { setFigureNumber: true }),
+    /autoLabelNumber or autoLabelNumberSets/,
+  )
+  assert.ok(
+    mdit().use(mdFigureWithPCaption, { roleDocExample: true })
+      .render('Code. Example.\n\n```js\nx\n```')
+      .includes('<figure class="f-pre-code" role="doc-example">'),
+  )
+  assert.ok(
+    mdit().use(mdFigureWithPCaption, { bLabel: true })
+      .render('![A](a.jpg)\n\nFigure. Caption.')
+      .includes('<b class="f-img-label">'),
+  )
+  assert.ok(
+    mdit().use(mdFigureWithPCaption, { strongLabel: true })
+      .render('![A](a.jpg)\n\nFigure. Caption.')
+      .includes('<strong class="f-img-label">'),
+  )
+  assert.ok(
+    mdit().use(mdFigureWithPCaption, { removeMarkNameInCaptionClass: true })
+      .render('![A](a.jpg)\n\nFigure. Caption.')
+      .includes('<span class="f-label">'),
+  )
+  const mirroredSlideHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    labelClassFollowsFigure: true,
+    wrapCaptionBody: true,
+    figureClassThatWrapsSlides: 'f-slide-custom',
+    figureToLabelClassMap: { 'f-slide-custom': 'caption-slide' },
+  }).render('Slide. Custom slide.\n\n<iframe src="https://example.com/x"></iframe>')
+  assert.ok(mirroredSlideHtml.includes('<figure class="f-slide-custom">'))
+  assert.ok(mirroredSlideHtml.includes('<span class="caption-slide-label f-slide-label">'))
+  assert.ok(mirroredSlideHtml.includes('<span class="caption-slide-body f-slide-body">'))
+  assert.ok(!mirroredSlideHtml.includes('f-iframe-label'))
+  assert.strictEqual(
+    mdit().use(mdFigureWithPCaption, { autoCaptionDetection: false })
+      .render('![Figure. Keep alt](a.jpg)'),
+    '<p><img src="a.jpg" alt="Figure. Keep alt"></p>\n',
+  )
+  assert.ok(
+    !mdit().use(mdFigureWithPCaption, { multipleImages: false })
+      .render('![A](a.jpg) ![B](b.jpg)\n\nFigure. Keep paragraph.')
+      .includes('<figure'),
+  )
+  assert.ok(
+    !mdit().use(mdFigureWithPCaption, { styleProcess: false })
+      .render('![A](a.jpg){.wide}\n\nFigure. Keep paragraph.')
+      .includes('<figure'),
+  )
+  const noClassPrefixHtml = mdit().use(mdFigureWithPCaption, { classPrefix: '' })
+    .render('![A](a.jpg)\n\nFigure. Caption.')
+  assert.ok(noClassPrefixHtml.includes('<figure class="img">'))
+  assert.ok(noClassPrefixHtml.includes('<span class="img-label">'))
+  const policyWithoutMarksHtml = mdit().use(mdFigureWithPCaption, {
+    autoLabelNumberPolicy: { separator: '.', scope: { sources: ['heading'] } },
+  }).render('# Chapter 2\n\n![A](a.jpg)\n\nFigure. Caption.')
+  assert.ok(policyWithoutMarksHtml.includes('>Figure<span'))
+  assert.ok(!policyWithoutMarksHtml.includes('>Figure 2.1<span'))
+  const explicitNoClassMirroringHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    labelClassFollowsFigure: false,
+    figureClassThatWrapsIframeTypeBlockquote: 'f-embed',
+    figureToLabelClassMap: { 'f-embed': 'caption-embed' },
+  }).render('Source. Embed.\n\n<blockquote class="twitter-tweet"></blockquote>')
+  assert.ok(explicitNoClassMirroringHtml.includes('<figure class="f-embed">'))
+  assert.ok(!explicitNoClassMirroringHtml.includes('caption-embed-label'))
   assert.strictEqual(
     mdImageOnlyParagraphWithoutCaption.render('![A](a.jpg) ![B](b.jpg)'),
     '<figure class="f-img-horizontal">\n<img src="a.jpg" alt="A"><img src="b.jpg" alt="B">\n</figure>\n',
@@ -468,6 +545,15 @@ try {
     mdVideoWithoutCaptionOnly.render('<div class="embed"><iframe src="https://example.com/embed"></iframe></div>'),
     '<div class="embed"><iframe src="https://example.com/embed"></iframe></div>\n',
   )
+  for (const source of [
+    '<blockquote class="ordinary">Not an embed.</blockquote>',
+    '<div><iframe-widget></iframe-widget></div>',
+    '<video-player></video-player>',
+    '<audio-player></audio-player>',
+    '<blockquote-widget></blockquote-widget>',
+  ]) {
+    assert.strictEqual(mdHtmlNoopPlugin.render(source), mdHtmlNoopBaseline.render(source))
+  }
   assert.strictEqual(
     mdVideoWithoutCaptionOnly.render('<div class="embed"><iframe src="https://www.youtube.com/embed/x"></iframe></div>'),
     '<figure class="f-video">\n<div class="embed"><iframe src="https://www.youtube.com/embed/x"></iframe></div>\n</figure>\n',
@@ -476,6 +562,10 @@ try {
   assert.strictEqual(
     mdAutoAltCaptionFigureDot.render('![Plain alt](plain.jpg)'),
     '<figure class="f-img">\n<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain alt</figcaption>\n<img src="plain.jpg" alt="">\n</figure>\n',
+  )
+  assert.strictEqual(
+    mdit().use(mdFigureWithPCaption, { autoAltCaption: '図　' }).render('![Plain alt](plain.jpg)'),
+    '<figure class="f-img">\n<figcaption><span class="f-img-label">図<span class="f-img-label-joint">　</span></span>Plain alt</figcaption>\n<img src="plain.jpg" alt="">\n</figure>\n',
   )
   const imageMetadataTokens = mdTokenMetadata.parse('Figure. Caption.\n\n![Figure](cat.jpg)', {})
   const imageFigureOpen = imageMetadataTokens.find((token) => token.type === 'figure_open')
@@ -508,6 +598,14 @@ try {
     /autoTitleCaption/,
   )
   assert.throws(
+    () => mdit({ html: true }).use(mdFigureWithPCaption, { autoAltCaption: 1 }),
+    /autoAltCaption/,
+  )
+  assert.throws(
+    () => mdit({ html: true }).use(mdFigureWithPCaption, { autoTitleCaption: {} }),
+    /autoTitleCaption/,
+  )
+  assert.throws(
     () => mdit({ html: true }).use(mdFigureWithPCaption, { setFigureNumber: true }),
     /autoLabelNumber or autoLabelNumberSets/,
   )
@@ -527,6 +625,12 @@ try {
   )
   assert.ok(compoundNumberHtml.includes('>Figure A.5<span'))
   assert.ok(compoundNumberHtml.includes('>Figure 1<span'))
+  assert.throws(
+    () => mdCompoundManualNumber.render(
+      'Figure 999999. Seed.\n\n![A](a.jpg)\n\nFigure. Overflow.\n\n![B](b.jpg)',
+    ),
+    RangeError,
+  )
 } catch (e) {
   pass = false
   console.log('new behavior regression failed.')
@@ -554,6 +658,38 @@ try {
   assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { locale: 'ja-JP' }).includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { preferredLocales: ['ja-JP', 'en-US'] }).includes('<span class="f-img-label">図'))
   assert.ok(mdAltCaptionFallback.render('![A cat](cat.jpg)', { lang: 'ja' }).includes('<span class="f-img-label">図'))
+  let localeReads = 0
+  const lazyLocaleEnv = {}
+  Object.defineProperty(lazyLocaleEnv, 'locale', {
+    get() {
+      localeReads++
+      return 'ja-JP'
+    },
+  })
+  mdAltCaptionFallback.render('Figure. Manual.\n\n![A](manual.jpg)', lazyLocaleEnv)
+  assert.strictEqual(localeReads, 0)
+  mdAltCaptionFallback.render('![A cat](cat-1.jpg)\n\n![Another cat](cat-2.jpg)', lazyLocaleEnv)
+  assert.strictEqual(localeReads, 1)
+  const injectImageToken = (md) => {
+    md.core.ruler.before('figure_with_caption', 'inject_test_image', (state) => {
+      const inlineToken = state.tokens.find((token) => token.type === 'inline' && token.content === 'INJECT_IMAGE')
+      if (!inlineToken) return
+      const imageToken = new state.Token('image', 'img', 0)
+      imageToken.attrs = [['src', 'injected.jpg'], ['alt', 'A cat']]
+      imageToken.content = 'A cat'
+      const altToken = new state.Token('text', '', 0)
+      altToken.content = 'A cat'
+      imageToken.children = [altToken]
+      inlineToken.children = [imageToken]
+    })
+  }
+  const injectedImageMd = mdit().use(mdFigureWithPCaption, {
+    autoAltCaption: true,
+  }).use(injectImageToken)
+  assert.ok(
+    injectedImageMd.render('INJECT_IMAGE', { locale: 'ja-JP' })
+      .includes('<span class="f-img-label">図'),
+  )
   const mdAltCaptionFallbackOptionPreferredEn = mdit({ html: true }).use(mdFigureWithPCaption, {
     languages: ['en', 'ja'],
     preferredLanguages: ['en'],
@@ -573,6 +709,12 @@ try {
   const labelBoundaryHtml = mdLabelClassBoundaryNumbering.render('Figure. Boundary.\n\n![Figure](cat.jpg)')
   assert.ok(labelBoundaryHtml.includes('class="prefix-f-img-label f-img-label"'))
   assert.ok(labelBoundaryHtml.includes('Figure 1'))
+  const generatedHasNumClassHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    hasNumClass: true,
+  }).render('Figure. Generated.\n\n![Figure](generated.jpg)')
+  assert.ok(generatedHasNumClassHtml.includes('Figure 1'))
+  assert.ok(!generatedHasNumClassHtml.includes('label-has-num'))
 } catch (e) {
   pass = false
   console.log('class option normalization regression failed.')
@@ -646,6 +788,271 @@ try {
   console.log('en-only (ja caption):', figureLanguageJaHtmlFromEn)
   console.log('ja-only (ja caption):', figureLanguageJaHtml)
   console.log('ja-only (en caption):', figureLanguageEnHtmlFromJa)
+}
+
+const createScopedMd = (scope = { sources: ['heading'], headingLevels: [1], repeatScope: 'continue' }, separator = '-') => (
+  mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberPolicy: { separator, scope },
+  })
+)
+const scopedFigureMarkdown = (heading, caption = 'Figure. Caption.') => (
+  `${heading}\n\n![A](a.jpg)\n\n${caption}`
+)
+const getRenderedFigureNumbers = (html) => Array.from(html.matchAll(/>Figure ([A-Z0-9.-]+)<span/g), match => match[1])
+
+try {
+  const recognizedScopes = [
+    ['# Chapter 1', '1-1'],
+    ['# chapter 2: Title', '2-1'],
+    ['# 第3章　題', '3-1'],
+    ['# 4章 題', '4-1'],
+    ['# Appendix 5', '5-1'],
+    ['# Appendix A: Data', 'A-1'],
+    ['# 付録B　資料', 'B-1'],
+    ['# 付属6：資料', '6-1'],
+    ['# 附属C：資料', 'C-1'],
+  ]
+  for (const [heading, expected] of recognizedScopes) {
+    assert.deepStrictEqual(getRenderedFigureNumbers(createScopedMd().render(scopedFigureMarkdown(heading))), [expected])
+  }
+
+  const rejectedScopes = [
+    '# Chapter 1st',
+    '# Chapter One',
+    '# Appendix API',
+    '# 第1章立てで説明する',
+    '# 1章分を読む',
+    '# 付録について',
+    '# 附属資料',
+    '# Chapter 1**st**',
+    '# Chapter 1:**st**',
+    '# Chapter 1.**st**',
+    '# Appendix A**PI**',
+    '# 第1章*立て*',
+    '# 1章*分*',
+    '# Chapter 1[st](https://example.com)',
+    '# **Chapter 1**',
+  ]
+  for (const heading of rejectedScopes) {
+    assert.deepStrictEqual(getRenderedFigureNumbers(createScopedMd().render(scopedFigureMarkdown(heading))), ['1'])
+  }
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(createScopedMd().render(scopedFigureMarkdown('# Chapter 1: *Introduction*'))),
+    ['1-1'],
+  )
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(createScopedMd().render(scopedFigureMarkdown('# Chapter 1 *Introduction*'))),
+    ['1-1'],
+  )
+
+  const repeated = '# Chapter 1\n\n![A](a.jpg)\n\nFigure. First.\n\n# Chapter 1\n\n![B](b.jpg)\n\nFigure. Second.'
+  assert.deepStrictEqual(getRenderedFigureNumbers(createScopedMd().render(repeated)), ['1-1', '1-2'])
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(createScopedMd({ sources: ['heading'], headingLevels: [1], repeatScope: 'reset' }).render(repeated)),
+    ['1-1', '1-1'],
+  )
+
+  const beforeAndAfter = '![A](a.jpg)\n\nFigure. Before.\n\n# Chapter 2\n\n![B](b.jpg)\n\nFigure 2-5. Manual.\n\n![C](c.jpg)\n\nFigure. After.'
+  assert.deepStrictEqual(getRenderedFigureNumbers(createScopedMd().render(beforeAndAfter)), ['1', '2-5', '2-6'])
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(createScopedMd({ sources: ['heading'], headingLevels: [2] }).render(scopedFigureMarkdown('# Chapter 1'))),
+    ['1'],
+  )
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(createScopedMd().render('> # Chapter 9\n\n![A](a.jpg)\n\nFigure. Outside.')),
+    ['1'],
+  )
+  for (const captionedBlockquoteThenHeading of [
+    '# Chapter 1\n\nSource. Quote.\n\n> quoted\n\n# Chapter 2\n\n![A](a.jpg)\n\nFigure. After.',
+    '# Chapter 1\n\n> quoted\n\nSource. Quote.\n\n# Chapter 2\n\n![A](a.jpg)\n\nFigure. After.',
+  ]) {
+    assert.deepStrictEqual(
+      getRenderedFigureNumbers(createScopedMd().render(captionedBlockquoteThenHeading)),
+      ['2-1'],
+    )
+  }
+} catch (e) {
+  pass = false
+  console.log('advanced heading scope numbering regression failed.')
+  console.log(e)
+}
+
+try {
+  const frontmatterMd = createScopedMd({
+    sources: ['frontmatter', 'heading'],
+    headingLevels: [1],
+    repeatScope: 'continue',
+  }, '.')
+  const source = '![A](a.jpg)\n\nFigure. Caption.'
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(frontmatterMd.render(source, { frontmatter: { title: 'Appendix A: Data' } })),
+    ['A.1'],
+  )
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(frontmatterMd.render(source, {
+      figureCaptionNumbering: {
+        scope: { scopeKey: 'chapter:7', displayPrefix: '7' },
+      },
+      frontmatter: { title: 'Appendix A: Data' },
+    })),
+    ['7.1'],
+  )
+  const overrideOnlyMd = createScopedMd({ sources: [] })
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(overrideOnlyMd.render(source, {
+      figureCaptionNumbering: {
+        scope: { scopeKey: 'appendix:C', sequenceKey: 3, displayPrefix: 'C' },
+      },
+    })),
+    ['C-1'],
+  )
+  assert.deepStrictEqual(getRenderedFigureNumbers(frontmatterMd.render(source, {})), ['1'])
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(frontmatterMd.render(source, { frontmatter: { title: 2 } })),
+    ['1'],
+  )
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(frontmatterMd.render(source, { frontmatter: { title: 'Chapter 2' } })),
+    ['2.1'],
+  )
+  const reusedEnv = { frontmatter: { title: 'Chapter 4' } }
+  assert.deepStrictEqual(getRenderedFigureNumbers(frontmatterMd.render(source, reusedEnv)), ['4.1'])
+  reusedEnv.frontmatter.title = 'Chapter 5'
+  assert.deepStrictEqual(getRenderedFigureNumbers(frontmatterMd.render(source, reusedEnv)), ['5.1'])
+  assert.deepStrictEqual(getRenderedFigureNumbers(frontmatterMd.render(source, reusedEnv)), ['5.1'])
+
+  let rawFrontmatterCallbackCalls = 0
+  const rawFrontmatterMd = mdit({ html: true })
+    .use(mditFrontMatter, () => { rawFrontmatterCallbackCalls++ })
+    .use(mdFigureWithPCaption, {
+      autoLabelNumber: true,
+      autoLabelNumberPolicy: {
+        separator: '-',
+        scope: {
+          sources: ['frontmatter'],
+          resolveFrontmatterTitle(raw) {
+            const match = raw.match(/^title:\s*(.+)$/m)
+            return match ? match[1] : null
+          },
+        },
+      },
+    })
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(rawFrontmatterMd.render('---\ntitle: Appendix B\n---\n\n' + source)),
+    ['B-1'],
+  )
+  assert.strictEqual(rawFrontmatterCallbackCalls, 1)
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(rawFrontmatterMd.render('---\nnot-title: Appendix B\n---\n\n' + source)),
+    ['1'],
+  )
+  assert.strictEqual(rawFrontmatterCallbackCalls, 2)
+
+  let reverseOrderCallbackCalls = 0
+  const failingResolverMd = mdit({ html: true })
+    .use(mdFigureWithPCaption, {
+      autoLabelNumber: true,
+      autoLabelNumberPolicy: {
+        scope: {
+          sources: ['frontmatter'],
+          resolveFrontmatterTitle() {
+            throw new Error('malformed frontmatter')
+          },
+        },
+      },
+    })
+    .use(mditFrontMatter, () => { reverseOrderCallbackCalls++ })
+  assert.deepStrictEqual(
+    getRenderedFigureNumbers(failingResolverMd.render('---\ntitle: Chapter 8\n---\n\n' + source)),
+    ['1'],
+  )
+  assert.strictEqual(reverseOrderCallbackCalls, 1)
+
+  let capturedTokens = null
+  const invalidOverrideMd = createScopedMd()
+  invalidOverrideMd.core.ruler.before('figure_with_caption', 'capture_invalid_scope_tokens', (state) => {
+    capturedTokens = { tokens: state.tokens, before: JSON.stringify(state.tokens) }
+  })
+  assert.throws(
+    () => invalidOverrideMd.render(source, { figureCaptionNumbering: { scope: null } }),
+    /figureCaptionNumbering\.scope/,
+  )
+  assert.strictEqual(JSON.stringify(capturedTokens.tokens), capturedTokens.before)
+  assert.throws(
+    () => overrideOnlyMd.render(source, { figureCaptionNumbering: { scope: null } }),
+    /figureCaptionNumbering\.scope/,
+  )
+  assert.throws(
+    () => overrideOnlyMd.render(
+      '![A](a.jpg)\n\nFigure 999999. Seed.\n\n![B](b.jpg)\n\nFigure. Overflow.',
+    ),
+    RangeError,
+  )
+  let autoOverflowState = null
+  let autoOverflowImage = null
+  const autoOverflowMd = createScopedMd({ sources: [] })
+  autoOverflowMd.core.ruler.before('figure_with_caption', 'capture_auto_overflow_tokens', (state) => {
+    autoOverflowState = state
+    const images = state.tokens
+      .flatMap(token => Array.isArray(token.children) ? token.children : [])
+      .filter(token => token.type === 'image')
+    autoOverflowImage = images[images.length - 1]
+  })
+  assert.throws(
+    () => autoOverflowMd.render(
+      'Figure 999999. Seed.\n\n![Seed](a.jpg)\n\n![Figure. Overflow.](b.jpg)',
+    ),
+    RangeError,
+  )
+  assert.strictEqual(autoOverflowImage.content, 'Figure. Overflow.')
+  assert.strictEqual(
+    autoOverflowState.tokens.some(token => token.type === 'inline' && token.content === 'Figure. Overflow.'),
+    false,
+  )
+} catch (e) {
+  pass = false
+  console.log('frontmatter/env scope numbering regression failed.')
+  console.log(e)
+}
+
+try {
+  assert.throws(
+    () => mdit().use(mdFigureWithPCaption, { autoLabelNumberPolicy: [] }),
+    /autoLabelNumberPolicy/,
+  )
+  assert.throws(
+    () => mdit().use(mdFigureWithPCaption, { autoLabelNumberPolicy: { scope: true } }),
+    /autoLabelNumberPolicy\.scope/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: ['heading'], headingLevels: [0] }),
+    /headingLevels/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: ['heading'], headingLevels: 1 }),
+    /headingLevels/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: ['unknown'] }),
+    /sources/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: ['heading'], repeatScope: 'unknown' }),
+    /repeatScope/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: ['frontmatter'], resolveFrontmatterTitle: true }),
+    /resolveFrontmatterTitle/,
+  )
+  assert.throws(
+    () => createScopedMd({ sources: [] }, ':'),
+    /separator/,
+  )
+} catch (e) {
+  pass = false
+  console.log('advanced numbering option validation failed.')
+  console.log(e)
 }
 
 if (pass) {

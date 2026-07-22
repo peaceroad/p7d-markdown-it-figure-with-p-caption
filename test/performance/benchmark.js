@@ -124,6 +124,31 @@ const buildSiblingFigureDocument = (count) => {
   return figures.join('\n\n')
 }
 
+const buildCaptionlessImageDocument = (count) => {
+  const images = []
+  for (let i = 0; i < count; i++) {
+    images.push(`![Image ${i}](https://example.com/captionless-${i}.png)`)
+  }
+  return images.join('\n\n')
+}
+
+const buildScopedFigureDocument = (count) => {
+  const figures = []
+  for (let i = 0; i < count; i++) {
+    if (i % 25 === 0) figures.push(`# Chapter ${Math.floor(i / 25) + 1}`)
+    figures.push(`Figure. Scoped ${i}\n\n![Scoped ${i}](https://example.com/scoped-${i}.png)`)
+  }
+  return figures.join('\n\n')
+}
+
+const buildNegativeScopeHeadingDocument = (count) => {
+  const headings = []
+  for (let i = 0; i < count; i++) {
+    headings.push(`# Chapter ${i + 1}st\n\nNot a scope marker.`)
+  }
+  return headings.join('\n\n')
+}
+
 const runSiblingProbe = (md, counts) => {
   const results = []
   console.log('\nSibling probe (dense figure documents):')
@@ -145,6 +170,18 @@ const pluginMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption)
   .use(mditAttrs)
   .use(mditRendererFence)
+const numberedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { autoLabelNumber: true })
+const captionlessImageMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { imageOnlyParagraphWithoutCaption: true })
+const scopedNumberedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberPolicy: {
+      separator: '-',
+      scope: { sources: ['heading'], headingLevels: [1], repeatScope: 'continue' },
+    },
+  })
 
 console.log(`markdown-it maxNesting=${pluginMd.options.maxNesting}`)
 console.log('=== Render benchmark ===')
@@ -152,6 +189,12 @@ runRenderBench('baseline/small', baseMd, corpusSmall)
 runRenderBench('plugin/small', pluginMd, corpusSmall)
 runRenderBench('baseline/full', baseMd, corpusFull)
 runRenderBench('plugin/full', pluginMd, corpusFull)
+
+console.log('\nNumbering/scope probes:')
+runRenderBench('numbered/siblings/500', numberedMd, buildSiblingFigureDocument(500), 9, 3)
+runRenderBench('captionless/images/500', captionlessImageMd, buildCaptionlessImageDocument(500), 9, 3)
+runRenderBench('scoped/figures/500', scopedNumberedMd, buildScopedFigureDocument(500), 9, 3)
+runRenderBench('scoped/negative-headings/500', scopedNumberedMd, buildNegativeScopeHeadingDocument(500), 9, 3)
 
 runDepthProbe(pluginMd, [5, 10, 20, 40, 80, 120, 180, 260, 360, 500, 700, 900])
 runSiblingProbe(pluginMd, [100, 500, 1000])
