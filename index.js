@@ -25,6 +25,9 @@ const labelTrailingJointReg = /[.\u3002\uff0e:：\u3000]\s*$/
 const captionNumberSegmentReg = /^[A-Z0-9]{1,6}$/
 const maxScopeKeyLength = 256
 const maxScopeVisiblePrefixLength = 128
+const frontmatterNumberingKey = 'figure-caption-numbering'
+const frontmatterNumberingScopeKey = frontmatterNumberingKey + '.scope'
+const frontmatterNumberingSeparatorKey = frontmatterNumberingKey + '.separator'
 const installedKey = Symbol.for('p7d-markdown-it-figure-with-p-caption.installed')
 const scopeTransparentInlineTokenTypes = new Set([
   'em_open', 'em_close',
@@ -320,6 +323,20 @@ const parseAsciiPositiveIntegerOrNull = (text) => {
   return Number.isSafeInteger(value) && value > 0 ? value : null
 }
 
+const normalizeNumberingSeparator = (value, optionName) => {
+  if (value !== '-' && value !== '.') {
+    throw new TypeError(`${optionName} must be "-" or ".".`)
+  }
+  return value
+}
+
+const normalizeNumberingScopeMode = (value, optionName) => {
+  if (value !== 'auto' && value !== 'document') {
+    throw new TypeError(`${optionName} must be "auto" or "document".`)
+  }
+  return value
+}
+
 const normalizeScopeSources = (value) => {
   if (value === undefined) return []
   if (!Array.isArray(value)) {
@@ -357,10 +374,10 @@ const normalizeAutoLabelNumberPolicy = (value) => {
   if (typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError('autoLabelNumberPolicy must be an object or null.')
   }
-  const separator = value.separator === undefined ? '-' : value.separator
-  if (separator !== '-' && separator !== '.') {
-    throw new TypeError('autoLabelNumberPolicy.separator must be "-" or ".".')
-  }
+  const separator = normalizeNumberingSeparator(
+    value.separator === undefined ? '.' : value.separator,
+    'autoLabelNumberPolicy.separator',
+  )
   let scope = null
   if (value.scope !== undefined && value.scope !== null) {
     if (typeof value.scope !== 'object' || Array.isArray(value.scope)) {
@@ -454,10 +471,15 @@ const createFigureCaptionNumberingPolicy = (enabledMarks, advancedPolicy, markRe
   })
 }
 
-const startsWithAsciiCaseInsensitive = (text, expectedLowerCase) => (
-  text.length >= expectedLowerCase.length &&
-  text.slice(0, expectedLowerCase.length).toLowerCase() === expectedLowerCase
-)
+const startsWithAsciiCaseInsensitive = (text, expectedLowerCase) => {
+  if (text.length < expectedLowerCase.length) return false
+  for (let index = 0; index < expectedLowerCase.length; index++) {
+    let code = text.charCodeAt(index)
+    if (code >= 0x41 && code <= 0x5a) code += 0x20
+    if (code !== expectedLowerCase.charCodeAt(index)) return false
+  }
+  return true
+}
 
 const readAsciiDigits = (text, start) => {
   let end = start
@@ -593,6 +615,56 @@ const normalizeFigureSequenceKey = (value, optionName) => {
   throw new TypeError(`${optionName} must be a non-empty string or a finite number.`)
 }
 
+const getFrontmatterNumberingOverride = (env) => {
+  const frontmatter = env && env.frontmatter
+  if (!frontmatter || typeof frontmatter !== 'object' || Array.isArray(frontmatter)) return null
+  const hasNested = hasOwnOption(frontmatter, frontmatterNumberingKey)
+  const hasDottedScope = hasOwnOption(frontmatter, frontmatterNumberingScopeKey)
+  const hasDottedSeparator = hasOwnOption(frontmatter, frontmatterNumberingSeparatorKey)
+  if (!hasNested && !hasDottedScope && !hasDottedSeparator) return null
+  const value = hasNested ? frontmatter[frontmatterNumberingKey] : null
+  const optionName = `env.frontmatter["${frontmatterNumberingKey}"]`
+  if (hasNested && (!value || typeof value !== 'object' || Array.isArray(value))) {
+    throw new TypeError(`${optionName} must be an object.`)
+  }
+  if (hasNested) {
+    const keys = Object.keys(value)
+    for (let index = 0; index < keys.length; index++) {
+      const key = keys[index]
+      if (key !== 'scope' && key !== 'separator') {
+        throw new TypeError(`${optionName}.${key} is not supported.`)
+      }
+    }
+  }
+  const normalized = {}
+  if (hasNested && hasOwnOption(value, 'scope')) {
+    if (hasDottedScope) {
+      throw new TypeError(`${optionName}.scope is defined more than once.`)
+    }
+    normalized.scope = normalizeNumberingScopeMode(value.scope, `${optionName}.scope`)
+  } else if (hasDottedScope) {
+    normalized.scope = normalizeNumberingScopeMode(
+      frontmatter[frontmatterNumberingScopeKey],
+      `env.frontmatter["${frontmatterNumberingScopeKey}"]`,
+    )
+  }
+  if (hasNested && hasOwnOption(value, 'separator')) {
+    if (hasDottedSeparator) {
+      throw new TypeError(`${optionName}.separator is defined more than once.`)
+    }
+    normalized.separator = normalizeNumberingSeparator(
+      value.separator,
+      `${optionName}.separator`,
+    )
+  } else if (hasDottedSeparator) {
+    normalized.separator = normalizeNumberingSeparator(
+      frontmatter[frontmatterNumberingSeparatorKey],
+      `env.frontmatter["${frontmatterNumberingSeparatorKey}"]`,
+    )
+  }
+  return normalized
+}
+
 const normalizeExplicitScopeOverride = (value, separator) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError('env.figureCaptionNumbering.scope must be an object.')
@@ -672,25 +744,58 @@ const resolveInitialFrontmatterScope = (state, scopeConfig) => {
 const createNumberingScopeState = (state, advancedPolicy, unscopedContext) => {
   const scopeConfig = advancedPolicy && advancedPolicy.scope
   if (!scopeConfig) return null
-  const scopeState = {
-    separator: advancedPolicy.separator,
-    repeatScope: scopeConfig.repeatScope,
-    nextResetSequenceKey: 1,
-    currentContext: unscopedContext,
-    fixed: false,
-    scopeConfig,
-  }
   const env = state.env && typeof state.env === 'object' ? state.env : null
-  if (env && Object.prototype.hasOwnProperty.call(env, 'figureCaptionNumbering')) {
+  const frontmatterOverride = getFrontmatterNumberingOverride(env)
+  let separator = hasOwnOption(frontmatterOverride, 'separator')
+    ? frontmatterOverride.separator
+    : advancedPolicy.separator
+  let scopeMode = hasOwnOption(frontmatterOverride, 'scope')
+    ? frontmatterOverride.scope
+    : 'auto'
+  let explicitScope = null
+  let hasExplicitScope = false
+  if (env && hasOwnOption(env, 'figureCaptionNumbering')) {
     const namespace = env.figureCaptionNumbering
     if (!namespace || typeof namespace !== 'object' || Array.isArray(namespace)) {
       throw new TypeError('env.figureCaptionNumbering must be an object.')
     }
-    if (Object.prototype.hasOwnProperty.call(namespace, 'scope')) {
-      scopeState.currentContext = normalizeExplicitScopeOverride(namespace.scope, advancedPolicy.separator)
-      scopeState.fixed = true
-      return scopeState
+    if (hasOwnOption(namespace, 'separator')) {
+      separator = normalizeNumberingSeparator(
+        namespace.separator,
+        'env.figureCaptionNumbering.separator',
+      )
     }
+    if (hasOwnOption(namespace, 'scope')) {
+      if (typeof namespace.scope === 'string') {
+        scopeMode = normalizeNumberingScopeMode(
+          namespace.scope,
+          'env.figureCaptionNumbering.scope',
+        )
+      } else {
+        explicitScope = namespace.scope
+        hasExplicitScope = true
+      }
+    }
+  }
+  const currentUnscopedContext = separator === advancedPolicy.separator
+    ? unscopedContext
+    : createUnscopedNumberingContext(separator)
+  const scopeState = {
+    separator,
+    repeatScope: scopeConfig.repeatScope,
+    nextResetSequenceKey: 1,
+    currentContext: currentUnscopedContext,
+    fixed: false,
+    scopeConfig,
+  }
+  if (hasExplicitScope) {
+    scopeState.currentContext = normalizeExplicitScopeOverride(explicitScope, separator)
+    scopeState.fixed = true
+    return scopeState
+  }
+  if (scopeMode === 'document') {
+    scopeState.fixed = true
+    return scopeState
   }
   if (scopeConfig.usesFrontmatter) {
     const initialScope = resolveInitialFrontmatterScope(state, scopeConfig)
@@ -1240,7 +1345,7 @@ const findClosingTokenIndex = (tokens, startIndex, tag) => {
 const detectCheckTypeOpen = (tokens, token, n, caption, baseType) => {
   if (!token || !baseType) return null
   if (n > 1 && tokens[n - 2] && tokens[n - 2].type === 'figure_open') return null
-  let tagName = token.tag
+  const tagName = token.tag
   caption.name = baseType
   if (baseType === 'pre') {
     if (tokens[n + 1] && tokens[n + 1].tag === 'code') caption.name = 'pre-code'

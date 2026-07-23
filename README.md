@@ -126,7 +126,7 @@ The advanced policy can derive a display prefix and an independent counter seque
 const md = mdit({ html: true }).use(mditFigureWithPCaption, {
   autoLabelNumber: true,
   autoLabelNumberPolicy: {
-    separator: '-', // '-' (default) or '.'
+    separator: '.', // '.' (default) or '-'
     scope: {
       sources: ['frontmatter', 'heading'],
       headingLevels: [1],
@@ -145,7 +145,7 @@ Recognized leading scope forms are `Chapter N`, `第N章`, `N章`, `Appendix N`,
 - Only configured top-level heading levels update scope. Headings inside blockquotes/lists do not become scope sources in this release, although figures inside those containers inherit the current top-level scope.
 - Captions before the first recognized scope use the ordinary unscoped decimal sequence.
 - With `repeatScope: 'continue'`, a repeated semantic scope resumes its prior per-mark counter. With `repeatScope: 'reset'`, every scope occurrence gets a new render-local counter partition even when its displayed prefix is identical.
-- In scoped mode, an explicit number seeds the counter only when it uses the active prefix and separator (for example, `Figure 2-5.` under `Chapter 2`). Other explicit numbers are preserved as source text but do not seed that sequence.
+- In scoped mode, an explicit number seeds the counter only when it uses the active prefix and separator (for example, `Figure 2.5.` under `Chapter 2` with the default separator). Other explicit numbers are preserved as source text but do not seed that sequence.
 
 The canonical frontmatter input is parsed metadata supplied per render as `env.frontmatter.title`:
 
@@ -155,11 +155,53 @@ md.render(source, { frontmatter: { title: 'Appendix A: Data' } })
 
 This plugin does not register a frontmatter block rule and does not parse YAML. If the host already produces a `front_matter` token, provide `resolveFrontmatterTitle(raw, state)` to adapt its raw string. Resolver errors and non-string results fail closed to the unscoped sequence. `markdown-it-front-matter` is used only as a development/integration-test adapter here; adding that detector alone does not parse a YAML `title`.
 
-A host may instead provide a validated fixed scope for one render. When `sequenceKey` is omitted it defaults to `scopeKey`; specify it when semantic identity and counter partition must differ:
+Parsed frontmatter may override the configured scope mode and separator for one document through the nested `figure-caption-numbering` object:
+
+```yaml
+---
+title: Chapter 1. A title
+figure-caption-numbering:
+  scope: auto
+  separator: "."
+---
+```
+
+The equivalent render input is:
+
+```js
+md.render(source, {
+  frontmatter: {
+    title: 'Chapter 1. A title',
+    'figure-caption-numbering': {
+      scope: 'auto',
+      separator: '.',
+    },
+  },
+})
+```
+
+The equivalent flattened form is also accepted when a frontmatter pipeline exposes dotted keys:
+
+```yaml
+---
+title: Chapter 1. A title
+figure-caption-numbering.scope: auto
+figure-caption-numbering.separator: "."
+---
+```
+
+Nested and dotted properties may be combined when they configure different fields, but defining the same logical field twice throws instead of choosing an ambiguous winner. Abbreviated aliases are intentionally not recognized.
+
+`scope: 'auto'` uses the heading/frontmatter sources enabled by `autoLabelNumberPolicy.scope`; it does not enable sources that the host did not configure. `scope: 'document'` fixes the render to the unscoped per-series counters, so a recognized `Chapter 1` still produces `Figure 1`, `Figure 2`, and so on. `separator` accepts only `.` or `-` and overrides the setup-time separator for that render. The default is `.`, so `Chapter 1` produces `Figure 1.1`; select `-` for `Figure 1-1`.
+
+Unknown nested properties, invalid values, and duplicate nested/dotted definitions throw before caption mutation.
+
+A host may override parsed frontmatter through `env.figureCaptionNumbering`. Its `scope` may be `'auto'`, `'document'`, or a validated fixed scope object. A render-level `separator` takes precedence over parsed frontmatter, which in turn takes precedence over `autoLabelNumberPolicy.separator`:
 
 ```js
 md.render(source, {
   figureCaptionNumbering: {
+    separator: '.',
     scope: {
       scopeKey: 'chapter:7',
       sequenceKey: 'edition-2:chapter:7',
@@ -169,7 +211,7 @@ md.render(source, {
 })
 ```
 
-Invalid explicit overrides throw before caption mutation rather than silently falling back to the unscoped sequence.
+When `sequenceKey` is omitted from a fixed scope it defaults to `scopeKey`; specify it when semantic identity and counter partition must differ. Invalid explicit overrides throw before caption mutation rather than silently falling back to the unscoped sequence.
 
 ## Basic Usage
 
