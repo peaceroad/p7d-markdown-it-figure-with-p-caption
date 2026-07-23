@@ -7,7 +7,7 @@
 
 ## 2. Core Pipeline
 - Registers the `figure_with_caption` core rule before `replacements` (after markdown-it-attrs has decorated paragraphs).
-- Repeated `.use(mditFigureWithPCaption)` calls on one markdown-it instance are ignored; use separate instances for different option sets.
+- Repeated `.use(mditFigureWithPCaption)` calls on one markdown-it instance are ignored before later options are validated. Initial setup validates/registers before setting the sentinel, so an invalid first call leaves the instance reusable; use separate instances for different successful option sets.
 - `figureWithCaptionCore` walks token arrays recursively, respecting container boundaries (`blockquote`, `list_item`, `dd`).
 - Tight list paragraphs (`token.hidden`) are skipped to avoid invalid HTML.
 - Caption detection (delegated to p-captions) intentionally skips paragraphs that appear immediately after `list_item_open`; first-block captions inside list items are treated as non-captions.
@@ -21,6 +21,7 @@
 - Fences: `fence` tokens become `pre-code` or `pre-samp` when info matches `samp|shell|console`.
 - HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; tag detection is case-insensitive. Social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
 - Known video iframe hosts include `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, and `player.vimeo.com`; known video iframes can be captionlessly wrapped by `videoWithoutCaption`.
+- An unknown iframe can still accept an explicit `Video.` / `動画` caption through the existing iframe caption-mark path. Its wrapper remains `f-iframe`; do not promote it to a known video wrapper based on caption text alone.
 - Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry + `detect.js` detector) so `index.js` only consumes detection results and wrapper policy.
 - Image paragraphs: inline children that start with an `image` and meet the image-only rules below.
 
@@ -57,7 +58,10 @@
 ## 6. Numbering Integration
 - p-captions owns number resolution and label mutation through `createCaptionNumberingPolicy` / `createCaptionNumberingRuntime`; this plugin supplies the enabled marks and optional scope context. Do not reintroduce post-hoc label-span scanning.
 - Build one stable policy at setup and one runtime per render. All recursive walkers for that render share the runtime; separate renders, even on the same markdown-it instance, never share counters.
-- Default `autoLabelNumberSets` / `autoLabelNumber` behavior remains independent decimal image/table counters. Manual exact decimal `captionDecision.number` values seed the default counter; compound/alphanumeric values are preserved without seeding it.
+- `autoLabelNumberSets` accepts strict user-facing marks `img`, `table`, `code` / `pre-code`, `samp` / `pre-samp`, and `video`; p-captions owns alias normalization. Unknown/non-string/empty entries and explicit `undefined` / `null` fail initial setup. `[]` explicitly disables numbering. `autoLabelNumber: true` remains only the img/table shorthand, and an explicit sets property wins.
+- Enabled checks use canonical `captionDecision.mark`, not wrapper classes or counter series. `removeUnnumberedLabelExceptMarks` is also compared by canonical decision mark after code/samp alias normalization.
+- The stable policy supplies a semantic `getCounterKey`: `img -> figure`, `pre-code -> listing`, `video -> video`, `table -> table`; `pre-samp` joins `figure` when its exact source label is also an active img label, joins `listing` when also a pre-code label, otherwise uses `samp`. Exact overlap checks call p-captions' cached `isCaptionLabelForMark` only for enabled pre-samp decisions.
+- Shared series advance only for enabled marks. Enabling img alone does not let a samp `図` advance the figure counter, and enabling samp alone does not let an image advance it. Manual exact decimals synchronize all enabled marks sharing the same counter key and scope key; compound/alphanumeric values are preserved without seeding an incompatible sequence.
 - `autoLabelNumberPolicy` is opt-in formatting/scope behavior and does not enable marks. Its separator is `-` or `.`, and scope sources are `frontmatter` and/or top-level `heading` with configured levels.
 - Advanced numbering passes normalized context on every caption, including the unscoped form with `scopeKey`, `sequenceKey` set to `null`. `repeatScope: continue` uses semantic `scopeKey` as the counter partition; `reset` allocates a new finite render-local `sequenceKey` per occurrence.
 - Heading/frontmatter scope recognition adds Chapter/Appendix/Japanese marker vocabulary, but delegates the suffix boundary to p-captions' `isCaptionLabelBoundary`. Visible heading prefixes are bounded and assembled conservatively from inline children; ambiguous token continuations, including formatted text attached immediately after a half-width joint, fail closed.
@@ -87,6 +91,7 @@
 - Setup normalizes `languages` and compatibility `preferredLanguages` once; render-time fallback ordering reuses those arrays directly and only inspects `env` / source when it must derive a tie-break.
 - Keep render-specific generated-label language order on per-render caption state rather than cloning the full option object. This lets p-captions reuse its normalized-option WeakMap entry across renders.
 - Numbering-disabled renders allocate no numbering runtime. Scope catalogs and heading-prefix scans are used only when advanced numbering enables the corresponding source.
+- The exact-label matcher table is built with the cached language state, but render-time overlap lookup occurs only for numbered `pre-samp` captions. Do not rescan the catalog or compile regexes per caption.
 - Heading-scope guards and parent close-token names are precomputed per walker. Captionless image wrapping resumes after the inserted figure instead of rescanning its new child tokens.
 - Raw frontmatter resolution checks only the initial token, matching frontmatter's document-start grammar instead of scanning ordinary paragraph tokens.
 - Default numbering no longer scans already-created label spans; p-captions resolves and applies the number during label-token construction.
@@ -99,7 +104,8 @@
 - Image-only coverage includes single/multi-image layouts, attrs, auto-caption detection, and invalid trailing text cases.
 - Dedicated examples cover slide class overrides and label class mirroring.
 - Additional dependency-focused checks run from repository-controlled paths: `npm run test:p-captions` and `npm run test:all`.
-- Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, frontmatter adapters, fixed env overrides, render reuse, and pre-mutation failure behavior.
+- Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, shared figure/listing samp sequences, frontmatter adapters, fixed env overrides, render reuse, and pre-mutation failure behavior.
+- Option/integration tests cover strict aliases and validation, invalid-first/retry and duplicate-use sentinel behavior, native fences and pre/code/samp token blocks, shared `図` / `リスト` series, raw/known/unknown video paths, captionless no-op counters, formatting options, and remove/except decision-mark filtering.
 - Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95 and deep blockquote probe output.
 - Consumer repos may not include upstream dependency test files under `node_modules`; keep integration checks in root-owned scripts/tests.
 - Do not rely on durable tests under `node_modules`; treat those as ephemeral.
@@ -107,4 +113,6 @@
 ## 10. Future Work
 - Investigate token pooling in `wrapWithFigure` to reduce GC churn on huge documents.
 - Expand HTML tag caching with subtype hints (e.g., iframe + YouTube).
+- Keep dense-sibling `splice()` instrumentation and a collect/plan/rebuild comparison as a separate performance project; do not combine that traversal rewrite with numbering semantics.
+- Split `index.js` only along measured, stable responsibility boundaries (setup/options, numbering scope, candidate detection, transforms/wrapping). Preserve one public entry point and avoid circular imports or per-render helper allocation while extracting modules.
 - Explore an opt-in strategy for tight lists (temporary split/merge or diagnostics).

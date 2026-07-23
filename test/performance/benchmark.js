@@ -149,6 +149,50 @@ const buildNegativeScopeHeadingDocument = (count) => {
   return headings.join('\n\n')
 }
 
+const buildNumberedFenceDocument = (count, label, info) => {
+  const blocks = []
+  for (let i = 0; i < count; i++) {
+    blocks.push(`${label}. Fence ${i}\n\n\`\`\`${info}\nvalue ${i}\n\`\`\``)
+  }
+  return blocks.join('\n\n')
+}
+
+const buildAlternatingFigureSampDocument = (count) => {
+  const blocks = []
+  for (let i = 0; i < count; i++) {
+    if (i % 2 === 0) {
+      blocks.push(`![Image ${i}](https://example.com/${i}.png)\n\n図　Figure ${i}`)
+    } else {
+      blocks.push(`図　Samp ${i}\n\n\`\`\`console\nvalue ${i}\n\`\`\``)
+    }
+  }
+  return blocks.join('\n\n')
+}
+
+const buildAlternatingListingSampDocument = (count) => {
+  const blocks = []
+  for (let i = 0; i < count; i++) {
+    const info = i % 2 === 0 ? 'js' : 'console'
+    const label = i % 2 === 0 ? 'Code' : 'リスト'
+    blocks.push(`${label}. Listing ${i}\n\n\`\`\`${info}\nvalue ${i}\n\`\`\``)
+  }
+  return blocks.join('\n\n')
+}
+
+const buildMixedVideoDocument = (count) => {
+  const blocks = []
+  for (let i = 0; i < count; i++) {
+    if (i % 3 === 0) {
+      blocks.push(`Video. Raw ${i}\n\n<video src="${i}.mp4">\n</video>`)
+    } else if (i % 3 === 1) {
+      blocks.push(`Video. Unknown ${i}\n\n<iframe src="https://example.com/${i}"></iframe>`)
+    } else {
+      blocks.push(`Video. Known ${i}\n\n<iframe src="https://www.youtube.com/embed/${i}"></iframe>`)
+    }
+  }
+  return blocks.join('\n\n')
+}
+
 const runSiblingProbe = (md, counts) => {
   const results = []
   console.log('\nSibling probe (dense figure documents):')
@@ -182,6 +226,12 @@ const scopedNumberedMd = markdownIt({ html: true })
       scope: { sources: ['heading'], headingLevels: [1], repeatScope: 'continue' },
     },
   })
+const codeNumberedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { autoLabelNumberSets: ['code'] })
+const sampNumberedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { autoLabelNumberSets: ['samp'] })
+const mixedNumberedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { autoLabelNumberSets: ['img', 'code', 'samp', 'video'] })
 
 console.log(`markdown-it maxNesting=${pluginMd.options.maxNesting}`)
 console.log('=== Render benchmark ===')
@@ -195,6 +245,15 @@ runRenderBench('numbered/siblings/500', numberedMd, buildSiblingFigureDocument(5
 runRenderBench('captionless/images/500', captionlessImageMd, buildCaptionlessImageDocument(500), 9, 3)
 runRenderBench('scoped/figures/500', scopedNumberedMd, buildScopedFigureDocument(500), 9, 3)
 runRenderBench('scoped/negative-headings/500', scopedNumberedMd, buildNegativeScopeHeadingDocument(500), 9, 3)
+
+console.log('\nExtended mark-numbering probes:')
+for (const count of [100, 500, 1000]) {
+  runRenderBench(`numbered/code/${count}`, codeNumberedMd, buildNumberedFenceDocument(count, 'Code', 'js'), 5, 2)
+  runRenderBench(`numbered/samp/${count}`, sampNumberedMd, buildNumberedFenceDocument(count, 'Terminal', 'console'), 5, 2)
+  runRenderBench(`numbered/figure-samp/${count}`, mixedNumberedMd, buildAlternatingFigureSampDocument(count), 5, 2)
+  runRenderBench(`numbered/listing-samp/${count}`, mixedNumberedMd, buildAlternatingListingSampDocument(count), 5, 2)
+  runRenderBench(`numbered/video/${count}`, mixedNumberedMd, buildMixedVideoDocument(count), 5, 2)
+}
 
 runDepthProbe(pluginMd, [5, 10, 20, 40, 80, 120, 180, 260, 360, 500, 700, 900])
 runSiblingProbe(pluginMd, [100, 500, 1000])

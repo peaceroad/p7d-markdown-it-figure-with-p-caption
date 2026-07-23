@@ -3,9 +3,12 @@ import {
   analyzeCaptionStart,
   applyCaptionParagraph,
   buildLabelPrefixMarkerRegFromMarkers,
+  canonicalizeCaptionNumberingMark,
   createCaptionNumberingPolicy,
   createCaptionNumberingRuntime,
   getGeneratedLabelDefaults,
+  isCaptionLabelForMark,
+  normalizeAutoLabelNumberSets,
   normalizeLabelPrefixMarkers,
   isCaptionLabelBoundary,
   setCaptionParagraph,
@@ -306,15 +309,6 @@ const parseImageAttrs = (raw) => {
   return attrs
 }
 
-const normalizeAutoLabelNumberSets = (value) => {
-  const normalized = { img: false, table: false }
-  if (!Array.isArray(value)) return normalized
-  for (const entry of value) {
-    if (entry === 'img' || entry === 'table') normalized[entry] = true
-  }
-  return normalized
-}
-
 const parseAsciiPositiveIntegerOrNull = (text) => {
   if (typeof text !== 'string' || text.length === 0) return null
   let value = 0
@@ -397,16 +391,12 @@ const normalizeAutoLabelNumberPolicy = (value) => {
 }
 
 const getEnabledCaptionNumberingMarks = (sets, opt) => {
-  const marks = []
+  if (!Array.isArray(sets) || sets.length === 0) return []
   const exceptMarks = opt && Array.isArray(opt.removeUnnumberedLabelExceptMarks)
     ? opt.removeUnnumberedLabelExceptMarks
     : []
-  const canGenerateForMark = (mark) => !(
-    opt && opt.removeUnnumberedLabel && exceptMarks.indexOf(mark) === -1
-  )
-  if (sets && sets.img && canGenerateForMark('img')) marks.push('img')
-  if (sets && sets.table && canGenerateForMark('table')) marks.push('table')
-  return marks
+  if (!opt || !opt.removeUnnumberedLabel) return sets
+  return sets.filter(mark => exceptMarks.indexOf(mark) !== -1)
 }
 
 const getNormalizedNumberingContext = (captionContext) => {
@@ -417,19 +407,34 @@ const getNormalizedNumberingContext = (captionContext) => {
   return numbering
 }
 
-const createFigureCaptionNumberingPolicy = (enabledMarks, advancedPolicy) => {
+const createFigureCaptionCounterKeyResolver = (markRegState) => ({ mark, captionDecision }) => {
+  if (mark === 'img') return 'figure'
+  if (mark === 'pre-code') return 'listing'
+  if (mark === 'pre-samp') {
+    const labelText = captionDecision.labelText
+    if (isCaptionLabelForMark(labelText, 'img', markRegState)) return 'figure'
+    if (isCaptionLabelForMark(labelText, 'pre-code', markRegState)) return 'listing'
+    return 'samp'
+  }
+  return mark
+}
+
+const createFigureCaptionNumberingPolicy = (enabledMarks, advancedPolicy, markRegState) => {
   if (enabledMarks.length === 0) return null
+  const getCounterKey = createFigureCaptionCounterKeyResolver(markRegState)
   if (!advancedPolicy) {
     return createCaptionNumberingPolicy({
       enabledMarks,
       explicitCounter: 'max',
       generatedNumberHasNumClass: false,
+      getCounterKey,
     })
   }
   return createCaptionNumberingPolicy({
     enabledMarks,
     explicitCounter: 'max',
     generatedNumberHasNumClass: false,
+    getCounterKey,
     getSequenceKey({ captionContext }) {
       return getNormalizedNumberingContext(captionContext).sequenceKey
     },
@@ -1027,7 +1032,6 @@ const applyCaptionDrivenFigureClass = (caption, sp, opt, decision = sp && sp.cap
   sp.figureClassName = figureClassForSlides
 }
 
-
 const convertCaptionTokens = (
   captionStartToken,
   captionInlineToken,
@@ -1406,7 +1410,7 @@ const applyWrappedCandidateTransform = (detection) => {
 
 const figureWithCaption = (state, opt) => {
   const numberingRuntime = opt.captionNumberingPolicy
-    ? createCaptionNumberingRuntime(opt.captionNumberingPolicy)
+    ? createCaptionNumberingRuntime(opt.captionNumberingPolicy, { env: state.env })
     : null
   const numberingScopeState = numberingRuntime
     ? createNumberingScopeState(
@@ -1610,10 +1614,10 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
 }
 
 const mditFigureWithPCaption = (md, option) => {
+  if (md[installedKey]) return
   if (hasOwnOption(option, 'setFigureNumber')) {
     throw new Error('setFigureNumber is not supported by figure-with-p-caption; use autoLabelNumber or autoLabelNumberSets')
   }
-  if (md[installedKey]) return
   const opt = {
     // Caption languages delegated to p-captions.
     languages: ['en', 'ja'],
@@ -1647,7 +1651,7 @@ const mditFigureWithPCaption = (md, option) => {
 
     // --- numbering controls ---
     autoLabelNumber: false, // shorthand for enabling numbering for both img/table unless autoLabelNumberSets is provided explicitly
-    autoLabelNumberSets: [], // preferred; supports ['img'], ['table'], or both
+    autoLabelNumberSets: [], // preferred; supports img/table/code/samp/video marks
     autoLabelNumberPolicy: null, // opt-in compound/scope formatting; does not enable marks by itself
 
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
@@ -1670,6 +1674,11 @@ const mditFigureWithPCaption = (md, option) => {
   const hasExplicitFigureClassThatWrapsSlides = hasOwnOption(option, 'figureClassThatWrapsSlides')
   const hasExplicitLabelClassFollowsFigure = hasOwnOption(option, 'labelClassFollowsFigure')
   if (option) Object.assign(opt, option)
+  if (Array.isArray(opt.removeUnnumberedLabelExceptMarks)) {
+    opt.removeUnnumberedLabelExceptMarks = opt.removeUnnumberedLabelExceptMarks.map(
+      canonicalizeCaptionNumberingMark,
+    )
+  }
   opt.imageOnlyParagraphWithoutCaption = hasExplicitImageOnlyParagraphWithoutCaption
     ? !!opt.imageOnlyParagraphWithoutCaption
     : !!opt.oneImageWithoutCaption
@@ -1690,17 +1699,18 @@ const mditFigureWithPCaption = (md, option) => {
     audio: !!opt.audioWithoutCaption,
     iframeTypeBlockquote: !!opt.iframeTypeBlockquoteWithoutCaption,
   }
-  // Normalize option shorthands now so downstream logic works with a consistent { img, table } shape.
-  opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(opt.autoLabelNumberSets)
-  if (opt.autoLabelNumber && !hasExplicitAutoLabelNumberSets) {
-    opt.autoLabelNumberSets.img = true
-    opt.autoLabelNumberSets.table = true
-  }
+  const requestedAutoLabelNumberSets = hasExplicitAutoLabelNumberSets
+    ? option.autoLabelNumberSets
+    : opt.autoLabelNumber
+      ? ['img', 'table']
+      : []
+  opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(requestedAutoLabelNumberSets)
   opt.normalizedAutoLabelNumberPolicy = normalizeAutoLabelNumberPolicy(opt.autoLabelNumberPolicy)
   const enabledNumberingMarks = getEnabledCaptionNumberingMarks(opt.autoLabelNumberSets, opt)
   opt.captionNumberingPolicy = createFigureCaptionNumberingPolicy(
     enabledNumberingMarks,
     opt.normalizedAutoLabelNumberPolicy,
+    opt.markRegState,
   )
   opt.unscopedNumberingContext = opt.captionNumberingPolicy && opt.normalizedAutoLabelNumberPolicy
     ? createUnscopedNumberingContext(opt.normalizedAutoLabelNumberPolicy.separator)

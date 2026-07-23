@@ -4,13 +4,13 @@ This markdown-it plugin converts paragraphs representing captions before or afte
 
 For images, even if they don't have a caption paragraph, they can be treated as captions if they have a caption string in the image's `alt`/`title` text (there is also an option to promote them to captions even if they don't have that string).
 
-Optionally, you can auto-number image and table caption paragraphs starting from the beginning of the document if they only have label names.
+Optionally, you can auto-number selected image, table, code, terminal/samp, and video caption marks starting from the beginning of the document.
 
 **Note.** If you want to adjust the image `width`/`height`, please also use [`@peaceroad/markdown-it-renderer-image`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image). Also, if you want to use the `samp` element when displaying terminal output, please also use [`@peaceroad/markdown-it-renderer-fence`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence). This document shows output using the latter option.
 
 ## Behavior
 
-Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it instance is intentionally a no-op after the first call. Create a separate markdown-it instance when you need a different option set.
+Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it instance is intentionally a no-op after the first successful call, before later options are validated. Initial setup validates and registers the rule before setting its installed sentinel, so a failed first setup can be corrected on the same markdown-it instance. Create a separate instance when you need a different successful option set.
 
 ### Image
 
@@ -48,7 +48,7 @@ Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it in
 
 ### Video & Audio
 
-- Inline HTML `<video>` and `<audio>` tags are detected as media figures (`<figure class="f-video">` and `<figure class="f-audio">`).
+- Block HTML `<video>` and `<audio>` tags are detected as media figures (`<figure class="f-video">` and `<figure class="f-audio">`). A single-line tag parsed by markdown-it as inline HTML is not promoted to a block figure.
 - A caption paragraph labeled `Video. ` / `Audio. ` (or any registered label) is promoted to `<figcaption>` before/after the media so controls remain unobstructed.
 
 ### Embedded content by iframe
@@ -104,13 +104,17 @@ Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which 
 
 ### Automatic numbering
 
-- `autoLabelNumberSets`: enable numbering per media type. Pass an array such as `['img']`, `['table']`, or `['img', 'table']`.
+- `autoLabelNumberSets`: strict caption-mark allowlist. Supported entries are `img`, `table`, `code` / `pre-code`, `samp` / `pre-samp`, and `video`; aliases are deduplicated to their canonical marks.
 - `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `autoLabelNumberSets` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
 - `autoLabelNumberPolicy`: opt into compound chapter/appendix numbering. This option changes the numbering policy but does not enable any media type by itself; use it together with `autoLabelNumber` or `autoLabelNumberSets`.
-- Do not pass p-captions' lower-level `setFigureNumber` option to this plugin. Figure numbering is owned by `autoLabelNumber` / `autoLabelNumberSets`; `setFigureNumber` is rejected during setup to prevent two numbering systems from mutating the same caption.
-- Counters start at `1` near the top of the document and increment sequentially per media type. Figures and tables keep independent counters even when mixed together.
+- Do not pass p-captions' lower-level `setFigureNumber` option to this plugin. Figure numbering is owned by `autoLabelNumber` / `autoLabelNumberSets`; `setFigureNumber` is rejected during the initial setup to prevent two numbering systems from mutating the same caption.
+- An explicit `[]` disables numbering even when `autoLabelNumber` is true. Explicit `undefined`, `null`, non-arrays, unsupported marks, and invalid entries throw during initial setup instead of being silently ignored.
+- Numbering enablement follows `captionDecision.mark`, not the wrapper class. A known video iframe with a `Figure.` caption requires `img`; the same iframe with `Video.` requires `video`. An unknown iframe with an explicit `Video.` caption also uses the video counter, while its wrapper remains `f-iframe`.
+- Counters start at `1` and use semantic series independent of wrapper/label classes: `img` uses `figure`, `pre-code` uses `listing`, `video` uses `video`, and `table` uses `table`. A `pre-samp` caption uses the figure series when its source label is also an image label (`図`), the listing series when it is also a code label (`リスト`), and otherwise its own samp series (`端末`, `Terminal`, etc.). The overlap check reuses p-captions' active language catalog rather than hardcoded label text.
+- A disabled mark never advances a shared series. Therefore image/`図` samp captions or code/`リスト` samp captions share source-order numbering only when both canonical marks are enabled.
 - The counter only advances when a real caption exists (paragraph, auto-detected alt/title, or fallback text). Figures emitted solely because of `imageOnlyParagraphWithoutCaption` / `oneImageWithoutCaption` stay unnumbered.
-- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin reads the exact `captionDecision.number` supplied by `p7d-markdown-it-p-captions` and updates its decimal counter so the next automatic number becomes `6`. Explicit compound/alphanumeric numbers (e.g., `Figure A.` or `Figure A.5.`) are preserved without appending an automatic number and do not seed the decimal counter. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
+- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin reads the exact `captionDecision.number` supplied by `p7d-markdown-it-p-captions` and updates the selected semantic series so the next automatic number becomes `6`, even when the next caption has a different mark sharing that series. Explicit compound/alphanumeric numbers (e.g., `Figure A.` or `Figure A.5.`) are preserved without appending an automatic number and do not seed an unscoped decimal counter. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
+- With `removeUnnumberedLabel: true`, the enabled-set filter uses the canonical decision mark, not its semantic counter key. For example a samp block labeled `図` still needs `samp` / `pre-samp` in `removeUnnumberedLabelExceptMarks`, not `img`.
 - Number generation and label-token construction now share p-captions' policy/runtime engine. The source-only `captionDecision` remains unchanged when a number is generated, and callback/configuration failures occur before this plugin commits caption-token or counter changes.
 - Generated numbers must remain inside p-captions' caption-number grammar. In particular, advancing `999999` to a seven-digit segment throws a `RangeError` before the affected caption is mutated.
 

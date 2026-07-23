@@ -464,9 +464,8 @@ try {
   )
   assert.ok(mdRepeatedPluginUse.render('![A](a.jpg)\n\nFigure. Caption.').includes('class="f-img"'))
   assert.ok(!mdRepeatedPluginUse.render('![A](a.jpg)\n\nFigure. Caption.').includes('ignored-img'))
-  assert.throws(
+  assert.doesNotThrow(
     () => mdRepeatedPluginUse.use(mdFigureWithPCaption, { setFigureNumber: true }),
-    /autoLabelNumber or autoLabelNumberSets/,
   )
   assert.ok(
     mdit().use(mdFigureWithPCaption, { roleDocExample: true })
@@ -790,6 +789,254 @@ try {
   console.log('ja-only (en caption):', figureLanguageEnHtmlFromJa)
 }
 
+const getNumberedLabels = (html, label) => Array.from(
+  html.matchAll(new RegExp('>' + label + ' ?([A-Z0-9.-]+)<span', 'g')),
+  match => match[1],
+)
+
+const installSyntheticPreBlocks = (md) => {
+  md.core.ruler.before('replacements', 'synthetic_pre_blocks', (state) => {
+    for (let index = 0; index + 2 < state.tokens.length; index++) {
+      const open = state.tokens[index]
+      const inline = state.tokens[index + 1]
+      const close = state.tokens[index + 2]
+      if (
+        open.type !== 'paragraph_open' || inline.type !== 'inline' || close.type !== 'paragraph_close' ||
+        (inline.content !== '[[pre-code]]' && inline.content !== '[[pre-samp]]')
+      ) continue
+      const childTag = inline.content === '[[pre-samp]]' ? 'samp' : 'code'
+      const baseLevel = open.level
+      const preOpen = new state.Token('pre_open', 'pre', 1)
+      const childOpen = new state.Token(childTag + '_open', childTag, 1)
+      const content = new state.Token('text', '', 0)
+      const childClose = new state.Token(childTag + '_close', childTag, -1)
+      const preClose = new state.Token('pre_close', 'pre', -1)
+      preOpen.block = true
+      preClose.block = true
+      preOpen.level = baseLevel
+      childOpen.level = baseLevel + 1
+      content.level = baseLevel + 2
+      childClose.level = baseLevel + 1
+      preClose.level = baseLevel
+      content.content = 'synthetic\n'
+      preOpen.map = open.map
+      preClose.map = open.map
+      state.tokens.splice(index, 3, preOpen, childOpen, content, childClose, preClose)
+      index += 4
+    }
+  })
+}
+
+try {
+  const figureAndSampSource = [
+    '![A](a.jpg)',
+    '図　Image one',
+    '図　Samp figure',
+    '```console\nx\n```',
+    '![B](b.jpg)',
+    '図　Image two',
+  ].join('\n\n')
+  const bothHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'samp'],
+  }).render(figureAndSampSource)
+  assert.deepStrictEqual(getNumberedLabels(bothHtml, '図'), ['1', '2', '3'])
+  assert.ok(bothHtml.includes('<figure class="f-pre-samp">'))
+
+  const sampOnlyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['samp'],
+  }).render(figureAndSampSource)
+  assert.deepStrictEqual(getNumberedLabels(sampOnlyHtml, '図'), ['1'])
+
+  const imgOnlyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img'],
+  }).render(figureAndSampSource)
+  assert.deepStrictEqual(getNumberedLabels(imgOnlyHtml, '図'), ['1', '2'])
+
+  const listingSource = [
+    'Code. Code one.',
+    '```js\nx\n```',
+    'リスト　Samp listing',
+    '```console\ny\n```',
+    'Code. Code three.',
+    '```js\nz\n```',
+  ].join('\n\n')
+  const listingHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['code', 'pre-code', 'samp', 'pre-samp'],
+  }).render(listingSource)
+  assert.deepStrictEqual(getNumberedLabels(listingHtml, 'Code'), ['1', '3'])
+  assert.deepStrictEqual(getNumberedLabels(listingHtml, 'リスト'), ['2'])
+
+  const separateSampHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'code', 'samp'],
+  }).render([
+    '![A](a.jpg)',
+    '図　Figure one',
+    '端末　Samp one',
+    '```console\nx\n```',
+    'Code. Listing one.',
+    '```js\ny\n```',
+  ].join('\n\n'))
+  assert.deepStrictEqual(getNumberedLabels(separateSampHtml, '図'), ['1'])
+  assert.deepStrictEqual(getNumberedLabels(separateSampHtml, '端末'), ['1'])
+  assert.deepStrictEqual(getNumberedLabels(separateSampHtml, 'Code'), ['1'])
+
+  const manualHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['code'],
+  }).render([
+    'Code 5. Manual.',
+    '```js\nx\n```',
+    'Code 2. Lower.',
+    '```js\ny\n```',
+    'Code. Next.',
+    '```js\nz\n```',
+  ].join('\n\n'))
+  assert.deepStrictEqual(getNumberedLabels(manualHtml, 'Code'), ['5', '2', '6'])
+
+  const syntheticPreMd = mdit({ html: true })
+    .use(installSyntheticPreBlocks)
+    .use(mdFigureWithPCaption, { autoLabelNumberSets: ['code', 'samp'] })
+  const syntheticPreHtml = syntheticPreMd.render([
+    'Code. Synthetic code.',
+    '[[pre-code]]',
+    'Terminal. Synthetic samp.',
+    '[[pre-samp]]',
+  ].join('\n\n'))
+  assert.deepStrictEqual(getNumberedLabels(syntheticPreHtml, 'Code'), ['1'])
+  assert.deepStrictEqual(getNumberedLabels(syntheticPreHtml, 'Terminal'), ['1'])
+  assert.strictEqual((syntheticPreHtml.match(/<figure class="f-pre">/g) || []).length, 2)
+} catch (e) {
+  pass = false
+  console.log('code/samp shared caption numbering failed.')
+  console.log(e)
+}
+
+try {
+  const videoSource = [
+    'Video. Raw.',
+    '<video src="raw.mp4">\n</video>',
+    'Video. Unknown.',
+    '<iframe src="https://example.com/embed"></iframe>',
+    'Figure. Known as figure.',
+    '<iframe src="https://www.youtube.com/embed/a"></iframe>',
+    'Video. Known as video.',
+    '<iframe src="https://www.youtube.com/embed/b"></iframe>',
+  ].join('\n\n')
+  const videoHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'video'],
+  }).render(videoSource)
+  assert.deepStrictEqual(getNumberedLabels(videoHtml, 'Video'), ['1', '2', '3'])
+  assert.deepStrictEqual(getNumberedLabels(videoHtml, 'Figure'), ['1'])
+  assert.ok(videoHtml.includes('<figure class="f-iframe">\n<figcaption><span class="f-video-label">Video 2'))
+  assert.strictEqual((videoHtml.match(/<figure class="f-video">/g) || []).length, 3)
+
+  const videoOnlyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['video'],
+  }).render('Figure. Known figure label.\n\n<iframe src="https://www.youtube.com/embed/a"></iframe>')
+  assert.deepStrictEqual(getNumberedLabels(videoOnlyHtml, 'Figure'), [])
+
+  const captionlessThenNumbered = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['video'],
+    videoWithoutCaption: true,
+  }).render('<video src="a.mp4">\n</video>\n\nVideo. First.\n\n<video src="b.mp4">\n</video>')
+  assert.deepStrictEqual(getNumberedLabels(captionlessThenNumbered, 'Video'), ['1'])
+
+  const inlineVideoHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['video'],
+  }).render('Video. Inline baseline.\n\n<video src="inline.mp4"></video>')
+  assert.ok(!inlineVideoHtml.includes('<figure'))
+} catch (e) {
+  pass = false
+  console.log('video caption numbering failed.')
+  console.log(e)
+}
+
+try {
+  const shorthandHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+  }).render('Code. Not enabled.\n\n```js\nx\n```\n\n![A](a.jpg)\n\nFigure. Enabled.')
+  assert.deepStrictEqual(getNumberedLabels(shorthandHtml, 'Code'), [])
+  assert.deepStrictEqual(getNumberedLabels(shorthandHtml, 'Figure'), ['1'])
+
+  const explicitWinsHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberSets: ['code'],
+  }).render('Code. Enabled.\n\n```js\nx\n```\n\n![A](a.jpg)\n\nFigure. Disabled.')
+  assert.deepStrictEqual(getNumberedLabels(explicitWinsHtml, 'Code'), ['1'])
+  assert.deepStrictEqual(getNumberedLabels(explicitWinsHtml, 'Figure'), [])
+
+  const explicitEmptyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberSets: [],
+  }).render('![A](a.jpg)\n\nFigure. Disabled.')
+  assert.deepStrictEqual(getNumberedLabels(explicitEmptyHtml, 'Figure'), [])
+
+  const copiedSets = ['code']
+  const copiedMd = mdit({ html: true }).use(mdFigureWithPCaption, { autoLabelNumberSets: copiedSets })
+  copiedSets[0] = 'video'
+  assert.deepStrictEqual(getNumberedLabels(copiedMd.render('Code. Copied.\n\n```js\nx\n```'), 'Code'), ['1'])
+
+  const removeSource = [
+    '![A](a.jpg)',
+    '図　Image',
+    '図　Samp',
+    '```console\nx\n```',
+  ].join('\n\n')
+  const exceptImgHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'samp'],
+    removeUnnumberedLabel: true,
+    removeUnnumberedLabelExceptMarks: ['img'],
+  }).render(removeSource)
+  assert.deepStrictEqual(getNumberedLabels(exceptImgHtml, '図'), ['1'])
+  assert.ok(!exceptImgHtml.includes('f-pre-samp-label'))
+  const exceptSampHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'samp'],
+    removeUnnumberedLabel: true,
+    removeUnnumberedLabelExceptMarks: ['samp'],
+  }).render(removeSource)
+  assert.deepStrictEqual(getNumberedLabels(exceptSampHtml, '図'), ['1'])
+  assert.ok(!exceptSampHtml.includes('f-img-label'))
+
+  const formattedHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['code'],
+    strongLabel: true,
+    wrapCaptionBody: true,
+    removeMarkNameInCaptionClass: true,
+  }).render('Code. Formatted.\n\n```js\nx\n```')
+  assert.ok(formattedHtml.includes('<strong class="f-label">Code 1'))
+  assert.ok(formattedHtml.includes('<span class="f-body">Formatted.</span>'))
+
+  for (const invalidOptions of [
+    { autoLabelNumberSets: undefined },
+    { autoLabelNumberSets: null },
+    { autoLabelNumberSets: 'code' },
+    { autoLabelNumberSets: ['unknown'] },
+    { autoLabelNumberSets: [null] },
+    { autoLabelNumberSets: [''] },
+  ]) {
+    assert.throws(() => mdit().use(mdFigureWithPCaption, invalidOptions), TypeError)
+  }
+
+  const retryMd = mdit({ html: true })
+  assert.throws(() => retryMd.use(mdFigureWithPCaption, { autoLabelNumberSets: null }), TypeError)
+  assert.strictEqual(retryMd.core.ruler.__rules__.filter(rule => rule.name === 'figure_with_caption').length, 0)
+  assert.doesNotThrow(() => retryMd.use(mdFigureWithPCaption, { autoLabelNumberSets: ['code'] }))
+  assert.strictEqual(retryMd.core.ruler.__rules__.filter(rule => rule.name === 'figure_with_caption').length, 1)
+  assert.doesNotThrow(() => retryMd.use(mdFigureWithPCaption, { autoLabelNumberSets: null }))
+  assert.doesNotThrow(() => retryMd.use(mdFigureWithPCaption, { setFigureNumber: true }))
+  assert.deepStrictEqual(getNumberedLabels(retryMd.render('Code. Retry.\n\n```js\nx\n```'), 'Code'), ['1'])
+
+  const unsupportedLegacyMd = mdit()
+  assert.throws(
+    () => unsupportedLegacyMd.use(mdFigureWithPCaption, { setFigureNumber: true }),
+    /autoLabelNumber or autoLabelNumberSets/,
+  )
+  assert.strictEqual(unsupportedLegacyMd.core.ruler.__rules__.filter(rule => rule.name === 'figure_with_caption').length, 0)
+} catch (e) {
+  pass = false
+  console.log('expanded numbering option flow failed.')
+  console.log(e)
+}
+
 const createScopedMd = (scope = { sources: ['heading'], headingLevels: [1], repeatScope: 'continue' }, separator = '-') => (
   mdit({ html: true }).use(mdFigureWithPCaption, {
     autoLabelNumber: true,
@@ -875,6 +1122,65 @@ try {
 } catch (e) {
   pass = false
   console.log('advanced heading scope numbering regression failed.')
+  console.log(e)
+}
+
+try {
+  const scopedMixedMd = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'code', 'samp', 'video', 'table'],
+    autoLabelNumberPolicy: {
+      separator: '-',
+      scope: { sources: ['heading'], headingLevels: [1], repeatScope: 'continue' },
+    },
+  })
+  const sharedFigureSource = [
+    '# Chapter 2',
+    '![A](a.jpg)',
+    'Figure. First.',
+    '図2-5　Samp manual',
+    '```console\nx\n```',
+    '![B](b.jpg)',
+    'Figure. Next.',
+  ].join('\n\n')
+  const sharedFigureHtml = scopedMixedMd.render(sharedFigureSource)
+  assert.deepStrictEqual(getNumberedLabels(sharedFigureHtml, 'Figure'), ['2-1', '2-6'])
+  assert.deepStrictEqual(getNumberedLabels(sharedFigureHtml, '図'), ['2-5'])
+
+  const sharedListingHtml = scopedMixedMd.render([
+    '# Appendix A',
+    'Code. First.',
+    '```js\nx\n```',
+    'リストA-5　Samp manual',
+    '```console\ny\n```',
+    'Code. Next.',
+    '```js\nz\n```',
+  ].join('\n\n'))
+  assert.deepStrictEqual(getNumberedLabels(sharedListingHtml, 'Code'), ['A-1', 'A-6'])
+  assert.deepStrictEqual(getNumberedLabels(sharedListingHtml, 'リスト'), ['A-5'])
+
+  const resetMd = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumberSets: ['img', 'samp'],
+    autoLabelNumberPolicy: {
+      separator: '-',
+      scope: { sources: ['heading'], headingLevels: [1], repeatScope: 'reset' },
+    },
+  })
+  const resetHtml = resetMd.render([
+    '# Chapter 1',
+    '![A](a.jpg)',
+    '図　First image',
+    '図　First samp',
+    '```console\nx\n```',
+    '# Chapter 1',
+    '![B](b.jpg)',
+    '図　Second image',
+    '図　Second samp',
+    '```console\ny\n```',
+  ].join('\n\n'))
+  assert.deepStrictEqual(getNumberedLabels(resetHtml, '図'), ['1-1', '1-2', '1-1', '1-2'])
+} catch (e) {
+  pass = false
+  console.log('mixed scoped caption numbering failed.')
   console.log(e)
 }
 
