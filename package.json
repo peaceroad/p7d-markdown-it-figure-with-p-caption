@@ -1,14 +1,15 @@
 {
   "name": "@peaceroad/markdown-it-figure-with-p-caption",
   "version": "0.20.0",
-  "description": "A markdown-it plugin. For a paragraph with only one image, a table or code block or blockquote, and by writing a caption paragraph immediately before or after, they are converted into the figure element with the figcaption element.",
+  "description": "A markdown-it plugin that wraps captioned images, tables, code/samp blocks, blockquotes, and media embeds in semantic figure and figcaption elements.",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "npm run test:core && npm run test:numbering && npm run test:numbering-api",
+    "test": "npm run test:core && npm run test:numbering && npm run test:numbering-api && npm run test:docs",
     "test:core": "node test/test.js",
     "test:numbering": "node test/test-caption-numbering.js",
     "test:numbering-api": "node test/test-caption-numbering-api.js",
+    "test:docs": "node test/test-doc-examples.js",
     "test:p-captions": "node test/test-p-captions.js",
     "test:all": "npm run test && npm run test:p-captions",
     "perf": "node test/performance/benchmark.js"
@@ -39,6 +40,7 @@
     "index.js",
     "caption-numbering.js",
     "caption-numbering/",
+    "docs/",
     "embeds/",
     "README.md",
     "LICENSE"

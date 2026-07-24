@@ -110,17 +110,25 @@
 ## 9. Tests
 - Fixtures under `test/*.txt` feed `test/test.js` (`npm run test:core`).
 - Caption-numbering policy, scope, option-flow, code/samp, and video regressions live in `test/test-caption-numbering.js` (`npm run test:numbering`). Keep this suite named by stable responsibility rather than a release number.
+- Executable README/docs pairs use fenced info strings such as `md {test id="..."}` and `html {test id="..."}`. `test/test-doc-examples.js` discovers them through `npm run test:docs`; keep setup names on a fixed allowlist and never evaluate documentation metadata as JavaScript.
+- Each documentation test ID must have exactly one complete Markdown fence and one complete HTML fence. Leave abbreviated examples containing `...` unannotated rather than weakening exact comparison.
 - The pure integration subpath is covered independently by `test/test-caption-numbering-api.js` (`npm run test:numbering-api`), including branding/freeze, non-mutation, scope boundaries, mapless headings, malformed nested-container fail-closed behavior, counter series, and the number codec.
 - Image-only coverage includes single/multi-image layouts, attrs, auto-caption detection, and invalid trailing text cases.
 - Dedicated examples cover slide class overrides and label class mirroring.
-- `npm test` aggregates the core, renderer-numbering, and numbering-API suites. Additional dependency-focused checks run from repository-controlled paths through `npm run test:p-captions`; `npm run test:all` includes all four suites.
+- `npm test` aggregates the core, renderer-numbering, numbering-API, and documentation-example suites. Additional dependency-focused checks run from repository-controlled paths through `npm run test:p-captions`; `npm run test:all` includes all five suites.
 - Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, shared figure/listing samp sequences, parsed frontmatter auto/document and separator overrides, fixed env overrides, frontmatter adapters, render reuse, and pre-mutation failure behavior.
 - Option/integration tests cover strict aliases and validation, invalid-first/retry and duplicate-use sentinel behavior, native fences and pre/code/samp token blocks, shared `図` / `リスト` series, raw/known/unknown video paths, captionless no-op counters, formatting options, and remove/except decision-mark filtering.
 - Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95 and deep blockquote probe output.
 - Consumer repos may not include upstream dependency test files under `node_modules`; keep integration checks in root-owned scripts/tests.
 - Do not rely on durable tests under `node_modules`; treat those as ephemeral.
 
-## 10. Future Work
+## 10. Documentation
+- Keep `README.md` user-oriented: installation, quick start, representative image/table/code/samp/video/slide conversions, recommended options, and a short automatic-numbering setup must remain visible there.
+- Keep exhaustive behavior and option contracts in `docs/reference.md`, numbering and integration-API details in `docs/numbering.md`, and complete samples in `docs/examples.md`. Each document owns its contents list; do not add a redundant `docs/README.md` or grow the root README back into the complete reference.
+- Automatic numbering is opt-in. State the `autoLabelNumber: false` default and the difference between document-wide numbering and heading-scoped numbering in the root README.
+- Ship `docs/` in the npm package and verify its contents with `npm pack --dry-run --json` whenever documentation paths change.
+
+## 11. Future Work
 - Investigate token pooling in `wrapWithFigure` to reduce GC churn on huge documents.
 - Expand HTML tag caching with subtype hints (e.g., iframe + YouTube).
 - Keep dense-sibling `splice()` instrumentation and a collect/plan/rebuild comparison as a separate performance project; do not combine that traversal rewrite with numbering semantics.

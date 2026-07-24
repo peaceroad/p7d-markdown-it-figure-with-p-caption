@@ -1,365 +1,114 @@
 # p7d-markdown-it-figure-with-p-caption
 
-This markdown-it plugin converts paragraphs representing captions before or after image/table/code/video/audio/iframe into `figcaption` element, and wraps them in `figure` element. Caption parsing (labels, filenames, spacing rules) is delegated to [`p7d-markdown-it-p-captions`](https://www.npmjs.com/package/p7d-markdown-it-p-captions), so this plugin focuses on detecting the surrounding structure. Optionally, you have the option to wrap it in a `figure` element, even if there is no caption paragraph.
+A markdown-it plugin that converts adjacent caption paragraphs and supported
+media blocks into semantic `<figure>` / `<figcaption>` structures.
 
-For images, even if they don't have a caption paragraph, they can be treated as captions if they have a caption string in the image's `alt`/`title` text (there is also an option to promote them to captions even if they don't have that string).
+Caption-label parsing, numbering grammar, and language catalogs are delegated
+to [`p7d-markdown-it-p-captions`](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
+This plugin owns figure-candidate detection, wrapping, figure classes, and
+optional document/chapter-aware numbering.
 
-Optionally, you can auto-number selected image, table, code, terminal/samp, and video caption marks starting from the beginning of the document.
+Supported targets include images, tables, code fences, terminal/samp fences,
+blockquotes, video/audio blocks, iframes, social embeds, and slide iframes.
 
-**Note.** If you want to adjust the image `width`/`height`, please also use [`@peaceroad/markdown-it-renderer-image`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image). Also, if you want to use the `samp` element when displaying terminal output, please also use [`@peaceroad/markdown-it-renderer-fence`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence). This document shows output using the latter option.
+## Installation
 
-## Behavior
+```console
+npm install markdown-it @peaceroad/markdown-it-figure-with-p-caption
+```
 
-Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it instance is intentionally a no-op after the first successful call, before later options are validated. Initial setup validates and registers the rule before setting its installed sentinel, so a failed first setup can be corrected on the same markdown-it instance. Create a separate instance when you need a different successful option set.
+Optional companion plugins:
+
+- [`@peaceroad/markdown-it-renderer-image`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-image)
+  for image width/height rendering.
+- [`@peaceroad/markdown-it-renderer-fence`](https://www.npmjs.com/package/@peaceroad/markdown-it-renderer-fence)
+  when terminal fences should render as `<pre><samp>`.
+- [`markdown-it-attrs`](https://www.npmjs.com/package/markdown-it-attrs)
+  for broader attribute syntax.
+
+## Quick start
+
+```js
+import markdownIt from 'markdown-it'
+import figureWithCaption from '@peaceroad/markdown-it-figure-with-p-caption'
+
+const md = markdownIt({ html: true })
+  .use(figureWithCaption)
+
+console.log(md.render('Figure. A cat.\n\n![A cat](cat.jpg)'))
+```
+
+Output:
+
+```html
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="A cat">
+</figure>
+```
+
+Caption paragraphs may appear immediately before or after a supported block.
+Image `alt` / `title` text can also provide a caption when
+`autoCaptionDetection` recognizes a configured label.
+
+## What gets converted
+
+| Markdown target | Typical caption | Default figure class |
+| --- | --- | --- |
+| Image-only paragraph | `Figure.` / `図` | `f-img` |
+| Table | `Table.` / `表` | `f-table` |
+| Code fence | `Code.` / `Listing.` | `f-pre-code` |
+| Terminal/samp fence | `Terminal.` / `端末` | `f-pre-samp` |
+| Blockquote | `Quote.` / `Source.` | `f-blockquote` |
+| Video block or known video iframe | `Video.` / `動画` | `f-video` |
+| Audio block | `Audio.` / `音声` | `f-audio` |
+| Generic iframe | Any compatible caption label | `f-iframe` |
+| Slide iframe | `Slide.` | `f-slide` |
+
+Exact labels come from the active `p7d-markdown-it-p-captions` language
+catalogs. The default available catalogs are English and Japanese.
+
+## Representative conversions
+
+These examples show the default figure classes. Caption span markup is included
+where it helps explain the output; long media contents are abbreviated.
 
 ### Image
 
-- Pure image paragraphs (`![...](...)`) become `<figure class="f-img">` blocks as soon as a caption paragraph (previous or next) or an auto-detected caption exists.
-- Auto detection runs per image paragraph when `autoCaptionDetection` is `true` (default). The priority is:
-    1. Caption paragraphs immediately before or after the image (standard syntax).
-    2. Image `alt` text that `p7d-markdown-it-p-captions` recognizes as an image caption start (`Figure. `, `Figure 1. `, `図　`, `図1　`, etc.).
-    3. Image `title` attribute that matches the same labels.
-    4. Optional fallbacks (`autoAltCaption`, `autoTitleCaption`) that inject the label when the alt/title lacks one.
-        - `autoAltCaption`: `false`/`null` (off), `true`, or a string label. `true` uses locale-aware generated-label defaults from `p7d-markdown-it-p-captions`, so the label text and punctuation stay aligned with the upstream caption language data. A string is treated as a label stem that must be recognized by `p7d-markdown-it-p-captions`; setup throws if it cannot be parsed as an image caption label. Other value types are rejected. This plugin appends the default joint/space unless the string already ends with a recognized joint such as `.` / `。` / `:` / `　`. Empty alt text does not generate a fallback caption.
-        - `autoTitleCaption`: same behavior but sourced from the image `title`. It stays off by default so other plugins can keep using the `title` attribute for metadata.
-- Set `autoCaptionDetection: false` to disable the auto-caption workflow entirely.
-- Multi-image paragraphs are still wrapped as one figure when `multipleImages: true` (default). Layout-specific classes help with styling:
-  - `f-img-horizontal` when images sit on the same line (space-delimited).
-  - `f-img-vertical` when separated only by soft breaks.
-  - `f-img-multiple` for mixed layouts.
-- Automatic detection inspects only the first image in the paragraph. If it yields a caption, the entire figure reuses that caption while later images keep their own `alt`/`title`.
-- Paragraphs that contain only images also convert when they appear inside loose lists (leave blank lines between items), blockquotes, or description lists.
-- Caption detection intentionally skips paragraphs that are the first block inside a list item (`list_item_open` immediately before the paragraph). In practice, `- Figure. ...` followed by an image in the same item is treated as plain text unless you insert another block first.
-- A media candidate that ultimately cannot be wrapped (for example, an image paragraph with trailing prose) no longer causes an adjacent caption paragraph to be decorated as a side effect. This is an intentional correctness fix from 0.19.0; valid figures retain the existing output.
+Markdown:
+
+```md {test id="readme-image"}
+Figure. A cat.
+
+![A cat](cat.jpg)
+```
+
+HTML:
+
+```html {test id="readme-image"}
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
+<img src="cat.jpg" alt="A cat">
+</figure>
+```
 
 ### Table
 
-- Markdown tables (including those produced by `markdown-it-multimd-table` or similar) convert into `<figure class="f-table">` blocks.
-- Caption paragraphs immediately before/after the table become `<figcaption>` element ahead of the `<table>`.
+Markdown:
 
-### Code block
-
-- Captions labeled `Code. `, `Terminal. `, etc. wrap the fence in `<figure class="f-pre-code">` / `<figure class="f-pre-samp">`.
-- If `roleDocExample: true`, these figures add `role="doc-example"`.
-
-### Blockquote
-
-- Captioned blockquotes (e.g., `Source. A paragraph.` written immediately before or after `> ...`) become `<figure class="f-blockquote">` while keeping the original blockquote intact.
-
-### Video & Audio
-
-- Block HTML `<video>` and `<audio>` tags are detected as media figures (`<figure class="f-video">` and `<figure class="f-audio">`). A single-line tag parsed by markdown-it as inline HTML is not promoted to a block figure.
-- A caption paragraph labeled `Video. ` / `Audio. ` (or any registered label) is promoted to `<figcaption>` before/after the media so controls remain unobstructed.
-
-### Embedded content by iframe
-
-- Inline HTML `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
-- `<div>` wrappers are treated as iframe-type embeds only when the same HTML block contains an `<iframe ...>` tag (for example common video wrapper markup).
-- `videoWithoutCaption` classifies an iframe (including one nested in a `<div>` wrapper) as video only when its `src` host is one of the known YouTube/Vimeo hosts. A generic iframe wrapper still requires `iframeWithoutCaption`.
-- Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Tumblr `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes on the same blockquote do not block detection. By default they become `<figure class="f-img">` so the caption label behaves like an image label (Labels can also use quote labels). You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
-- `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper automatically switches to `f-slide` (or whatever you set via `figureClassThatWrapsSlides`) so slides can get their own layout. If `allIframeTypeFigureClassName` is also configured, that class takes precedence even for slides, so you get a uniform embed wrapper without touching the slide option.
-- All other iframes fall back to `<figure class="f-iframe">` unless you override the class via `allIframeTypeFigureClassName`.
-
-### label span class name
-
-- The label inside the figcaption (the `span` element used for the label) is generated by `p7d-markdown-it-p-captions`, not by this plugin. By default the class name is formed by combining `classPrefix` with the mark name, producing names such as `f-img-label`, `f-video-label`, `f-blockquote-label`, and `f-slide-label`. 
-- With `markdown-it-attrs`, attributes attached to image-only paragraphs (for example `![...](...) {.foo #bar}`) are forwarded to the generated `<figure>`.
-- `styleProcess` controls parsing of a trailing `{...}` block from the last text token of an image-only paragraph in this plugin's own scanner. It supports simple `.class`, `#id`, bare attributes, and quoted `key="value with spaces"` / `key='value with spaces'` pairs. It is still a narrow fallback parser, not full `markdown-it-attrs` parity, and attributes already attached to paragraph tokens by `markdown-it-attrs` are still forwarded.
-- Attribute forwarding is not sanitization. If you render untrusted Markdown, keep using an HTML sanitizer or a trusted-host policy appropriate for your application; this plugin only decides which already-parsed or narrowly parsed attributes move onto `<figure>`.
-- Attributes attached to caption paragraphs stay on the converted `<figcaption>` token after paragraph-to-figcaption conversion.
-
-## Behavior Customization
-
-### Styles
-
-- Set `allIframeTypeFigureClassName: 'f-embed'` (recommended) to force a single CSS class across `<iframe>` and social-embed figures so they can share styles, ensuring every embed wrapper shares the same predictable class name.
-- `figureClassThatWrapsIframeTypeBlockquote`: override the class used when blockquote-based embeds (Twitter, Mastodon, Bluesky) are wrapped.
-- `figureClassThatWrapsSlides`: override the class assigned when a caption paragraph uses the `Slide.` label.
-- `classPrefix` (default `f`) controls the CSS namespace for every figure (`f-img`, `f-table`, etc.) so you can align with existing styles.
-- Wrapper/class-prefix options are trimmed during setup; whitespace-only values fall back to the default class for that option.
-
-### Wrapping without captions
-
-- `imageOnlyParagraphWithoutCaption`: turn valid image-only paragraphs into `<figure>` elements even when no caption paragraph/auto caption is present. This includes single-image paragraphs and, when `multipleImages` is enabled, multi-image paragraphs that receive classes such as `f-img-horizontal`, `f-img-vertical`, or `f-img-multiple`. This is independent of automatic detection.
-- `oneImageWithoutCaption`: legacy alias for `imageOnlyParagraphWithoutCaption`. When both are provided, `imageOnlyParagraphWithoutCaption` wins.
-- `videoWithoutCaption`, `audioWithoutCaption`, `iframeWithoutCaption`, `iframeTypeBlockquoteWithoutCaption`: wrap the respective media blocks without caption.
-
-### Caption text helpers (delegated to `p7d-markdown-it-p-captions`)
-
-Every option below is forwarded verbatim to `p7d-markdown-it-p-captions`, which owns the actual figcaption rendering:
-
-- `strongFilename` / `dquoteFilename`: pull out filenames from captions using `**filename**` or `"filename"` syntax and wrap them in `<strong class="f-*-filename">`.
-- `jointSpaceUseHalfWidth`: replace full-width space between Japanese labels and caption body with half-width space.
-- `bLabel` / `strongLabel`: emphasize the label span itself.
-- `removeUnnumberedLabel`: drop the leading label entirely when no label number is present. Use `removeUnnumberedLabelExceptMarks` to keep specific labels (e.g., `['blockquote']` keeps `Quote. `).
-- `removeMarkNameInCaptionClass`: replace `.f-img-label` / `.f-table-label` with the generic `.f-label`.
-- `wrapCaptionBody`: wrap the non-label caption text in a span element.
-- `hasNumClass`: add a class attribute to a label span when the source caption has a label number. For compatibility with the pre-shared-engine pipeline, numbers generated by this figure plugin do not retroactively add `label-has-num`.
-- `labelClassFollowsFigure`: mirror the final resolved `<figure>` class onto the `figcaption` spans (`f-embed-label`, `f-embed-label-joint`, `f-embed-body`, etc.) when you want captions styled alongside the wrapper. Caption-driven slide classes are resolved before span construction, including custom `figureClassThatWrapsSlides` values.
-- `figureToLabelClassMap`: extend `labelClassFollowsFigure` by mapping specific final figure classes (e.g., `f-embed` or `f-slide`) to custom caption label classes such as `caption-embed caption-social` for fine-grained control. When this map is provided and `labelClassFollowsFigure` is not set explicitly, figure-following mode is enabled automatically.
-- `labelPrefixMarker`: allow a leading marker before labels (string or array, e.g., `*Figure. ...`). Arrays are limited to two markers; extras are ignored.
-- `languages`: optional available caption-recognition catalogs delegated to `p7d-markdown-it-p-captions` (default: `['en', 'ja']`). Most users can leave this unset. Set it only when you want to restrict or extend which labels can be recognized (for example English `Figure.` and Japanese `図　`) and which catalogs are available for generated fallback labels. It is separate from the active locale used to choose among those available catalogs.
-- Automatic image-label fallback text and punctuation (`Figure. `, `図　`, etc.) are generated from `p7d-markdown-it-p-captions` locale metadata, not from a local hardcoded map in this plugin.
-- Generated fallback label tie-break is resolved lazily, at most once per render, when an image actually needs an unlabeled fallback. Prefer passing the active locale through `env.locale` or `env.preferredLocales`. Compatibility fallbacks are `preferredLanguages`, `env.preferredLanguages`, `env.lang`, and `env.language`. If none of those selects an available catalog, this plugin finally uses a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline), then falls back to the raw `languages` order. This tie-break only affects generated fallback labels; it does not change the caption-recognition dictionaries selected by `languages`. Compatibility note: for generated fallback labels, `env.locale` / `env.preferredLocales` intentionally take precedence over the legacy `preferredLanguages` option so a shared `md` instance can render different documents with different active locales. Laziness is based on the final image token stream rather than raw `![` source text, so image tokens inserted by an earlier core rule receive the same locale behavior.
-
-### Automatic numbering
-
-- `autoLabelNumberSets`: strict caption-mark allowlist. Supported entries are `img`, `table`, `code` / `pre-code`, `samp` / `pre-samp`, and `video`; aliases are deduplicated to their canonical marks.
-- `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `autoLabelNumberSets` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
-- `autoLabelNumberPolicy`: opt into compound chapter/appendix numbering. This option changes the numbering policy but does not enable any media type by itself; use it together with `autoLabelNumber` or `autoLabelNumberSets`.
-- Do not pass p-captions' lower-level `setFigureNumber` option to this plugin. Figure numbering is owned by `autoLabelNumber` / `autoLabelNumberSets`; `setFigureNumber` is rejected during the initial setup to prevent two numbering systems from mutating the same caption.
-- An explicit `[]` disables numbering even when `autoLabelNumber` is true. Explicit `undefined`, `null`, non-arrays, unsupported marks, and invalid entries throw during initial setup instead of being silently ignored.
-- Numbering enablement follows `captionDecision.mark`, not the wrapper class. A known video iframe with a `Figure.` caption requires `img`; the same iframe with `Video.` requires `video`. An unknown iframe with an explicit `Video.` caption also uses the video counter, while its wrapper remains `f-iframe`.
-- Counters start at `1` and use semantic series independent of wrapper/label classes: `img` uses `figure`, `pre-code` uses `listing`, `video` uses `video`, and `table` uses `table`. A `pre-samp` caption uses the figure series when its source label is also an image label (`図`), the listing series when it is also a code label (`リスト`), and otherwise its own samp series (`端末`, `Terminal`, etc.). The overlap check reuses p-captions' active language catalog rather than hardcoded label text.
-- A disabled mark never advances a shared series. Therefore image/`図` samp captions or code/`リスト` samp captions share source-order numbering only when both canonical marks are enabled.
-- The counter only advances when a real caption exists (paragraph, auto-detected alt/title, or fallback text). Figures emitted solely because of `imageOnlyParagraphWithoutCaption` / `oneImageWithoutCaption` stay unnumbered.
-- Manual numbers inside the caption text (e.g., `Figure 5.`) always win. The plugin reads the exact `captionDecision.number` supplied by `p7d-markdown-it-p-captions` and updates the selected semantic series so the next automatic number becomes `6`, even when the next caption has a different mark sharing that series. Explicit compound/alphanumeric numbers (e.g., `Figure A.` or `Figure A.5.`) are preserved without appending an automatic number and do not seed an unscoped decimal counter. This applies to captions sourced from paragraphs, auto detection, and fallback captions.
-- With `removeUnnumberedLabel: true`, the enabled-set filter uses the canonical decision mark, not its semantic counter key. For example a samp block labeled `図` still needs `samp` / `pre-samp` in `removeUnnumberedLabelExceptMarks`, not `img`.
-- Number generation and label-token construction now share p-captions' policy/runtime engine. The source-only `captionDecision` remains unchanged when a number is generated, and callback/configuration failures occur before this plugin commits caption-token or counter changes.
-- Generated numbers must remain inside p-captions' caption-number grammar. In particular, advancing `999999` to a seven-digit segment throws a `RangeError` before the affected caption is mutated.
-
-#### Chapter and appendix scopes
-
-The advanced policy can derive a display prefix and an independent counter sequence from top-level headings and/or per-render frontmatter metadata:
-
-```js
-const md = mdit({ html: true }).use(mditFigureWithPCaption, {
-  autoLabelNumber: true,
-  autoLabelNumberPolicy: {
-    separator: '.', // '.' (default) or '-'
-    scope: {
-      sources: ['frontmatter', 'heading'],
-      headingLevels: [1],
-      repeatScope: 'continue', // 'continue' or 'reset'
-      resolveFrontmatterTitle(raw, state) {
-        const match = raw.match(/^title:\s*(.+)$/m)
-        return match ? match[1] : null
-      },
-    },
-  },
-})
-```
-
-Recognized leading scope forms are `Chapter N`, `第N章`, `N章`, `Appendix N`, `Appendix A`, and `付録` / `付属` / `附属` followed by a digit or one uppercase ASCII letter. English keywords are case-insensitive. The marker must end at the same spaced/compact caption boundary used by p-captions, so prose such as `Chapter 1st`, `Appendix API`, or `第1章立て` is not mistaken for a scope. Formatting after a valid boundary is allowed (`# Chapter 1: *Introduction*`), but formatting the marker itself (`# **Chapter 1**`) and ambiguous inline-token continuations fail closed.
-
-- Only configured top-level heading levels update scope. Headings inside blockquotes/lists do not become scope sources in this release, although figures inside those containers inherit the current top-level scope.
-- Captions before the first recognized scope use the ordinary unscoped decimal sequence.
-- With `repeatScope: 'continue'`, a repeated semantic scope resumes its prior per-mark counter. With `repeatScope: 'reset'`, every scope occurrence gets a new render-local counter partition even when its displayed prefix is identical.
-- In scoped mode, an explicit number seeds the counter only when it uses the active prefix and separator (for example, `Figure 2.5.` under `Chapter 2` with the default separator). Other explicit numbers are preserved as source text but do not seed that sequence.
-
-The canonical frontmatter input is parsed metadata supplied per render as `env.frontmatter.title`:
-
-```js
-md.render(source, { frontmatter: { title: 'Appendix A: Data' } })
-```
-
-This plugin does not register a frontmatter block rule and does not parse YAML. If the host already produces a `front_matter` token, provide `resolveFrontmatterTitle(raw, state)` to adapt its raw string. Resolver errors and non-string results fail closed to the unscoped sequence. `markdown-it-front-matter` is used only as a development/integration-test adapter here; adding that detector alone does not parse a YAML `title`.
-
-Parsed frontmatter may override the configured scope mode and separator for one document through the nested `figure-caption-numbering` object:
-
-```yaml
----
-title: Chapter 1. A title
-figure-caption-numbering:
-  scope: auto
-  separator: "."
----
-```
-
-The equivalent render input is:
-
-```js
-md.render(source, {
-  frontmatter: {
-    title: 'Chapter 1. A title',
-    'figure-caption-numbering': {
-      scope: 'auto',
-      separator: '.',
-    },
-  },
-})
-```
-
-The equivalent flattened form is also accepted when a frontmatter pipeline exposes dotted keys:
-
-```yaml
----
-title: Chapter 1. A title
-figure-caption-numbering.scope: auto
-figure-caption-numbering.separator: "."
----
-```
-
-Nested and dotted properties may be combined when they configure different fields, but defining the same logical field twice throws instead of choosing an ambiguous winner. Abbreviated aliases are intentionally not recognized.
-
-`scope: 'auto'` uses the heading/frontmatter sources enabled by `autoLabelNumberPolicy.scope`; it does not enable sources that the host did not configure. `scope: 'document'` fixes the render to the unscoped per-series counters, so a recognized `Chapter 1` still produces `Figure 1`, `Figure 2`, and so on. `separator` accepts only `.` or `-` and overrides the setup-time separator for that render. The default is `.`, so `Chapter 1` produces `Figure 1.1`; select `-` for `Figure 1-1`.
-
-Unknown nested properties, invalid values, and duplicate nested/dotted definitions throw before caption mutation.
-
-A host may override parsed frontmatter through `env.figureCaptionNumbering`. Its `scope` may be `'auto'`, `'document'`, or a validated fixed scope object. A render-level `separator` takes precedence over parsed frontmatter, which in turn takes precedence over `autoLabelNumberPolicy.separator`:
-
-```js
-md.render(source, {
-  figureCaptionNumbering: {
-    separator: '.',
-    scope: {
-      scopeKey: 'chapter:7',
-      sequenceKey: 'edition-2:chapter:7',
-      displayPrefix: '7',
-    },
-  },
-})
-```
-
-When `sequenceKey` is omitted from a fixed scope it defaults to `scopeKey`; specify it when semantic identity and counter partition must differ. Invalid explicit overrides throw before caption mutation rather than silently falling back to the unscoped sequence.
-
-#### Caption-numbering integration API
-
-Source editors and other markdown-it integrations can reuse the figure-specific numbering semantics without importing the renderer walker:
-
-```js
-import {
-  createFigureCaptionCounterKeyResolver,
-  createFigureCaptionNumberCodec,
-  createFigureCaptionScopeTimeline,
-  normalizeFigureCaptionNumberingPolicy,
-} from '@peaceroad/markdown-it-figure-with-p-caption/caption-numbering.js'
-```
-
-- `normalizeFigureCaptionNumberingPolicy(value)` applies the same validation and defaults as `autoLabelNumberPolicy`. It returns `null` for `null` / `undefined`; otherwise it returns an opaque frozen policy that must be passed to the timeline API.
-- `createFigureCaptionScopeTimeline(state, policy)` reads a markdown-it `StateCore` after inline parsing and returns the initial numbering context plus frozen, source-ordered top-level heading boundaries. It applies the same parsed-frontmatter, render override, heading level, marker boundary, separator, and repeat-scope rules as the renderer. It never mutates `state`, its tokens, or inline children. A recognized heading without a usable `token.map` sets `hasUnmappableBoundaries` so a source editor can fail closed rather than guess an edit range.
-- `createFigureCaptionCounterKeyResolver({ languages })` returns a frozen resolver from a p-captions `captionDecision` to the same semantic `figure` / `listing` / `samp` / `video` / `table` series used by this plugin. The language catalog is normalized once when the resolver is created.
-- `createFigureCaptionNumberCodec()` returns a frozen stateless codec. `parseExplicit(number, context)` returns the compatible positive decimal counter value or `null`; `format(sequence, context)` generates the scoped or unscoped number and enforces p-captions' number grammar. Contexts are branded frozen values returned by the timeline API, so arbitrary look-alike objects are rejected.
-
-Create the timeline inside a core rule so the real `StateCore`, including `env` and inline children, stays available:
-
-```js
-const policy = normalizeFigureCaptionNumberingPolicy({
-  separator: '.',
-  scope: {
-    sources: ['frontmatter', 'heading'],
-    headingLevels: [1],
-    repeatScope: 'continue',
-  },
-})
-
-md.core.ruler.after('inline', 'collect_figure_caption_scopes', (state) => {
-  const timeline = createFigureCaptionScopeTimeline(state, policy)
-  // Collect source edits here or store the immutable timeline in render-local state.
-  state.env.figureCaptionScopeTimeline = timeline
-})
-```
-
-This subpath intentionally does not expose figure-candidate detection, wrapping, or token mutation. `p7d-markdown-it-p-captions` still owns caption grammar and `captionDecision`; consumers own source selection and editing.
-
-## Basic Usage
-
-```js
-import mdit from 'markdown-it'
-import mditFigureWithPCaption from '@peaceroad/markdown-it-figure-with-p-caption'
-import mditRendererFence from '@peaceroad/markdown-it-renderer-fence' // optional but keeps fences aligned with samples
-
-const md = mdit({ html: true, langPrefix: 'language-', })
-  .use(mditFigureWithPCaption)
-  .use(mditRendererFence)
-
-console.log(md.render('Figure. A Cat.\n\n![A cat](cat.jpg)'))
-// <figure class="f-img">
-// <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Cat.</figcaption>
-// <img src="cat.jpg" alt="A cat">
-// </figure>
-```
-
-### Basic Recommended Options
-
-Auto label numbering for images and tables.
-
-```js
-const figureOption = {
-  // Opinionated defaults
-  imageOnlyParagraphWithoutCaption: true,
-  videoWithoutCaption: true,
-  audioWithoutCaption: true,
-  iframeWithoutCaption: true,
-  iframeTypeBlockquoteWithoutCaption: true,
-  removeUnnumberedLabelExceptMarks: ['blockquote'], // keep `Quote.` labels even when unnumbered
-  allIframeTypeFigureClassName: 'f-embed', // apply a uniform class to every iframe-style embed
-  autoLabelNumber: true,
-
-  // If you want to enable auto alt/title captioning fallbacks without caption label.
-  //autoAltCaption: true,
-  //autoTitleCaption: true,
-}
-```
-
-If there is no label number, the label will also be deleted.
-
-```js
-const figureOption = {
-  imageOnlyParagraphWithoutCaption: true,
-  videoWithoutCaption: true,
-  audioWithoutCaption: true,
-  iframeWithoutCaption: true,
-  iframeTypeBlockquoteWithoutCaption: true,
-  removeUnnumberedLabelExceptMarks: ['blockquote'],
-  allIframeTypeFigureClassName: 'f-embed',
-  removeUnnumberedLabel: true,
-}
-```
-
-These options can be used as follows:
-
-```
-const md = mdit({ html: true }).use(mditFigureWithPCaption, figureOption)
-```
-
-## Conversion Examples
-
-### Default before/after caption paragraph detection
-
-~~~
-[Markdown]
-![A single cat](figure.jpg)
-
-[HTML]
-<p><img src="figure.jpg" alt="A single cat"></p>
-
-<!-- Above: If imageOnlyParagraphWithoutCaption (or its legacy alias oneImageWithoutCaption) is true, this img element has wrapped into figure element without caption. -->
-
-
-[Markdown]
-Figure. A Caption.
-
-![A single cat](figure.jpg)
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-<img src="figure.jpg" alt="A single cat">
-</figure>
-
-
-[Markdown]
-![A single cat](figure.jpg)
-
-Figure. A Caption.
-[HTML]
-<figure class="f-img">
-<img src="figure.jpg" alt="A single cat">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A Caption.</figcaption>
-</figure>
-
-
-[Markdown]
-Table. A Caption.
+```md {test id="readme-table"}
+Table. Regional food.
 
 | Tokyo | Osaka |
-| ----- | ----- |
+| --- | --- |
 | Sushi | Takoyaki |
+```
 
-[HTML]
-<p>A paragraph.</p>
+HTML:
+
+```html {test id="readme-table"}
 <figure class="f-table">
-<figcaption><span class="f-table-label">Table<span class="f-table-label-joint">.</span></span> A Caption.</figcaption>
+<figcaption><span class="f-table-label">Table<span class="f-table-label-joint">.</span></span> Regional food.</figcaption>
 <table>
 <thead>
 <tr>
@@ -375,380 +124,260 @@ Table. A Caption.
 </tbody>
 </table>
 </figure>
-
-
-[Markdown]
-Code. A Caption.
-
-```js
-console.log('Hello World!');
 ```
 
-[HTML]
+### Code block
+
+Markdown:
+
+~~~md {test id="readme-code"}
+Code. Logging example.
+
+```js
+console.log('Hello')
+```
+~~~
+
+HTML:
+
+```html {test id="readme-code"}
 <figure class="f-pre-code">
-<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> A Caption.</figcaption>
-<pre><code class="language-js">console.log('Hello World!');
+<figcaption><span class="f-pre-code-label">Code<span class="f-pre-code-label-joint">.</span></span> Logging example.</figcaption>
+<pre><code class="language-js">console.log('Hello')
 </code></pre>
 </figure>
+```
 
-<!-- Above: class attribute of code element is generated by markdown-it option. -->
+### Terminal/samp block
 
+Markdown:
 
-[Markdown]
-Source. A Caption.
-
-> A quoted paragraph.
-
-[HTML]
-<figure class="f-blockquote">
-<figcaption><span class="f-blockquote-label">Source<span class="f-blockquote-label-joint">.</span></span> A Caption.</figcaption>
-<blockquote>
-<p>A quoted paragraph.</p>
-</blockquote>
-</figure>
-
-
-[Markdown]
-Terminal. A Caption.
+~~~md {test id="readme-samp" setup="renderer-fence"}
+Terminal. Current directory.
 
 ```samp
 $ pwd
 /home/user
 ```
+~~~
 
-[HTML]
+With `@peaceroad/markdown-it-renderer-fence`, the representative output is:
+
+```html {test id="readme-samp"}
 <figure class="f-pre-samp">
-<figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> A Caption.</figcaption>
+<figcaption><span class="f-pre-samp-label">Terminal<span class="f-pre-samp-label-joint">.</span></span> Current directory.</figcaption>
 <pre><samp>$ pwd
 /home/user
 </samp></pre>
 </figure>
+```
 
-<!-- Above: When @peaceroad/markdown-it-renderer-fence is used, samp element are generated automatically for `samp` fences. -->
+The figure wrapper and caption classification do not depend on that optional
+renderer; it is used here to show the semantic `<samp>` element.
 
-[Markdown]
-Video. A mp4.
+### Video
 
-<video controls width="400" height="300">
-<source src="example.mp4" type="video/mp4">
+Markdown:
+
+```md {test id="readme-video"}
+Video. Product demonstration.
+
+<video controls>
+<source src="demo.mp4" type="video/mp4">
 </video>
+```
 
-[HTML]
+HTML:
+
+```html {test id="readme-video"}
 <figure class="f-video">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A mp4.</figcaption>
-<video controls width="400" height="300">
-<source src="example.mp4" type="video/mp4">
+<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> Product demonstration.</figcaption>
+<video controls>
+<source src="demo.mp4" type="video/mp4">
 </video>
 </figure>
+```
 
+Known YouTube/Vimeo iframe hosts can also use the `f-video` wrapper.
+An unknown iframe with an explicit `Video.` caption uses video numbering but
+keeps the `f-iframe` wrapper.
 
-[Markdown]
-Audio. A narration.
+### Slide iframe
 
-<audio controls>
-<source src="example.mp3" type="audio/mpeg">
-</audio>
+Markdown:
 
-[HTML]
-<figure class="f-audio">
-<figcaption><span class="f-audio-label">Audio<span class="f-audio-label-joint">.</span></span> A narration.</figcaption>
-<audio controls>
-<source src="example.mp3" type="audio/mpeg">
-</audio>
-</figure>
-
-
-[Markdown]
-Video. A YouTube video.
-
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
-
-[HTML]
-<figure class="f-video">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> A YouTube video.</figcaption>
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
-</figure>
-
-
-[Markdown]
-Figure. Mastodon post.
-
-<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://example.com/embed.js"></script>
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Mastodon post.</figcaption>
-<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://example.com/embed.js"></script>
-</figure>
-
-
-[Markdown]
-Quote. Mastodon post.
-
-<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://example.com/embed.js"></script>
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-blockquote-label">Quote<span class="f-blockquote-label-joint">.</span></span> X post.</figcaption>
-<blockquote class="mastodon-embed" ...> ...... </blockquote><script async src="https://example.com/embed.js"></script>
-</figure>
-
-
-[Markdown]
+```md {test id="readme-slide"}
 Slide. A Speaker Deck.
 
-<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" allowfullscreen></iframe>
+```
 
-[HTML]
+HTML:
+
+```html {test id="readme-slide"}
 <figure class="f-slide">
 <figcaption><span class="f-slide-label">Slide<span class="f-slide-label-joint">.</span></span> A Speaker Deck.</figcaption>
-<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" frameborder="0" allowfullscreen></iframe>
-</figure>
-~~~
-
-### Auto alt/title detection
-
-The consumed `alt` or `title` value is cleared only after the image paragraph is confirmed to be wrappable. Tight-list images and image paragraphs with trailing non-image text keep their original accessibility attributes and baseline rendering.
-
-```
-[Markdown]
-![Figure. A cat.](cat.jpg)
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
-<img src="cat.jpg" alt="">
-</figure>
-
-
-[Markdown]
-![A white cat eats fishs.](cat.jpg "Figure. A cat.")
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> A cat.</figcaption>
-<img src="cat.jpg" alt="A white cat eats fishs.">
+<iframe src="https://speakerdeck.com/player/XXXXXXXXXXX" width="640" height="360" allowfullscreen></iframe>
 </figure>
 ```
 
-### Multiple images
+`figureClassThatWrapsSlides` changes the slide wrapper class.
+`allIframeTypeFigureClassName` takes precedence when all iframe-like embeds
+should share one class.
 
-~~~
-[Markdown]
-A paragraph. multipleImages: true. horizontal images only.
+See the [complete conversion examples](docs/examples.md#conversion-examples)
+for before/after captions, multiple images, blockquotes, audio, social embeds,
+and option-specific output.
 
-![Sitting cat](cat1.jpg) ![Standing cat](cat2.jpg)
+## Recommended options
 
-Figure. Cats.
-
-A paragraph.
-[HTML]
-<p>A paragraph. multipleImages: true.  horizontal images only</p>
-<figure class="f-img-horizontal">
-<img src="cat1.jpg" alt="Sitting cat"><img src="cat2.jpg" alt="Standing cat">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
-</figure>
-<p>A paragraph.</p>
-
-[Markdown]
-A paragraph. multipleImages: true. vertical images only.
-
-Figure. Cats.
-
-![Sitting cat](cat1.jpg) 
-     ![Standing cat](cat2.jpg)
-
-A paragraph.
-[HTML]
-<p>A paragraph. multipleImages: true. vertical images only.</p>
-<figure class="f-img-vertical">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
-<img src="cat1.jpg" alt="Sitting cat">
-<img src="cat2.jpg" alt="Standing cat">
-</figure>
-<p>A paragraph.</p>
-
-[Markdown]
-A paragraph. multipleImages: true.
-
-Figure. Cats.
-
-![Sitting cat](cat1.jpg) ![Standing cat](cat2.jpg)
-![Sleeping cat](cat3.jpg)
-
-A paragraph.
-[HTML]
-<p>A paragraph. multipleImages: true.</p>
-<figure class="f-img-multiple">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Cats.</figcaption>
-<img src="cat1.jpg" alt="Sitting cat"><img src="cat2.jpg" alt="Standing cat">
-<img src="cat3.jpg" alt="Sleeping cat">
-</figure>
-<p>A paragraph.</p>
-~~~
-
-## Option Examples
-
-### Styles
-
-This example uses `classPrefix: 'custom'` and leaves `styleProcess: true` so a trailing `{.notice}` block moves onto the `<figure>` wrapper. This fallback only handles the final trailing attrs block on an image-only paragraph; it supports quoted values with spaces, but for broader attrs syntax support, keep using `markdown-it-attrs`.
-
-```
-[Markdown]
-Figure. Highlighted cat.
-
-![Highlighted cat](cat.jpg) {.notice}
-[HTML]
-<figure class="custom-img notice">
-<figcaption><span class="custom-img-label">Figure<span class="custom-img-label-joint">.</span></span> Highlighted cat.</figcaption>
-<img src="cat.jpg" alt="Highlighted cat">
-</figure>
-```
-
-### Automatic detection fallbacks
-
-`autoCaptionDetection` combined with `autoAltCaption` / `autoTitleCaption` can still generate caption text even when the original alt/title lacks labels, as long as the alt/title body is non-empty. The corresponding attributes are cleared after conversion so the figcaption becomes the canonical source. When these fallbacks are `true`, the generated label text and punctuation come from `p7d-markdown-it-p-captions` locale metadata rather than a local hardcoded map. When these fallbacks are strings, the string must be a label stem recognized as an image caption label by `p7d-markdown-it-p-captions`; invalid strings fail during plugin setup instead of producing a stray paragraph.
-
-```
-[Markdown]
-![Alt fallback example](bird.jpg)
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Alt fallback example</figcaption>
-<img src="bird.jpg" alt="">
-</figure>
-
-
-[Markdown]
-![No caption](fish.jpg "Plain title text")
-
-[HTML]
-<figure class="f-img">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Plain title text</figcaption>
-<img src="fish.jpg" alt="No caption">
-</figure>
-```
-
-### Role helpers
-
-Set `roleDocExample: true` to add `role="doc-example"` to code/samp figures.
-
-~~~
-[Markdown]
-```samp
-$ pwd
-/home/user
-```
-
-[HTML]
-<figure class="f-pre-samp" role="doc-example">
-...
-</figure>
-~~~
-
-### Captionless conversion toggles
-
-If `imageOnlyParagraphWithoutCaption` (or the legacy alias `oneImageWithoutCaption`) is enabled, a single image paragraph will be wrapped with `<figure class="f-img">` even without a caption. Multi-image image-only paragraphs can also be wrapped, in which case the normal layout classes such as `f-img-horizontal`, `f-img-vertical`, or `f-img-multiple` are used.
-
-```
-[Markdown]
-![A single cat](cat.jpg)
-
-[HTML]
-<figure class="f-img">
-<img src="cat.jpg" alt="A single cat">
-</figure>
-```
-
-If `videoWithoutCaption` is enabled, `<video>` elements and iframes pointing to known video hosts (such as `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, or Vimeo) will be wrapped with `<figure class="f-video">`.
-
-```
-[Markdown]
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
-
-[HTML]
-<figure class="f-video">
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX" ...></iframe>
-</figure>
-
-
-[Markdown]
-<video controls width="400" height="300">
-<source src="example.mp4" type="video/mp4">
-</video>
-[HTML]
-<figure class="f-video">
-<video controls width="400" height="300">
-<source src="example.mp4" type="video/mp4">
-</video>
-</figure>
-```
-
-When `iframeWithoutCaption` is enabled, iframe elements will be wrapped with `<figure class="f-iframe">`. And if `iframeTypeBlockquoteWithoutCaption` is enabled, blockquote-based embeds (for example, X) will be wrapped with `<figure class="f-img">` (or another configured class).
-
-```
-[Markdown]
-<iframe>
-...
-</iframe>
-
-[HTML]
-<figure class="f-iframe">
-<iframe>
-...
-</iframe>
-</figure>
-```
-
-### Iframe-type blockquote class override
-
-Set `figureClassThatWrapsIframeTypeBlockquote: 'f-social'` (or any class you prefer) to wrap blockquote-based embeds (for example, X, Mastodon, Bluesky) with that class.
-
-```
-[Markdown]
-Figure. Twitter embed.
-
-<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-[HTML]
-<figure class="f-social">
-<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Twitter embed.</figcaption>
-<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-</figure>
-```
-
-### All iframe/embed class override
-
-Set `allIframeTypeFigureClassName: 'f-embed'` (or any class you prefer) to consolidate iframe-like embeds under one class.
-
-```
-[Markdown]
-Video. Custom embed.
-
-<iframe width="560" height="315" src="https://example.com/embed/123" title="Custom embed" frameborder="0" allowfullscreen></iframe>
-
-[HTML]
-<figure class="f-embed">
-<figcaption><span class="f-video-label">Video<span class="f-video-label-joint">.</span></span> Custom embed.</figcaption>
-<iframe width="560" height="315" src="https://example.com/embed/123" title="Custom embed" frameborder="0" allowfullscreen></iframe>
-</figure>
-```
-
-Need matching caption classes too? Use `labelClassFollowsFigure` (and optionally `figureToLabelClassMap`) so the `figcaption` spans inherit the embed class you just applied (e.g., `f-embed-label`, `f-embed-label-joint`). If `figureToLabelClassMap` is provided, figure-following mode is enabled automatically unless `labelClassFollowsFigure` is set explicitly.
-
-
-### Caption markers
-
-- `allowLabelPrefixMarkerWithoutLabel`: when `true`, marker-only paragraphs (e.g., `▼Caption`) are treated as captions without labels. If `labelPrefixMarker` is an array, the first entry is used for the previous caption and the second for the next caption. The marker is stripped from output.
+The plugin defaults are conservative. The following is a practical,
+opinionated configuration when valid captionless media should also receive
+figure wrappers, iframe-like embeds should share one class, and images/tables
+should be numbered:
 
 ```js
-const figureOption = {
-  labelPrefixMarker: ['▼', '▲'],
-  allowLabelPrefixMarkerWithoutLabel: true,
+const recommendedFigureOptions = {
+  imageOnlyParagraphWithoutCaption: true,
+  videoWithoutCaption: true,
+  audioWithoutCaption: true,
+  iframeWithoutCaption: true,
+  iframeTypeBlockquoteWithoutCaption: true,
+
+  // Keep Quote./Source. labels when removeUnnumberedLabel is enabled later.
+  removeUnnumberedLabelExceptMarks: ['blockquote'],
+
+  // Use one predictable wrapper class for iframe/social-embed figures.
+  allIframeTypeFigureClassName: 'f-embed',
+
+  // Opt in to document-wide numbering for image and table captions.
+  autoLabelNumber: true,
 }
 
-const md = mdit({ html: true }).use(mditFigureWithPCaption, figureOption)
+const md = markdownIt({ html: true })
+  .use(figureWithCaption, recommendedFigureOptions)
 ```
 
-The first marker applies to captions before the figure, the second to captions after it.
+Optional additions:
+
+```js
+const recommendedFigureOptionsWithFallbacks = {
+  ...recommendedFigureOptions,
+  // Remove labels such as Figure./Table. when they remain unnumbered.
+  removeUnnumberedLabel: true,
+
+  // Generate an image label when non-empty alt/title text has no label.
+  autoAltCaption: true,
+  // autoTitleCaption: true,
+}
+```
+
+`autoAltCaption` and `autoTitleCaption` are disabled by default. When set to
+`true`, generated labels follow p-captions locale metadata. They may also be a
+recognized string label.
+
+See the [complete option reference](docs/reference.md#behavior-customization)
+and [option examples](docs/examples.md#option-examples) for class mapping,
+caption markers, role helpers, captionless conversion, and formatting options.
+
+## Automatic numbering
+
+Automatic numbering is **disabled by default**.
+
+Document-wide numbering for image and table captions:
+
+```js
+const md = markdownIt().use(figureWithCaption, {
+  autoLabelNumber: true,
+})
+```
+
+This generates `Figure 1`, `Figure 2`, and so on. A `Chapter 1` heading alone
+does not enable chapter-aware numbering.
+
+Chapter-aware numbering:
+
+```js
+const md = markdownIt().use(figureWithCaption, {
+  autoLabelNumber: true,
+  autoLabelNumberPolicy: {
+    scope: {
+      sources: ['heading'],
+      headingLevels: [1],
+    },
+  },
+})
+```
+
+Under `# Chapter 1: Introduction`, this generates `Figure 1.1`,
+`Figure 1.2`, and so on. The scoped separator defaults to `.`; set
+`separator: '-'` for `Figure 1-1`.
+
+Use `autoLabelNumberSets` for additional marks:
+
+```js
+const md = markdownIt().use(figureWithCaption, {
+  autoLabelNumberSets: ['img', 'table', 'code', 'samp', 'video'],
+})
+```
+
+`autoLabelNumber` is only the image/table shorthand. An explicitly supplied
+`autoLabelNumberSets` always wins, and `autoLabelNumberPolicy` changes
+formatting/scope without enabling marks by itself.
+
+See the [complete automatic-numbering reference](docs/numbering.md#automatic-numbering)
+for semantic counter series, shared samp labels, manual-number synchronization,
+chapter/appendix recognition, repeat scopes, frontmatter configuration, and
+render-level overrides.
+
+## Integration API
+
+Source editors and other markdown-it plugins can reuse the same figure-specific
+scope, counter-series, and number-codec semantics without importing the
+renderer walker:
+
+```js
+import {
+  createFigureCaptionCounterKeyResolver,
+  createFigureCaptionNumberCodec,
+  createFigureCaptionScopeTimeline,
+  normalizeFigureCaptionNumberingPolicy,
+} from '@peaceroad/markdown-it-figure-with-p-caption/caption-numbering.js'
+```
+
+See the [caption-numbering integration API reference](docs/numbering.md#caption-numbering-integration-api).
+The public API intentionally does not expose figure-candidate detection,
+wrapping, token mutation, or source editing.
+
+## Important behavior
+
+- Repeated `.use(figureWithCaption, ...)` calls on one markdown-it instance use
+  first-install-wins behavior. Create separate instances for different
+  successful option sets.
+- Tight-list image paragraphs are not wrapped. Loose lists, blockquotes, and
+  description lists are supported with documented container guards.
+- `styleProcess` and forwarded markdown-it-attrs attributes are not
+  sanitization. Sanitize final rendered HTML when the Markdown input is
+  untrusted.
+- Source HTML requires `markdownIt({ html: true })`.
+- The plugin does not parse YAML or install a frontmatter rule. Supply parsed
+  metadata through `env.frontmatter`, or configure the documented raw-token
+  adapter.
+
+## Documentation
+
+The detailed documentation is divided into three files:
+
+- [Behavior and options reference](docs/reference.md) — detection, wrapping,
+  caption helpers, basic usage, and option contracts.
+- [Automatic numbering and integration API](docs/numbering.md) — numbering
+  series, [chapter and appendix scopes](docs/numbering.md#chapter-and-appendix-scopes),
+  frontmatter/render overrides, and the
+  [public integration API](docs/numbering.md#caption-numbering-integration-api).
+- [Complete conversion and option examples](docs/examples.md) — full
+  [conversion examples](docs/examples.md#conversion-examples) and
+  [option examples](docs/examples.md#option-examples).
+
+## License
+
+MIT
