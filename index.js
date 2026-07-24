@@ -7,34 +7,38 @@ import {
   createCaptionNumberingPolicy,
   createCaptionNumberingRuntime,
   getGeneratedLabelDefaults,
-  isCaptionLabelForMark,
   normalizeAutoLabelNumberSets,
   normalizeLabelPrefixMarkers,
-  isCaptionLabelBoundary,
   setCaptionParagraph,
   getMarkRegStateForLanguages,
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
 import { applyHtmlFigureTransform, detectHtmlFigureCandidate } from './embeds/detect.js'
+import {
+  createFigureCaptionCounterKeyResolverFromMarkRegState,
+} from './caption-numbering/counter-series.js'
+import {
+  createUnscopedNumberingContext,
+  formatFigureCaptionGeneratedNumberUnchecked,
+  getCaptionNumberingContext,
+  parseFigureCaptionExplicitNumberUnchecked,
+} from './caption-numbering/number-codec.js'
+import {
+  getFigureCaptionNumberingPolicyState,
+  normalizeFigureCaptionNumberingPolicy,
+} from './caption-numbering/options.js'
+import {
+  createFigureCaptionScopeRuntime,
+  getFigureCaptionScopeNestedContainerType,
+  updateFigureCaptionScopeFromHeading,
+} from './caption-numbering/scope.js'
 
 const imageAttrsReg = /^ *\{(.*?)\} *$/
 const sampLangReg = /^ *(?:samp|shell|console)(?:(?= )|$)/
 const asciiLabelReg = /^[A-Za-z]/
 const attrNameReg = /^[^\s=]+$/
 const labelTrailingJointReg = /[.\u3002\uff0e:：\u3000]\s*$/
-const captionNumberSegmentReg = /^[A-Z0-9]{1,6}$/
-const maxScopeKeyLength = 256
-const maxScopeVisiblePrefixLength = 128
-const frontmatterNumberingKey = 'figure-caption-numbering'
-const frontmatterNumberingScopeKey = frontmatterNumberingKey + '.scope'
-const frontmatterNumberingSeparatorKey = frontmatterNumberingKey + '.separator'
 const installedKey = Symbol.for('p7d-markdown-it-figure-with-p-caption.installed')
-const scopeTransparentInlineTokenTypes = new Set([
-  'em_open', 'em_close',
-  'strong_open', 'strong_close',
-  's_open', 's_close',
-  'link_open', 'link_close',
-])
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
@@ -120,31 +124,30 @@ const isHyphenFenceLine = (src, lineStart) => {
   if (index >= src.length || src.charCodeAt(index) !== 0x0a) return 0
   return hyphenCount
 }
-const skipLeadingFrontmatter = (src) => {
-  if (typeof src !== 'string' || isHyphenFenceLine(src, 0) === 0) return src
+const getBodyStartAfterLeadingFrontmatter = (src) => {
+  if (typeof src !== 'string' || isHyphenFenceLine(src, 0) === 0) return 0
   let lineStart = src.indexOf('\n')
-  if (lineStart === -1) return src
+  if (lineStart === -1) return 0
   lineStart++
   while (lineStart < src.length) {
     if (isHyphenFenceLine(src, lineStart) > 0) {
       const nextLineStart = src.indexOf('\n', lineStart)
-      if (nextLineStart === -1) return ''
-      return src.slice(nextLineStart + 1)
+      return nextLineStart === -1 ? src.length : nextLineStart + 1
     }
     const nextLineStart = src.indexOf('\n', lineStart)
     if (nextLineStart === -1) break
     lineStart = nextLineStart + 1
   }
-  return src
+  return 0
 }
 const detectDocumentPrimaryLanguage = (src, availableLanguages) => {
   if (!src || availableLanguages.indexOf('ja') === -1) return ''
-  const body = skipLeadingFrontmatter(src)
-  const limit = Math.min(body.length, 8192)
+  const bodyStart = getBodyStartAfterLeadingFrontmatter(src)
+  const limit = Math.min(src.length, bodyStart + 8192)
   let japaneseCount = 0
   let asciiAlphaCount = 0
-  for (let i = 0; i < limit; i++) {
-    const code = body.charCodeAt(i)
+  for (let i = bodyStart; i < limit; i++) {
+    const code = src.charCodeAt(i)
     if (isJapaneseCharCode(code)) {
       japaneseCount++
       continue
@@ -312,101 +315,6 @@ const parseImageAttrs = (raw) => {
   return attrs
 }
 
-const parseAsciiPositiveIntegerOrNull = (text) => {
-  if (typeof text !== 'string' || text.length === 0) return null
-  let value = 0
-  for (let index = 0; index < text.length; index++) {
-    const code = text.charCodeAt(index)
-    if (code < 0x30 || code > 0x39) return null
-    value = value * 10 + code - 0x30
-  }
-  return Number.isSafeInteger(value) && value > 0 ? value : null
-}
-
-const normalizeNumberingSeparator = (value, optionName) => {
-  if (value !== '-' && value !== '.') {
-    throw new TypeError(`${optionName} must be "-" or ".".`)
-  }
-  return value
-}
-
-const normalizeNumberingScopeMode = (value, optionName) => {
-  if (value !== 'auto' && value !== 'document') {
-    throw new TypeError(`${optionName} must be "auto" or "document".`)
-  }
-  return value
-}
-
-const normalizeScopeSources = (value) => {
-  if (value === undefined) return []
-  if (!Array.isArray(value)) {
-    throw new TypeError('autoLabelNumberPolicy.scope.sources must be an array.')
-  }
-  const sources = []
-  for (let index = 0; index < value.length; index++) {
-    const source = value[index]
-    if (source !== 'frontmatter' && source !== 'heading') {
-      throw new TypeError('autoLabelNumberPolicy.scope.sources entries must be "frontmatter" or "heading".')
-    }
-    if (sources.indexOf(source) === -1) sources.push(source)
-  }
-  return sources
-}
-
-const normalizeHeadingLevels = (value) => {
-  const source = value === undefined ? [1] : value
-  if (!Array.isArray(source)) {
-    throw new TypeError('autoLabelNumberPolicy.scope.headingLevels must be an array.')
-  }
-  const levels = []
-  for (let index = 0; index < source.length; index++) {
-    const level = source[index]
-    if (!Number.isInteger(level) || level < 1 || level > 6) {
-      throw new RangeError('autoLabelNumberPolicy.scope.headingLevels entries must be integers from 1 through 6.')
-    }
-    if (levels.indexOf(level) === -1) levels.push(level)
-  }
-  return levels
-}
-
-const normalizeAutoLabelNumberPolicy = (value) => {
-  if (value === undefined || value === null) return null
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    throw new TypeError('autoLabelNumberPolicy must be an object or null.')
-  }
-  const separator = normalizeNumberingSeparator(
-    value.separator === undefined ? '.' : value.separator,
-    'autoLabelNumberPolicy.separator',
-  )
-  let scope = null
-  if (value.scope !== undefined && value.scope !== null) {
-    if (typeof value.scope !== 'object' || Array.isArray(value.scope)) {
-      throw new TypeError('autoLabelNumberPolicy.scope must be an object or null.')
-    }
-    const sources = normalizeScopeSources(value.scope.sources)
-    const headingLevels = normalizeHeadingLevels(value.scope.headingLevels)
-    const repeatScope = value.scope.repeatScope === undefined ? 'continue' : value.scope.repeatScope
-    if (repeatScope !== 'continue' && repeatScope !== 'reset') {
-      throw new TypeError('autoLabelNumberPolicy.scope.repeatScope must be "continue" or "reset".')
-    }
-    const resolveFrontmatterTitle = value.scope.resolveFrontmatterTitle
-    if (resolveFrontmatterTitle !== undefined && resolveFrontmatterTitle !== null && typeof resolveFrontmatterTitle !== 'function') {
-      throw new TypeError('autoLabelNumberPolicy.scope.resolveFrontmatterTitle must be a function or null.')
-    }
-    scope = Object.freeze({
-      headingLevelLookup: Object.freeze(headingLevels.reduce((lookup, level) => {
-        lookup[level] = true
-        return lookup
-      }, {})),
-      repeatScope,
-      resolveFrontmatterTitle: resolveFrontmatterTitle || null,
-      usesFrontmatter: sources.indexOf('frontmatter') !== -1,
-      usesHeading: sources.indexOf('heading') !== -1,
-    })
-  }
-  return Object.freeze({ separator, scope })
-}
-
 const getEnabledCaptionNumberingMarks = (sets, opt) => {
   if (!Array.isArray(sets) || sets.length === 0) return []
   const exceptMarks = opt && Array.isArray(opt.removeUnnumberedLabelExceptMarks)
@@ -416,29 +324,10 @@ const getEnabledCaptionNumberingMarks = (sets, opt) => {
   return sets.filter(mark => exceptMarks.indexOf(mark) !== -1)
 }
 
-const getNormalizedNumberingContext = (captionContext) => {
-  const numbering = captionContext && captionContext.numbering
-  if (!numbering || typeof numbering !== 'object') {
-    throw new TypeError('captionContext.numbering must be a normalized numbering context.')
-  }
-  return numbering
-}
-
-const createFigureCaptionCounterKeyResolver = (markRegState) => ({ mark, captionDecision }) => {
-  if (mark === 'img') return 'figure'
-  if (mark === 'pre-code') return 'listing'
-  if (mark === 'pre-samp') {
-    const labelText = captionDecision.labelText
-    if (isCaptionLabelForMark(labelText, 'img', markRegState)) return 'figure'
-    if (isCaptionLabelForMark(labelText, 'pre-code', markRegState)) return 'listing'
-    return 'samp'
-  }
-  return mark
-}
-
 const createFigureCaptionNumberingPolicy = (enabledMarks, advancedPolicy, markRegState) => {
   if (enabledMarks.length === 0) return null
-  const getCounterKey = createFigureCaptionCounterKeyResolver(markRegState)
+  const resolveCounterKey = createFigureCaptionCounterKeyResolverFromMarkRegState(markRegState)
+  const getCounterKey = ({ captionDecision }) => resolveCounterKey(captionDecision)
   if (!advancedPolicy) {
     return createCaptionNumberingPolicy({
       enabledMarks,
@@ -453,366 +342,23 @@ const createFigureCaptionNumberingPolicy = (enabledMarks, advancedPolicy, markRe
     generatedNumberHasNumClass: false,
     getCounterKey,
     getSequenceKey({ captionContext }) {
-      return getNormalizedNumberingContext(captionContext).sequenceKey
+      return getCaptionNumberingContext(captionContext).sequenceKey
     },
+    // p-captions resolves getSequenceKey first, so the following callbacks can
+    // reuse that already-branded context without a second WeakSet lookup.
     parseExplicitNumber({ number, captionContext }) {
-      const numbering = getNormalizedNumberingContext(captionContext)
-      if (!numbering.scoped) return parseAsciiPositiveIntegerOrNull(number)
-      const prefix = numbering.displayPrefix + numbering.separator
-      if (!number.startsWith(prefix)) return null
-      return parseAsciiPositiveIntegerOrNull(number.slice(prefix.length))
+      return parseFigureCaptionExplicitNumberUnchecked(
+        number,
+        captionContext && captionContext.numbering,
+      )
     },
     formatGeneratedNumber({ sequence, captionContext }) {
-      const numbering = getNormalizedNumberingContext(captionContext)
-      return numbering.scoped
-        ? numbering.displayPrefix + numbering.separator + sequence
-        : String(sequence)
+      return formatFigureCaptionGeneratedNumberUnchecked(
+        sequence,
+        captionContext && captionContext.numbering,
+      )
     },
   })
-}
-
-const startsWithAsciiCaseInsensitive = (text, expectedLowerCase) => {
-  if (text.length < expectedLowerCase.length) return false
-  for (let index = 0; index < expectedLowerCase.length; index++) {
-    let code = text.charCodeAt(index)
-    if (code >= 0x41 && code <= 0x5a) code += 0x20
-    if (code !== expectedLowerCase.charCodeAt(index)) return false
-  }
-  return true
-}
-
-const readAsciiDigits = (text, start) => {
-  let end = start
-  while (end < text.length && end - start < 6) {
-    const code = text.charCodeAt(end)
-    if (code < 0x30 || code > 0x39) break
-    end++
-  }
-  return end === start ? null : { id: text.slice(start, end), end }
-}
-
-const readAppendixIdentifier = (text, start) => {
-  const digits = readAsciiDigits(text, start)
-  if (digits) return digits
-  const code = text.charCodeAt(start)
-  if (code >= 0x41 && code <= 0x5a) {
-    return { id: text.charAt(start), end: start + 1 }
-  }
-  return null
-}
-
-const matchScopeMarker = (text) => {
-  if (typeof text !== 'string' || !text) return null
-  const first = text.charAt(0)
-  if (first === 'C' || first === 'c') {
-    if (!startsWithAsciiCaseInsensitive(text, 'chapter ')) return null
-    const identifier = readAsciiDigits(text, 8)
-    return identifier && {
-      kind: 'chapter',
-      id: identifier.id,
-      markerEnd: identifier.end,
-      layout: 'spaced',
-    }
-  }
-  if (first === 'A' || first === 'a') {
-    if (!startsWithAsciiCaseInsensitive(text, 'appendix ')) return null
-    const identifier = readAppendixIdentifier(text, 9)
-    return identifier && {
-      kind: 'appendix',
-      id: identifier.id,
-      markerEnd: identifier.end,
-      layout: 'spaced',
-    }
-  }
-  if (first === '第') {
-    const identifier = readAsciiDigits(text, 1)
-    if (!identifier || text.charAt(identifier.end) !== '章') return null
-    return {
-      kind: 'chapter',
-      id: identifier.id,
-      markerEnd: identifier.end + 1,
-      layout: 'compact',
-    }
-  }
-  const firstCode = text.charCodeAt(0)
-  if (firstCode >= 0x30 && firstCode <= 0x39) {
-    const identifier = readAsciiDigits(text, 0)
-    if (!identifier || text.charAt(identifier.end) !== '章') return null
-    return {
-      kind: 'chapter',
-      id: identifier.id,
-      markerEnd: identifier.end + 1,
-      layout: 'compact',
-    }
-  }
-  let prefix = ''
-  if (text.startsWith('付録')) prefix = '付録'
-  else if (text.startsWith('付属')) prefix = '付属'
-  else if (text.startsWith('附属')) prefix = '附属'
-  if (!prefix) return null
-  const identifier = readAppendixIdentifier(text, prefix.length)
-  return identifier && {
-    kind: 'appendix',
-    id: identifier.id,
-    markerEnd: identifier.end,
-    layout: 'compact',
-  }
-}
-
-const buildScopeSemanticResult = (candidate) => ({
-  scopeKey: candidate.kind + ':' + candidate.id,
-  displayPrefix: candidate.id,
-})
-
-const recognizeScopeText = (text, requireVisibleTail) => {
-  const candidate = matchScopeMarker(text)
-  if (!candidate) return null
-  if (requireVisibleTail && candidate.markerEnd === text.length) return null
-  if (!isCaptionLabelBoundary(text, candidate.markerEnd, {
-    layout: candidate.layout,
-    hasNumber: true,
-  })) return null
-  return buildScopeSemanticResult(candidate)
-}
-
-const recognizeScopeFromInline = (inlineToken) => {
-  if (!inlineToken || inlineToken.type !== 'inline' || !Array.isArray(inlineToken.children)) return null
-  const children = inlineToken.children
-  if (children.length === 0 || !children[0] || children[0].type !== 'text') return null
-  if (typeof children[0].content !== 'string' || children[0].content.length === 0) return null
-  let visiblePrefix = ''
-  for (let index = 0; index < children.length; index++) {
-    const child = children[index]
-    if (!child) return null
-    if (child.type === 'text') {
-      const content = typeof child.content === 'string' ? child.content : ''
-      const remaining = maxScopeVisiblePrefixLength - visiblePrefix.length
-      if (remaining <= 0) return null
-      visiblePrefix += content.slice(0, remaining)
-      const result = recognizeScopeText(visiblePrefix, true)
-      // A half-width joint at the current token boundary is not conclusive:
-      // later visible text can turn `Chapter 1:` into the invalid
-      // `Chapter 1:st`. Wait for the next text token (or the real end).
-      const lastCode = visiblePrefix.charCodeAt(visiblePrefix.length - 1)
-      if (result && lastCode !== 0x2e && lastCode !== 0x3a) return result
-      if (content.length > remaining) return null
-      continue
-    }
-    if (scopeTransparentInlineTokenTypes.has(child.type)) continue
-    return null
-  }
-  return recognizeScopeText(visiblePrefix, false)
-}
-
-const normalizeFigureSequenceKey = (value, optionName) => {
-  if (typeof value === 'string') {
-    if (!value || value.length > maxScopeKeyLength) {
-      throw new RangeError(`${optionName} must be a non-empty string of at most ${maxScopeKeyLength} UTF-16 code units.`)
-    }
-    return value
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  throw new TypeError(`${optionName} must be a non-empty string or a finite number.`)
-}
-
-const getFrontmatterNumberingOverride = (env) => {
-  const frontmatter = env && env.frontmatter
-  if (!frontmatter || typeof frontmatter !== 'object' || Array.isArray(frontmatter)) return null
-  const hasNested = hasOwnOption(frontmatter, frontmatterNumberingKey)
-  const hasDottedScope = hasOwnOption(frontmatter, frontmatterNumberingScopeKey)
-  const hasDottedSeparator = hasOwnOption(frontmatter, frontmatterNumberingSeparatorKey)
-  if (!hasNested && !hasDottedScope && !hasDottedSeparator) return null
-  const value = hasNested ? frontmatter[frontmatterNumberingKey] : null
-  const optionName = `env.frontmatter["${frontmatterNumberingKey}"]`
-  if (hasNested && (!value || typeof value !== 'object' || Array.isArray(value))) {
-    throw new TypeError(`${optionName} must be an object.`)
-  }
-  if (hasNested) {
-    const keys = Object.keys(value)
-    for (let index = 0; index < keys.length; index++) {
-      const key = keys[index]
-      if (key !== 'scope' && key !== 'separator') {
-        throw new TypeError(`${optionName}.${key} is not supported.`)
-      }
-    }
-  }
-  const normalized = {}
-  if (hasNested && hasOwnOption(value, 'scope')) {
-    if (hasDottedScope) {
-      throw new TypeError(`${optionName}.scope is defined more than once.`)
-    }
-    normalized.scope = normalizeNumberingScopeMode(value.scope, `${optionName}.scope`)
-  } else if (hasDottedScope) {
-    normalized.scope = normalizeNumberingScopeMode(
-      frontmatter[frontmatterNumberingScopeKey],
-      `env.frontmatter["${frontmatterNumberingScopeKey}"]`,
-    )
-  }
-  if (hasNested && hasOwnOption(value, 'separator')) {
-    if (hasDottedSeparator) {
-      throw new TypeError(`${optionName}.separator is defined more than once.`)
-    }
-    normalized.separator = normalizeNumberingSeparator(
-      value.separator,
-      `${optionName}.separator`,
-    )
-  } else if (hasDottedSeparator) {
-    normalized.separator = normalizeNumberingSeparator(
-      frontmatter[frontmatterNumberingSeparatorKey],
-      `env.frontmatter["${frontmatterNumberingSeparatorKey}"]`,
-    )
-  }
-  return normalized
-}
-
-const normalizeExplicitScopeOverride = (value, separator) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new TypeError('env.figureCaptionNumbering.scope must be an object.')
-  }
-  const scopeKey = normalizeFigureSequenceKey(value.scopeKey, 'env.figureCaptionNumbering.scope.scopeKey')
-  if (typeof scopeKey !== 'string') {
-    throw new TypeError('env.figureCaptionNumbering.scope.scopeKey must be a non-empty string.')
-  }
-  if (typeof value.displayPrefix !== 'string' || !captionNumberSegmentReg.test(value.displayPrefix)) {
-    throw new TypeError('env.figureCaptionNumbering.scope.displayPrefix must match the caption number segment grammar.')
-  }
-  const sequenceKey = value.sequenceKey === undefined
-    ? scopeKey
-    : normalizeFigureSequenceKey(value.sequenceKey, 'env.figureCaptionNumbering.scope.sequenceKey')
-  return Object.freeze({
-    scoped: true,
-    scopeKey,
-    sequenceKey,
-    displayPrefix: value.displayPrefix,
-    separator,
-  })
-}
-
-const createUnscopedNumberingContext = (separator) => Object.freeze({
-  scoped: false,
-  scopeKey: null,
-  sequenceKey: null,
-  displayPrefix: '',
-  separator,
-})
-
-const applySemanticScope = (scopeState, semanticScope) => {
-  const sequenceKey = scopeState.repeatScope === 'reset'
-    ? scopeState.nextResetSequenceKey++
-    : semanticScope.scopeKey
-  scopeState.currentContext = Object.freeze({
-    scoped: true,
-    scopeKey: semanticScope.scopeKey,
-    sequenceKey,
-    displayPrefix: semanticScope.displayPrefix,
-    separator: scopeState.separator,
-  })
-}
-
-const findRawFrontmatterToken = (tokens) => {
-  const firstToken = tokens && tokens[0]
-  return firstToken && firstToken.type === 'front_matter' ? firstToken : null
-}
-
-const resolveInitialFrontmatterScope = (state, scopeConfig) => {
-  const env = state.env && typeof state.env === 'object' ? state.env : null
-  const parsedTitle = env && env.frontmatter && typeof env.frontmatter === 'object'
-    ? env.frontmatter.title
-    : null
-  if (typeof parsedTitle === 'string') {
-    const prefix = parsedTitle.slice(0, maxScopeVisiblePrefixLength)
-    const recognized = recognizeScopeText(prefix, parsedTitle.length > prefix.length)
-    if (recognized) return recognized
-  }
-  if (!scopeConfig.resolveFrontmatterTitle) return null
-  const token = findRawFrontmatterToken(state.tokens)
-  if (!token) return null
-  let title
-  try {
-    const raw = typeof token.meta === 'string'
-      ? token.meta
-      : (typeof token.content === 'string' ? token.content : '')
-    title = scopeConfig.resolveFrontmatterTitle(raw, state)
-  } catch (_err) {
-    return null
-  }
-  if (typeof title !== 'string') return null
-  const prefix = title.slice(0, maxScopeVisiblePrefixLength)
-  return recognizeScopeText(prefix, title.length > prefix.length)
-}
-
-const createNumberingScopeState = (state, advancedPolicy, unscopedContext) => {
-  const scopeConfig = advancedPolicy && advancedPolicy.scope
-  if (!scopeConfig) return null
-  const env = state.env && typeof state.env === 'object' ? state.env : null
-  const frontmatterOverride = getFrontmatterNumberingOverride(env)
-  let separator = hasOwnOption(frontmatterOverride, 'separator')
-    ? frontmatterOverride.separator
-    : advancedPolicy.separator
-  let scopeMode = hasOwnOption(frontmatterOverride, 'scope')
-    ? frontmatterOverride.scope
-    : 'auto'
-  let explicitScope = null
-  let hasExplicitScope = false
-  if (env && hasOwnOption(env, 'figureCaptionNumbering')) {
-    const namespace = env.figureCaptionNumbering
-    if (!namespace || typeof namespace !== 'object' || Array.isArray(namespace)) {
-      throw new TypeError('env.figureCaptionNumbering must be an object.')
-    }
-    if (hasOwnOption(namespace, 'separator')) {
-      separator = normalizeNumberingSeparator(
-        namespace.separator,
-        'env.figureCaptionNumbering.separator',
-      )
-    }
-    if (hasOwnOption(namespace, 'scope')) {
-      if (typeof namespace.scope === 'string') {
-        scopeMode = normalizeNumberingScopeMode(
-          namespace.scope,
-          'env.figureCaptionNumbering.scope',
-        )
-      } else {
-        explicitScope = namespace.scope
-        hasExplicitScope = true
-      }
-    }
-  }
-  const currentUnscopedContext = separator === advancedPolicy.separator
-    ? unscopedContext
-    : createUnscopedNumberingContext(separator)
-  const scopeState = {
-    separator,
-    repeatScope: scopeConfig.repeatScope,
-    nextResetSequenceKey: 1,
-    currentContext: currentUnscopedContext,
-    fixed: false,
-    scopeConfig,
-  }
-  if (hasExplicitScope) {
-    scopeState.currentContext = normalizeExplicitScopeOverride(explicitScope, separator)
-    scopeState.fixed = true
-    return scopeState
-  }
-  if (scopeMode === 'document') {
-    scopeState.fixed = true
-    return scopeState
-  }
-  if (scopeConfig.usesFrontmatter) {
-    const initialScope = resolveInitialFrontmatterScope(state, scopeConfig)
-    if (initialScope) applySemanticScope(scopeState, initialScope)
-  }
-  return scopeState
-}
-
-const updateScopeFromHeading = (tokens, index, scopeState) => {
-  const token = tokens[index]
-  if (!token || typeof token.tag !== 'string') return
-  const level = token.tag.length === 2 && token.tag.charCodeAt(0) === 0x68
-    ? token.tag.charCodeAt(1) - 0x30
-    : 0
-  if (!scopeState.scopeConfig.headingLevelLookup[level]) return
-  const semanticScope = recognizeScopeFromInline(tokens[index + 1])
-  if (semanticScope) applySemanticScope(scopeState, semanticScope)
 }
 
 const isOnlySpacesText = (token) => {
@@ -1161,6 +707,8 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
   const captionStartToken = tokens[n-3]
   const captionInlineToken = tokens[n-2]
   const captionEndToken = tokens[n-1]
+  const figureStartToken = tokens[n]
+  const figureStartPaddingToken = tokens[n+1]
   convertCaptionTokens(
     captionStartToken,
     captionInlineToken,
@@ -1169,11 +717,15 @@ const changePrevCaptionPosition = (tokens, n, caption, opt) => {
     caption.name,
     opt,
   )
-  tokens.splice(n + 2, 0, captionStartToken, captionInlineToken, captionEndToken)
-  tokens.splice(n-3, 3)
+  tokens[n-3] = figureStartToken
+  tokens[n-2] = figureStartPaddingToken
+  tokens[n-1] = captionStartToken
+  tokens[n] = captionInlineToken
+  tokens[n+1] = captionEndToken
 }
 
 const changeNextCaptionPosition = (tokens, en, caption, opt) => {
+  const figureEndToken = tokens[en]
   const captionStartToken = tokens[en+1]
   const captionInlineToken = tokens[en+2]
   const captionEndToken = tokens[en+3]
@@ -1185,12 +737,25 @@ const changeNextCaptionPosition = (tokens, en, caption, opt) => {
     caption.name,
     opt,
   )
-  tokens.splice(en, 0, captionStartToken, captionInlineToken, captionEndToken)
-  tokens.splice(en+4, 3)
+  tokens[en] = captionStartToken
+  tokens[en+1] = captionInlineToken
+  tokens[en+2] = captionEndToken
+  tokens[en+3] = figureEndToken
 }
 
 const getTokenMap = (token) => {
-  return token && Array.isArray(token.map) && token.map.length === 2 ? token.map : null
+  if (!token || !Array.isArray(token.map) || token.map.length !== 2) return null
+  const startLine = token.map[0]
+  const endLine = token.map[1]
+  if (
+    !Number.isSafeInteger(startLine) ||
+    !Number.isSafeInteger(endLine) ||
+    startLine < 0 ||
+    endLine < startLine
+  ) {
+    return null
+  }
+  return token.map
 }
 
 const findNearestMapInRange = (tokens, start, end, step) => {
@@ -1209,9 +774,6 @@ const getRangeMap = (tokens, start, end) => {
   const endMap = getTokenMap(tokens[end]) || findNearestMapInRange(tokens, end, start, -1) || startMap
   const startLine = startMap[0]
   const endLine = Math.max(startMap[1], endMap[1])
-  if (typeof startLine !== 'number' || typeof endLine !== 'number' || endLine < startLine) {
-    return [startMap[0], startMap[1]]
-  }
   return [startLine, endLine]
 }
 
@@ -1271,9 +833,29 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
     joinTokenAttrs(figureStartToken, tokens[n].attrs)
   }
   if (replaceInsteadOfWrap) {
-    tokens.splice(en, 1, createTextToken(TokenConstructor, '\n', childLevel), figureEndToken)
-    tokens.splice(n, 1, figureStartToken, createTextToken(TokenConstructor, '', childLevel))
+    const contentToken = tokens[n + 1]
+    tokens.splice(
+      n,
+      en - n + 1,
+      figureStartToken,
+      createTextToken(TokenConstructor, '', childLevel),
+      contentToken,
+      createTextToken(TokenConstructor, '\n', childLevel),
+      figureEndToken,
+    )
     en = en + 2
+  } else if (n === en) {
+    const contentToken = tokens[n]
+    adjustTokenLevels(tokens, n, en, 1)
+    tokens.splice(
+      n,
+      1,
+      figureStartToken,
+      createTextToken(TokenConstructor, '', childLevel),
+      contentToken,
+      figureEndToken,
+    )
+    en = en + 3
   } else {
     adjustTokenLevels(tokens, n, en, 1)
     tokens.splice(en+1, 0, figureEndToken)
@@ -1288,20 +870,6 @@ const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
   checkPrevCaption(tokens, n, caption, sp, opt, captionState)
   if (caption.isPrev) return
   checkNextCaption(tokens, en, caption, sp, opt, captionState)
-}
-
-const getNestedContainerType = (token) => {
-  if (!token) return null
-  switch (token.type) {
-    case 'blockquote_open':
-      return 'blockquote'
-    case 'list_item_open':
-      return 'list_item'
-    case 'dd_open':
-      return 'dd'
-    default:
-      return null
-  }
 }
 
 const resetRangeState = (range, start) => {
@@ -1518,7 +1086,7 @@ const figureWithCaption = (state, opt) => {
     ? createCaptionNumberingRuntime(opt.captionNumberingPolicy, { env: state.env })
     : null
   const numberingScopeState = numberingRuntime
-    ? createNumberingScopeState(
+    ? createFigureCaptionScopeRuntime(
       state,
       opt.normalizedAutoLabelNumberPolicy,
       opt.unscopedNumberingContext,
@@ -1559,9 +1127,9 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
   while (n < tokens.length) {
     const token = tokens[n]
     if (headingScopeState && token.type === 'heading_open') {
-      updateScopeFromHeading(tokens, n, headingScopeState)
+      updateFigureCaptionScopeFromHeading(tokens, n, headingScopeState)
     }
-    const containerType = getNestedContainerType(token)
+    const containerType = getFigureCaptionScopeNestedContainerType(token)
 
     if (containerType && containerType !== 'blockquote') {
       const closeIndex = figureWithCaptionCore(tokens, opt, TokenConstructor, captionState, containerType, n + 1)
@@ -1810,7 +1378,7 @@ const mditFigureWithPCaption = (md, option) => {
       ? ['img', 'table']
       : []
   opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(requestedAutoLabelNumberSets)
-  opt.normalizedAutoLabelNumberPolicy = normalizeAutoLabelNumberPolicy(opt.autoLabelNumberPolicy)
+  opt.normalizedAutoLabelNumberPolicy = normalizeFigureCaptionNumberingPolicy(opt.autoLabelNumberPolicy)
   const enabledNumberingMarks = getEnabledCaptionNumberingMarks(opt.autoLabelNumberSets, opt)
   opt.captionNumberingPolicy = createFigureCaptionNumberingPolicy(
     enabledNumberingMarks,
@@ -1818,7 +1386,9 @@ const mditFigureWithPCaption = (md, option) => {
     opt.markRegState,
   )
   opt.unscopedNumberingContext = opt.captionNumberingPolicy && opt.normalizedAutoLabelNumberPolicy
-    ? createUnscopedNumberingContext(opt.normalizedAutoLabelNumberPolicy.separator)
+    ? createUnscopedNumberingContext(
+      getFigureCaptionNumberingPolicyState(opt.normalizedAutoLabelNumberPolicy).separator,
+    )
     : null
   const classPrefix = buildClassPrefix(opt.classPrefix)
   opt.figureClassPrefix = classPrefix

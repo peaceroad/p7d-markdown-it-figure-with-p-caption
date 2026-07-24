@@ -5,9 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "npm run test:core && npm run test:numbering",
+    "test": "npm run test:core && npm run test:numbering && npm run test:numbering-api",
     "test:core": "node test/test.js",
     "test:numbering": "node test/test-caption-numbering.js",
+    "test:numbering-api": "node test/test-caption-numbering-api.js",
     "test:p-captions": "node test/test-p-captions.js",
     "test:all": "npm run test && npm run test:p-captions",
     "perf": "node test/performance/benchmark.js"
@@ -36,6 +37,8 @@
   },
   "files": [
     "index.js",
+    "caption-numbering.js",
+    "caption-numbering/",
     "embeds/",
     "README.md",
     "LICENSE"

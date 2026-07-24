@@ -587,6 +587,19 @@ try {
   assert.strictEqual(tableFigureOpen.level, 0)
   assert.strictEqual(tableFigureClose.level, 0)
   assert.strictEqual(tableOpen.level, 1)
+  const invalidMapMd = mdit({ html: true }).use(mdFigureWithPCaption)
+  invalidMapMd.core.ruler.before('figure_with_caption', 'invalidate_test_image_maps', (state) => {
+    for (const token of state.tokens) {
+      if (Array.isArray(token.map) && token.map[0] === 2) {
+        token.map = [NaN, Infinity]
+      }
+    }
+  })
+  const invalidMapTokens = invalidMapMd.parse('Figure. Caption.\n\n![Figure](cat.jpg)', {})
+  const invalidMapFigureOpen = invalidMapTokens.find((token) => token.type === 'figure_open')
+  const invalidMapFigureClose = invalidMapTokens.find((token) => token.type === 'figure_close')
+  assert.strictEqual(invalidMapFigureOpen.map, null)
+  assert.strictEqual(invalidMapFigureClose.map, null)
   assert.throws(
     () => mdit({ html: true }).use(mdFigureWithPCaption, { autoCaptionDetection: true, autoAltCaption: 'Foo' }),
     /autoAltCaption/,

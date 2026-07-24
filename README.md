@@ -213,6 +213,45 @@ md.render(source, {
 
 When `sequenceKey` is omitted from a fixed scope it defaults to `scopeKey`; specify it when semantic identity and counter partition must differ. Invalid explicit overrides throw before caption mutation rather than silently falling back to the unscoped sequence.
 
+#### Caption-numbering integration API
+
+Source editors and other markdown-it integrations can reuse the figure-specific numbering semantics without importing the renderer walker:
+
+```js
+import {
+  createFigureCaptionCounterKeyResolver,
+  createFigureCaptionNumberCodec,
+  createFigureCaptionScopeTimeline,
+  normalizeFigureCaptionNumberingPolicy,
+} from '@peaceroad/markdown-it-figure-with-p-caption/caption-numbering.js'
+```
+
+- `normalizeFigureCaptionNumberingPolicy(value)` applies the same validation and defaults as `autoLabelNumberPolicy`. It returns `null` for `null` / `undefined`; otherwise it returns an opaque frozen policy that must be passed to the timeline API.
+- `createFigureCaptionScopeTimeline(state, policy)` reads a markdown-it `StateCore` after inline parsing and returns the initial numbering context plus frozen, source-ordered top-level heading boundaries. It applies the same parsed-frontmatter, render override, heading level, marker boundary, separator, and repeat-scope rules as the renderer. It never mutates `state`, its tokens, or inline children. A recognized heading without a usable `token.map` sets `hasUnmappableBoundaries` so a source editor can fail closed rather than guess an edit range.
+- `createFigureCaptionCounterKeyResolver({ languages })` returns a frozen resolver from a p-captions `captionDecision` to the same semantic `figure` / `listing` / `samp` / `video` / `table` series used by this plugin. The language catalog is normalized once when the resolver is created.
+- `createFigureCaptionNumberCodec()` returns a frozen stateless codec. `parseExplicit(number, context)` returns the compatible positive decimal counter value or `null`; `format(sequence, context)` generates the scoped or unscoped number and enforces p-captions' number grammar. Contexts are branded frozen values returned by the timeline API, so arbitrary look-alike objects are rejected.
+
+Create the timeline inside a core rule so the real `StateCore`, including `env` and inline children, stays available:
+
+```js
+const policy = normalizeFigureCaptionNumberingPolicy({
+  separator: '.',
+  scope: {
+    sources: ['frontmatter', 'heading'],
+    headingLevels: [1],
+    repeatScope: 'continue',
+  },
+})
+
+md.core.ruler.after('inline', 'collect_figure_caption_scopes', (state) => {
+  const timeline = createFigureCaptionScopeTimeline(state, policy)
+  // Collect source edits here or store the immutable timeline in render-local state.
+  state.env.figureCaptionScopeTimeline = timeline
+})
+```
+
+This subpath intentionally does not expose figure-candidate detection, wrapping, or token mutation. `p7d-markdown-it-p-captions` still owns caption grammar and `captionDecision`; consumers own source selection and editing.
+
 ## Basic Usage
 
 ```js
