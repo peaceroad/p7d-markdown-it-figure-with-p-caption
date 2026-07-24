@@ -8,17 +8,17 @@ export const normalizeNumberingSeparator = (value, optionName) => {
 }
 
 const normalizeScopeSources = (value) => {
-  if (value === undefined) return []
-  if (!Array.isArray(value)) {
+  const source = value === undefined ? ['frontmatter', 'heading'] : value
+  if (!Array.isArray(source)) {
     throw new TypeError('autoLabelNumberPolicy.scope.sources must be an array.')
   }
   const sources = []
-  for (let index = 0; index < value.length; index++) {
-    const source = value[index]
-    if (source !== 'frontmatter' && source !== 'heading') {
+  for (let index = 0; index < source.length; index++) {
+    const entry = source[index]
+    if (entry !== 'frontmatter' && entry !== 'heading') {
       throw new TypeError('autoLabelNumberPolicy.scope.sources entries must be "frontmatter" or "heading".')
     }
-    if (sources.indexOf(source) === -1) sources.push(source)
+    if (sources.indexOf(entry) === -1) sources.push(entry)
   }
   return sources
 }
@@ -47,26 +47,31 @@ export const normalizeNumberingScopeMode = (value, optionName) => {
 }
 
 export const normalizeFigureCaptionNumberingPolicy = (value) => {
-  if (value === undefined || value === null) return null
-  if (typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null) return null
+  const source = value === undefined ? {} : value
+  if (typeof source !== 'object' || Array.isArray(source)) {
     throw new TypeError('autoLabelNumberPolicy must be an object or null.')
   }
   const separator = normalizeNumberingSeparator(
-    value.separator === undefined ? '.' : value.separator,
+    source.separator === undefined ? '.' : source.separator,
     'autoLabelNumberPolicy.separator',
   )
   let scope = null
-  if (value.scope !== undefined && value.scope !== null) {
-    if (typeof value.scope !== 'object' || Array.isArray(value.scope)) {
-      throw new TypeError('autoLabelNumberPolicy.scope must be an object or null.')
+  const requestedScope = source.scope
+  if (requestedScope !== null && requestedScope !== 'document') {
+    const scopeValue = requestedScope === undefined || requestedScope === 'auto'
+      ? {}
+      : requestedScope
+    if (typeof scopeValue !== 'object' || Array.isArray(scopeValue)) {
+      throw new TypeError('autoLabelNumberPolicy.scope must be "auto", "document", an object, or null.')
     }
-    const sources = normalizeScopeSources(value.scope.sources)
-    const headingLevels = normalizeHeadingLevels(value.scope.headingLevels)
-    const repeatScope = value.scope.repeatScope === undefined ? 'continue' : value.scope.repeatScope
+    const sources = normalizeScopeSources(scopeValue.sources)
+    const headingLevels = normalizeHeadingLevels(scopeValue.headingLevels)
+    const repeatScope = scopeValue.repeatScope === undefined ? 'continue' : scopeValue.repeatScope
     if (repeatScope !== 'continue' && repeatScope !== 'reset') {
       throw new TypeError('autoLabelNumberPolicy.scope.repeatScope must be "continue" or "reset".')
     }
-    const resolveFrontmatterTitle = value.scope.resolveFrontmatterTitle
+    const resolveFrontmatterTitle = scopeValue.resolveFrontmatterTitle
     if (resolveFrontmatterTitle !== undefined && resolveFrontmatterTitle !== null && typeof resolveFrontmatterTitle !== 'function') {
       throw new TypeError('autoLabelNumberPolicy.scope.resolveFrontmatterTitle must be a function or null.')
     }

@@ -172,17 +172,24 @@ runTest('video caption numbering', () => {
 })
 
 runTest('numbering option precedence and setup', () => {
+  const defaultScopedSource = [
+    '# Chapter 1: Introduction',
+    '',
+    '![A](a.jpg)',
+    '',
+    'Figure. Scoped by default.',
+  ].join('\n')
   const shorthandHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
     autoLabelNumber: true,
-  }).render('Code. Not enabled.\n\n```js\nx\n```\n\n![A](a.jpg)\n\nFigure. Enabled.')
+  }).render(`Code. Not enabled.\n\n\`\`\`js\nx\n\`\`\`\n\n${defaultScopedSource}`)
   assert.deepStrictEqual(getNumberedLabels(shorthandHtml, 'Code'), [])
-  assert.deepStrictEqual(getNumberedLabels(shorthandHtml, 'Figure'), ['1'])
+  assert.deepStrictEqual(getNumberedLabels(shorthandHtml, 'Figure'), ['1.1'])
 
   const explicitWinsHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
     autoLabelNumber: true,
     autoLabelNumberSets: ['code'],
-  }).render('Code. Enabled.\n\n```js\nx\n```\n\n![A](a.jpg)\n\nFigure. Disabled.')
-  assert.deepStrictEqual(getNumberedLabels(explicitWinsHtml, 'Code'), ['1'])
+  }).render(`# Appendix A: Code\n\nCode. Enabled.\n\n\`\`\`js\nx\n\`\`\`\n\n![A](a.jpg)\n\nFigure. Disabled.`)
+  assert.deepStrictEqual(getNumberedLabels(explicitWinsHtml, 'Code'), ['A.1'])
   assert.deepStrictEqual(getNumberedLabels(explicitWinsHtml, 'Figure'), [])
 
   const explicitEmptyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
@@ -190,6 +197,79 @@ runTest('numbering option precedence and setup', () => {
     autoLabelNumberSets: [],
   }).render('![A](a.jpg)\n\nFigure. Disabled.')
   assert.deepStrictEqual(getNumberedLabels(explicitEmptyHtml, 'Figure'), [])
+
+  const defaultNumberingMd = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+  })
+  const frontmatterSource = '![A](a.jpg)\n\nFigure. Frontmatter.'
+  const frontmatterDefaultHtml = defaultNumberingMd.render(frontmatterSource, {
+    frontmatter: { title: 'Appendix B: Data' },
+  })
+  assert.deepStrictEqual(getNumberedLabels(frontmatterDefaultHtml, 'Figure'), ['B.1'])
+  const frontmatterDocumentHtml = defaultNumberingMd.render(frontmatterSource, {
+    frontmatter: {
+      title: 'Appendix B: Data',
+      'figure-caption-numbering': { scope: 'document' },
+    },
+  })
+  assert.deepStrictEqual(getNumberedLabels(frontmatterDocumentHtml, 'Figure'), ['1'])
+
+  const separatorOnlyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberPolicy: { separator: '-' },
+  }).render(defaultScopedSource)
+  assert.deepStrictEqual(getNumberedLabels(separatorOnlyHtml, 'Figure'), ['1-1'])
+
+  const explicitUndefinedPolicyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberPolicy: undefined,
+  }).render(defaultScopedSource)
+  assert.deepStrictEqual(getNumberedLabels(explicitUndefinedPolicyHtml, 'Figure'), ['1.1'])
+
+  const explicitAutomaticPolicyHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+    autoLabelNumberPolicy: { scope: 'auto' },
+  }).render(defaultScopedSource)
+  assert.deepStrictEqual(getNumberedLabels(explicitAutomaticPolicyHtml, 'Figure'), ['1.1'])
+
+  const documentWideSource = [
+    '# Chapter 1: Ignored',
+    '',
+    '![A](a.jpg)',
+    '',
+    'Figure 5. Manual.',
+    '',
+    '![B](b.jpg)',
+    '',
+    'Figure. Automatic.',
+  ].join('\n')
+  for (const autoLabelNumberPolicy of [
+    null,
+    { scope: null },
+    { scope: 'document' },
+  ]) {
+    const documentWideHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+      autoLabelNumber: true,
+      autoLabelNumberPolicy,
+    }).render(documentWideSource)
+    assert.deepStrictEqual(getNumberedLabels(documentWideHtml, 'Figure'), ['5', '6'])
+  }
+
+  const defaultHeadingLevelHtml = mdit({ html: true }).use(mdFigureWithPCaption, {
+    autoLabelNumber: true,
+  }).render(defaultScopedSource.replace('# Chapter 1', '## Chapter 1'))
+  assert.deepStrictEqual(getNumberedLabels(defaultHeadingLevelHtml, 'Figure'), ['1'])
+
+  let disabledFrontmatterReads = 0
+  const disabledEnv = {}
+  Object.defineProperty(disabledEnv, 'frontmatter', {
+    get() {
+      disabledFrontmatterReads++
+      return { title: 'Chapter 9' }
+    },
+  })
+  mdit({ html: true }).use(mdFigureWithPCaption).render(defaultScopedSource, disabledEnv)
+  assert.strictEqual(disabledFrontmatterReads, 0)
 
   const copiedSets = ['code']
   const copiedMd = mdit({ html: true }).use(mdFigureWithPCaption, { autoLabelNumberSets: copiedSets })
@@ -233,6 +313,7 @@ runTest('numbering option precedence and setup', () => {
     { autoLabelNumberSets: ['unknown'] },
     { autoLabelNumberSets: [null] },
     { autoLabelNumberSets: [''] },
+    { autoLabelNumber: true, autoLabelNumberPolicy: { scope: 'unknown' } },
   ]) {
     assert.throws(() => mdit().use(mdFigureWithPCaption, invalidOptions), TypeError)
   }

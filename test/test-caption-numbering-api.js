@@ -48,7 +48,7 @@ console.log('=== Caption numbering public API tests ===')
 
 runTest('opaque policy normalization and validation', () => {
   assert.equal(normalizeFigureCaptionNumberingPolicy(null), null)
-  assert.equal(normalizeFigureCaptionNumberingPolicy(undefined), null)
+  assert.ok(Object.isFrozen(normalizeFigureCaptionNumberingPolicy(undefined)))
   const sourcePolicy = {
     separator: '-',
     scope: {
@@ -294,12 +294,39 @@ runTest('mismatched nested-container closes fail closed', () => {
   )
 })
 
-runTest('unscoped policy timeline', () => {
-  const { timeline } = collectTimeline('# Chapter 1: Ignored', {})
+runTest('default automatic and document-wide policy timelines', () => {
+  const { timeline: automaticTimeline } = collectTimeline('# Chapter 1: Used', {})
+  assert.equal(automaticTimeline.initialContext.scoped, false)
+  assert.equal(automaticTimeline.initialContext.separator, '.')
+  assert.deepStrictEqual(
+    automaticTimeline.boundaries.map(boundary => boundary.context.scopeKey),
+    ['chapter:1'],
+  )
+  assert.equal(automaticTimeline.hasUnmappableBoundaries, false)
+  const { timeline: undefinedPolicyTimeline } = collectTimeline(
+    '# Chapter 1: Used',
+    undefined,
+  )
+  assert.deepStrictEqual(undefinedPolicyTimeline, automaticTimeline)
+  const { timeline: explicitAutomaticTimeline } = collectTimeline(
+    '# Chapter 1: Used',
+    { scope: 'auto' },
+  )
+  assert.deepStrictEqual(explicitAutomaticTimeline, automaticTimeline)
+
+  const { timeline } = collectTimeline('# Chapter 1: Ignored', { scope: 'document' })
   assert.equal(timeline.initialContext.scoped, false)
   assert.equal(timeline.initialContext.separator, '.')
   assert.deepStrictEqual(timeline.boundaries, [])
   assert.equal(timeline.hasUnmappableBoundaries, false)
+
+  const { timeline: nullScopeTimeline } = collectTimeline('# Chapter 1: Ignored', {
+    separator: '-',
+    scope: null,
+  })
+  assert.equal(nullScopeTimeline.initialContext.scoped, false)
+  assert.equal(nullScopeTimeline.initialContext.separator, '-')
+  assert.deepStrictEqual(nullScopeTimeline.boundaries, [])
 })
 
 runTest('semantic counter-key resolver', () => {

@@ -18,7 +18,8 @@ Automatic numbering is disabled by default.
 
 - `autoLabelNumberSets`: strict caption-mark allowlist. Supported entries are `img`, `table`, `code` / `pre-code`, `samp` / `pre-samp`, and `video`; aliases are deduplicated to their canonical marks.
 - `autoLabelNumber`: shorthand for turning numbering on for both images and tables without passing the array yourself. Provide `autoLabelNumberSets` explicitly (e.g., `['img']`) when you need finer control—the explicit array always wins.
-- `autoLabelNumberPolicy`: opt into compound chapter/appendix numbering. This option changes the numbering policy but does not enable any media type by itself; use it together with `autoLabelNumber` or `autoLabelNumberSets`.
+- Recognized chapter/appendix scopes are applied automatically whenever at least one mark is numbered. By default, parsed `env.frontmatter.title` values and top-level H1 headings are sources, repeated semantic scopes continue their prior counters, and `.` joins the scope prefix to the local number.
+- `autoLabelNumberPolicy`: customize the automatic scope, separator, and repeated-scope behavior without enabling any media type by itself. Use `scope: 'document'` for document-wide decimal counters regardless of recognized headings/frontmatter.
 - Do not pass p-captions' lower-level `setFigureNumber` option to this plugin. Figure numbering is owned by `autoLabelNumber` / `autoLabelNumberSets`; `setFigureNumber` is rejected during the initial setup to prevent two numbering systems from mutating the same caption.
 - An explicit `[]` disables numbering even when `autoLabelNumber` is true. Explicit `undefined`, `null`, non-arrays, unsupported marks, and invalid entries throw during initial setup instead of being silently ignored.
 - Numbering enablement follows `captionDecision.mark`, not the wrapper class. A known video iframe with a `Figure.` caption requires `img`; the same iframe with `Video.` requires `video`. An unknown iframe with an explicit `Video.` caption also uses the video counter, while its wrapper remains `f-iframe`.
@@ -32,25 +33,52 @@ Automatic numbering is disabled by default.
 
 ### Chapter and appendix scopes
 
-The advanced policy can derive a display prefix and an independent counter sequence from top-level headings and/or per-render frontmatter metadata:
+The default policy derives a display prefix and an independent counter sequence
+from top-level H1 headings and parsed per-render frontmatter metadata:
+
+```js
+const md = mdit({ html: true }).use(mditFigureWithPCaption, {
+  autoLabelNumber: true,
+})
+```
+
+```md {test id="numbering-default-scope" setup="numbered"}
+# Chapter 1: Introduction
+
+Figure. Architecture
+
+![Architecture](architecture.png)
+```
+
+```html {test id="numbering-default-scope"}
+<h1>Chapter 1: Introduction</h1>
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure 1.1<span class="f-img-label-joint">.</span></span> Architecture</figcaption>
+<img src="architecture.png" alt="Architecture">
+</figure>
+```
+
+Customize the policy when the document uses another heading level, needs one
+source only, resets repeated scope occurrences, or uses `-`:
 
 ```js
 const md = mdit({ html: true }).use(mditFigureWithPCaption, {
   autoLabelNumber: true,
   autoLabelNumberPolicy: {
-    separator: '.', // '.' (default) or '-'
+    separator: '-',
     scope: {
-      sources: ['frontmatter', 'heading'],
-      headingLevels: [1],
-      repeatScope: 'continue', // 'continue' or 'reset'
-      resolveFrontmatterTitle(raw, state) {
-        const match = raw.match(/^title:\s*(.+)$/m)
-        return match ? match[1] : null
-      },
+      sources: ['heading'],
+      headingLevels: [2],
+      repeatScope: 'reset',
     },
   },
 })
 ```
+
+Within a scope object, `sources` defaults to `['frontmatter', 'heading']`,
+`headingLevels` to `[1]`, and `repeatScope` to `'continue'`. `scope: 'auto'`
+selects those defaults. An explicit `sources: []` disables inferred sources
+while still allowing a fixed render-level scope.
 
 Recognized leading scope forms are `Chapter N`, `第N章`, `N章`, `Appendix N`, `Appendix A`, and `付録` / `付属` / `附属` followed by a digit or one uppercase ASCII letter. English keywords are case-insensitive. The marker must end at the same spaced/compact caption boundary used by p-captions, so prose such as `Chapter 1st`, `Appendix API`, or `第1章立て` is not mistaken for a scope. Formatting after a valid boundary is allowed (`# Chapter 1: *Introduction*`), but formatting the marker itself (`# **Chapter 1**`) and ambiguous inline-token continuations fail closed.
 
@@ -58,6 +86,7 @@ Recognized leading scope forms are `Chapter N`, `第N章`, `N章`, `Appendix N`,
 - Captions before the first recognized scope use the ordinary unscoped decimal sequence.
 - With `repeatScope: 'continue'`, a repeated semantic scope resumes its prior per-mark counter. With `repeatScope: 'reset'`, every scope occurrence gets a new render-local counter partition even when its displayed prefix is identical.
 - In scoped mode, an explicit number seeds the counter only when it uses the active prefix and separator (for example, `Figure 2.5.` under `Chapter 2` with the default separator). Other explicit numbers are preserved as source text but do not seed that sequence.
+- To retain document-wide numbering for every render, set `autoLabelNumberPolicy: { scope: 'document' }`. Explicit `autoLabelNumberPolicy: null` remains an equivalent compatibility opt-out. Per-render frontmatter/env overrides described below can still select `document` when automatic scope is configured.
 
 The canonical frontmatter input is parsed metadata supplied per render as `env.frontmatter.title`:
 
@@ -66,6 +95,17 @@ md.render(source, { frontmatter: { title: 'Appendix A: Data' } })
 ```
 
 This plugin does not register a frontmatter block rule and does not parse YAML. If the host already produces a `front_matter` token, provide `resolveFrontmatterTitle(raw, state)` to adapt its raw string. Resolver errors and non-string results fail closed to the unscoped sequence. `markdown-it-front-matter` is used only as a development/integration-test adapter here; adding that detector alone does not parse a YAML `title`.
+
+```js
+autoLabelNumberPolicy: {
+  scope: {
+    resolveFrontmatterTitle(raw, state) {
+      const match = raw.match(/^title:\s*(.+)$/m)
+      return match ? match[1] : null
+    },
+  },
+}
+```
 
 Parsed frontmatter may override the configured scope mode and separator for one document through the nested `figure-caption-numbering` object:
 
@@ -104,7 +144,14 @@ figure-caption-numbering.separator: "."
 
 Nested and dotted properties may be combined when they configure different fields, but defining the same logical field twice throws instead of choosing an ambiguous winner. Abbreviated aliases are intentionally not recognized.
 
-`scope: 'auto'` uses the heading/frontmatter sources enabled by `autoLabelNumberPolicy.scope`; it does not enable sources that the host did not configure. `scope: 'document'` fixes the render to the unscoped per-series counters, so a recognized `Chapter 1` still produces `Figure 1`, `Figure 2`, and so on. `separator` accepts only `.` or `-` and overrides the setup-time separator for that render. The default is `.`, so `Chapter 1` produces `Figure 1.1`; select `-` for `Figure 1-1`.
+`scope: 'auto'` uses the heading/frontmatter sources enabled by
+`autoLabelNumberPolicy.scope`; its default sources are parsed frontmatter
+titles and top-level H1 headings. It does not re-enable a source removed by an
+explicit `sources` array. `scope: 'document'` fixes the render to the unscoped
+per-series counters, so a recognized `Chapter 1` still produces `Figure 1`,
+`Figure 2`, and so on. `separator` accepts only `.` or `-` and overrides the
+setup-time separator for that render. The default is `.`, so `Chapter 1`
+produces `Figure 1.1`; select `-` for `Figure 1-1`.
 
 Unknown nested properties, invalid values, and duplicate nested/dotted definitions throw before caption mutation.
 
@@ -138,7 +185,7 @@ import {
 } from '@peaceroad/markdown-it-figure-with-p-caption/caption-numbering.js'
 ```
 
-- `normalizeFigureCaptionNumberingPolicy(value)` applies the same validation and defaults as `autoLabelNumberPolicy`. It returns `null` for `null` / `undefined`; otherwise it returns an opaque frozen policy that must be passed to the timeline API.
+- `normalizeFigureCaptionNumberingPolicy(value)` applies the same validation and defaults as `autoLabelNumberPolicy`. `undefined` or an object with no scope fields uses the automatic defaults; `scope: 'document'` creates an unscoped policy. Only explicit `null` returns `null`; otherwise the helper returns an opaque frozen policy that must be passed to the timeline API.
 - `createFigureCaptionScopeTimeline(state, policy)` reads a markdown-it `StateCore` after inline parsing and returns the initial numbering context plus frozen, source-ordered top-level heading boundaries. It applies the same parsed-frontmatter, render override, heading level, marker boundary, separator, and repeat-scope rules as the renderer. It never mutates `state`, its tokens, or inline children. A recognized heading without a usable `token.map` sets `hasUnmappableBoundaries` so a source editor can fail closed rather than guess an edit range.
 - `createFigureCaptionCounterKeyResolver({ languages })` returns a frozen resolver from a p-captions `captionDecision` to the same semantic `figure` / `listing` / `samp` / `video` / `table` series used by this plugin. The language catalog is normalized once when the resolver is created.
 - `createFigureCaptionNumberCodec()` returns a frozen stateless codec. `parseExplicit(number, context)` returns the compatible positive decimal counter value or `null`; `format(sequence, context)` generates the scoped or unscoped number and enforces p-captions' number grammar. Contexts are branded frozen values returned by the timeline API, so arbitrary look-alike objects are rejected.

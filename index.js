@@ -1325,7 +1325,7 @@ const mditFigureWithPCaption = (md, option) => {
     // --- numbering controls ---
     autoLabelNumber: false, // shorthand for enabling numbering for both img/table unless autoLabelNumberSets is provided explicitly
     autoLabelNumberSets: [], // preferred; supports img/table/code/samp/video marks
-    autoLabelNumberPolicy: null, // opt-in compound/scope formatting; does not enable marks by itself
+    autoLabelNumberPolicy: undefined, // omitted: automatic Chapter/Appendix scope; explicit null: document-wide numbering
 
     // --- caption text formatting (delegated to p7d-markdown-it-p-captions) ---
     hasNumClass: false,
@@ -1378,8 +1378,11 @@ const mditFigureWithPCaption = (md, option) => {
       ? ['img', 'table']
       : []
   opt.autoLabelNumberSets = normalizeAutoLabelNumberSets(requestedAutoLabelNumberSets)
-  opt.normalizedAutoLabelNumberPolicy = normalizeFigureCaptionNumberingPolicy(opt.autoLabelNumberPolicy)
   const enabledNumberingMarks = getEnabledCaptionNumberingMarks(opt.autoLabelNumberSets, opt)
+  opt.normalizedAutoLabelNumberPolicy = enabledNumberingMarks.length === 0 &&
+    opt.autoLabelNumberPolicy === undefined
+    ? null
+    : normalizeFigureCaptionNumberingPolicy(opt.autoLabelNumberPolicy)
   opt.captionNumberingPolicy = createFigureCaptionNumberingPolicy(
     enabledNumberingMarks,
     opt.normalizedAutoLabelNumberPolicy,

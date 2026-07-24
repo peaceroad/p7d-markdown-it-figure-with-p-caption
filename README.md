@@ -250,7 +250,8 @@ const recommendedFigureOptions = {
   // Use one predictable wrapper class for iframe/social-embed figures.
   allIframeTypeFigureClassName: 'f-embed',
 
-  // Opt in to document-wide numbering for image and table captions.
+  // Number image and table captions. Recognized Chapter/Appendix scopes
+  // in parsed frontmatter titles or H1 headings are applied automatically.
   autoLabelNumber: true,
 }
 
@@ -284,7 +285,7 @@ caption markers, role helpers, captionless conversion, and formatting options.
 
 Automatic numbering is **disabled by default**.
 
-Document-wide numbering for image and table captions:
+Number image and table captions:
 
 ```js
 const md = markdownIt().use(figureWithCaption, {
@@ -292,26 +293,34 @@ const md = markdownIt().use(figureWithCaption, {
 })
 ```
 
-This generates `Figure 1`, `Figure 2`, and so on. A `Chapter 1` heading alone
-does not enable chapter-aware numbering.
+Without a recognized chapter or appendix, this generates `Figure 1`,
+`Figure 2`, and so on. Under `# Chapter 1: Introduction`, the same setup
+automatically generates `Figure 1.1`, `Figure 1.2`, and so on. Parsed
+`env.frontmatter.title` values use the same recognition.
 
-Chapter-aware numbering:
+The default scoped separator is `.`. Customize the automatic scope only when
+the document structure differs from the defaults:
 
 ```js
 const md = markdownIt().use(figureWithCaption, {
   autoLabelNumber: true,
   autoLabelNumberPolicy: {
-    scope: {
-      sources: ['heading'],
-      headingLevels: [1],
-    },
+    separator: '-',
+    scope: { headingLevels: [2] },
   },
 })
 ```
 
-Under `# Chapter 1: Introduction`, this generates `Figure 1.1`,
-`Figure 1.2`, and so on. The scoped separator defaults to `.`; set
-`separator: '-'` for `Figure 1-1`.
+This recognizes H2 chapter headings and generates `Figure 1-1`. Use
+`scope: 'document'` when headings and frontmatter titles must not affect
+numbering:
+
+```js
+const md = markdownIt().use(figureWithCaption, {
+  autoLabelNumber: true,
+  autoLabelNumberPolicy: { scope: 'document' },
+})
+```
 
 Use `autoLabelNumberSets` for additional marks:
 
@@ -323,7 +332,9 @@ const md = markdownIt().use(figureWithCaption, {
 
 `autoLabelNumber` is only the image/table shorthand. An explicitly supplied
 `autoLabelNumberSets` always wins, and `autoLabelNumberPolicy` changes
-formatting/scope without enabling marks by itself.
+formatting/scope without enabling marks by itself. Automatic scope defaults to
+parsed frontmatter titles plus top-level H1 headings; customize `sources`,
+`headingLevels`, and `repeatScope` only when needed.
 
 See the [complete automatic-numbering reference](docs/numbering.md#automatic-numbering)
 for semantic counter series, shared samp labels, manual-number synchronization,

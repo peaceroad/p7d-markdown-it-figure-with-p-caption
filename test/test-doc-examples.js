@@ -58,6 +58,9 @@ const setups = Object.freeze({
     labelPrefixMarker: ['▼', '▲'],
     allowLabelPrefixMarkerWithoutLabel: true,
   }),
+  numbered: () => createMarkdownIt({
+    autoLabelNumber: true,
+  }),
 })
 
 const normalizeLineEndings = value => value.replace(/\r\n?/g, '\n')
