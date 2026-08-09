@@ -14,6 +14,23 @@ import {
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
 import { applyHtmlFigureTransform, detectHtmlFigureCandidate } from './embeds/detect.js'
+import { normalizeNotesOptions } from './notes/options.js'
+import { createNotesCatalog } from './notes/catalog.js'
+import { resetFigureNotesDiagnostics } from './notes/diagnostics.js'
+import {
+  analyzeAnnotationAt,
+  analyzeUnreferencedLocalNotesAt,
+  applyAnnotationDecision,
+  applyUnreferencedLocalNotesDecision,
+  moveAnnotationIntoFigure,
+} from './notes/sidecars.js'
+import {
+  analyzeReferencedLocalNotesAt,
+  finalizeReferencedLocalNotes,
+  prepareReferencedLocalNotes,
+  registerReferencedLocalNotes,
+  resolveReferencedLocalNotes,
+} from './notes/referenced.js'
 import {
   createFigureCaptionCounterKeyResolverFromMarkRegState,
 } from './caption-numbering/counter-series.js'
@@ -39,6 +56,7 @@ const asciiLabelReg = /^[A-Za-z]/
 const attrNameReg = /^[^\s=]+$/
 const labelTrailingJointReg = /[.\u3002\uff0e:：\u3000]\s*$/
 const installedKey = Symbol.for('p7d-markdown-it-figure-with-p-caption.installed')
+const MAX_SINGLE_SPLICE_REPLACEMENT_TOKENS = 1024
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
@@ -417,7 +435,7 @@ const clearImageTitleAttr = (token) => {
 }
 
 const getImageAltText = (token) => {
-  let alt = getTokenAttr(token, 'alt')
+  const alt = getTokenAttr(token, 'alt')
   if (alt) return alt
   if (typeof token.content === 'string' && token.content !== '') return token.content
   if (token.children && token.children.length > 0) {
@@ -581,6 +599,13 @@ const setFigureCaptionParagraph = (index, captionState, caption, sp, opt) => {
   )
 }
 
+const trackCaptionTokens = (caption, openToken, inlineToken, closeToken) => {
+  if (!('openToken' in caption)) return
+  caption.openToken = openToken
+  caption.inlineToken = inlineToken
+  caption.closeToken = closeToken
+}
+
 const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
   if (n < 3) return
   const captionStartToken = tokens[n - 3]
@@ -596,12 +621,14 @@ const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
       if (markerMatch) {
         stripLabelPrefixMarker(captionInlineToken, markerMatch)
         caption.isPrev = true
+        trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
       }
     }
     return
   }
   caption.name = captionName
   caption.isPrev = true
+  trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
 }
 
 const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
@@ -619,12 +646,14 @@ const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
       if (markerMatch) {
         stripLabelPrefixMarker(captionInlineToken, markerMatch)
         caption.isNext = true
+        trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
       }
     }
     return
   }
   caption.name = captionName
   caption.isNext = true
+  trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
 }
 
 const cleanCaptionTokenAttrs = (token, captionName, opt) => {
@@ -834,15 +863,34 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   }
   if (replaceInsteadOfWrap) {
     const contentToken = tokens[n + 1]
-    tokens.splice(
-      n,
-      en - n + 1,
-      figureStartToken,
-      createTextToken(TokenConstructor, '', childLevel),
-      contentToken,
-      createTextToken(TokenConstructor, '\n', childLevel),
-      figureEndToken,
-    )
+    const trailingLength = Math.max(0, en - n - 2)
+    const paddingToken = createTextToken(TokenConstructor, '', childLevel)
+    const newlineToken = createTextToken(TokenConstructor, '\n', childLevel)
+    if (trailingLength <= MAX_SINGLE_SPLICE_REPLACEMENT_TOKENS) {
+      const trailingTokens = trailingLength > 0
+        ? tokens.slice(n + 3, en + 1)
+        : []
+      if (trailingLength > 0) {
+        adjustTokenLevels(trailingTokens, 0, trailingLength - 1, 1)
+      }
+      tokens.splice(
+        n,
+        en - n + 1,
+        figureStartToken,
+        paddingToken,
+        contentToken,
+        newlineToken,
+        ...trailingTokens,
+        figureEndToken,
+      )
+    } else {
+      // Keep unusually large sidecar lists away from engine argument-count limits.
+      adjustTokenLevels(tokens, n + 3, en, 1)
+      tokens[n] = figureStartToken
+      tokens[n + 2] = newlineToken
+      tokens.splice(en + 1, 0, figureEndToken)
+      tokens.splice(n + 1, 0, paddingToken)
+    }
     en = en + 2
   } else if (n === en) {
     const contentToken = tokens[n]
@@ -864,6 +912,7 @@ const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInstea
   }
   range.start = n
   range.end = en
+  return { figureStartToken, figureEndToken }
 }
 
 const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
@@ -882,6 +931,11 @@ const resetCaptionState = (caption) => {
   caption.nameSuffix = ''
   caption.isPrev = false
   caption.isNext = false
+  if ('openToken' in caption) {
+    caption.openToken = null
+    caption.inlineToken = null
+    caption.closeToken = null
+  }
 }
 
 const resetSpecialState = (sp) => {
@@ -1099,14 +1153,19 @@ const figureWithCaption = (state, opt) => {
     numberingRuntime,
     numberingScopeState,
   }
+  if (opt.notes.referencedLocalNotes) captionState.env = state.env
   if (opt.shouldResolvePreferredLanguages) captionState.preferredLanguageState = state
   figureWithCaptionCore(state.tokens, opt, state.Token, captionState, null, 0)
+  if (opt.notes.referencedLocalNotes) finalizeReferencedLocalNotes(state.tokens, state.env)
 }
 
 const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
   const rRange = { start: startIndex, end: startIndex }
-  const rCaption = {
-    name: '', nameSuffix: '', isPrev: false, isNext: false
+  const rCaption = { name: '', nameSuffix: '', isPrev: false, isNext: false }
+  if (opt.notes.annotations || opt.notes.referencedLocalNotes) {
+    rCaption.openToken = null
+    rCaption.inlineToken = null
+    rCaption.closeToken = null
   }
   const rSp = {
     attrs: [],
@@ -1206,7 +1265,104 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
         : opt.unscopedNumberingContext
     }
     rSp.figureClassName = resolveFigureClassName(detection.tagName, rSp, opt)
-    checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
+    let notesTargetType = ''
+    let localNotesDecision = null
+    if (opt.notes.enabled) {
+      notesTargetType = detection.type === 'image'
+        ? 'img'
+        : (detection.tagName === 'table' ? 'table' : '')
+    }
+    if (notesTargetType) {
+      const targetEnd = rRange.end
+      let referencedLocalNotesPending = false
+      const sidecarIndex = rRange.end + 1
+      if (opt.notes.referencedLocalNotes && notesTargetType === 'table') {
+        localNotesDecision = analyzeReferencedLocalNotesAt(tokens, sidecarIndex)
+        if (localNotesDecision) {
+          if (prepareReferencedLocalNotes(localNotesDecision, captionState.env)) {
+            rRange.end = localNotesDecision.end
+            referencedLocalNotesPending = true
+          } else {
+            localNotesDecision = null
+          }
+        }
+      }
+      if (!localNotesDecision && opt.notes.unreferencedLocalNotes) {
+        localNotesDecision = analyzeUnreferencedLocalNotesAt(
+          tokens,
+          sidecarIndex,
+          notesTargetType,
+          opt.notesCatalog,
+        )
+        if (localNotesDecision) {
+          const appliedLocalNotes = applyUnreferencedLocalNotesDecision(
+            tokens,
+            localNotesDecision,
+            TokenConstructor,
+            opt.figureClassPrefix,
+          )
+          if (appliedLocalNotes) {
+            rRange.end = appliedLocalNotes.end
+          } else {
+            localNotesDecision = null
+          }
+        }
+      }
+      checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
+      if (referencedLocalNotesPending) {
+        captionState.notesRuntime ||= { targetOrdinal: 0 }
+        resolveReferencedLocalNotes(
+          tokens,
+          rRange.start,
+          targetEnd,
+          localNotesDecision,
+          rCaption.inlineToken,
+          rCaption.isPrev,
+          captionState.env,
+          captionState.notesRuntime,
+        )
+      }
+    } else {
+      checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
+    }
+
+    let annotationDecisions = null
+    if (notesTargetType && opt.notes.annotations) {
+      const annotationIndex = rCaption.isNext ? rRange.end + 4 : rRange.end + 1
+      let nextAnnotationIndex = annotationIndex
+      let annotationDecision = analyzeAnnotationAt(
+        tokens,
+        nextAnnotationIndex,
+        opt.notesCatalog,
+      )
+      while (annotationDecision) {
+        annotationDecisions ||= []
+        annotationDecisions.push(annotationDecision)
+        nextAnnotationIndex += 3
+        annotationDecision = analyzeAnnotationAt(
+          tokens,
+          nextAnnotationIndex,
+          opt.notesCatalog,
+        )
+      }
+      if (annotationDecisions) {
+        for (let i = 0; i < annotationDecisions.length; i++) {
+          if (!applyAnnotationDecision(
+            annotationDecisions[i],
+            TokenConstructor,
+            opt.figureClassPrefix,
+          )) {
+            annotationDecisions = null
+            break
+          }
+        }
+      }
+    }
+    const hasAnnotation = !!annotationDecisions
+    const annotationNeedsMove = hasAnnotation && rCaption.isNext
+    if (hasAnnotation && !annotationNeedsMove) {
+      rRange.end = annotationDecisions[annotationDecisions.length - 1].end
+    }
 
     let hasCaption = rCaption.isPrev || rCaption.isNext
     if (hasCaption) applyCaptionDrivenFigureClass(rCaption, rSp, opt)
@@ -1222,6 +1378,7 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
     if (detection.type === 'html' || detection.type === 'image') {
       shouldWrap = shouldWrap || detection.wrapWithoutCaption
     }
+    shouldWrap = shouldWrap || !!localNotesDecision || hasAnnotation
     if (pendingAutoCaption) {
       const captionTokens = createAutoCaptionParagraph(pendingAutoCaption.text, TokenConstructor)
       const insertIndex = rRange.start
@@ -1244,14 +1401,24 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
         rRange.start -= insertedLength
         rRange.end -= insertedLength
         n -= insertedLength
-        shouldWrap = detection.wrapWithoutCaption
+        shouldWrap = detection.wrapWithoutCaption || !!localNotesDecision || hasAnnotation
       }
     }
+    let figureTokens = null
     if (shouldWrap) {
       if (detection.type !== 'html') {
         applyWrappedCandidateTransform(detection)
       }
-      wrapWithFigure(tokens, rRange, detection.tagName, rCaption, detection.replaceInsteadOfWrap, rSp, opt, TokenConstructor)
+      figureTokens = wrapWithFigure(
+        tokens,
+        rRange,
+        detection.tagName,
+        rCaption,
+        detection.replaceInsteadOfWrap,
+        rSp,
+        opt,
+        TokenConstructor,
+      )
     }
 
     let nextIndex
@@ -1265,6 +1432,22 @@ const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, pare
       } else if (rCaption.isNext) {
         changeNextCaptionPosition(tokens, en, rCaption, opt)
         nextIndex = en + 4
+      }
+    }
+
+    if (annotationNeedsMove && figureTokens) {
+      for (let i = 0; i < annotationDecisions.length; i++) {
+        const figureCloseIndex = moveAnnotationIntoFigure(
+          tokens,
+          annotationDecisions[i],
+          figureTokens.figureStartToken,
+          figureTokens.figureEndToken,
+          rCaption.openToken,
+          rCaption.closeToken,
+          nextIndex - 1,
+        )
+        if (figureCloseIndex < 0) break
+        nextIndex = figureCloseIndex + 1
       }
     }
 
@@ -1340,6 +1523,7 @@ const mditFigureWithPCaption = (md, option) => {
     wrapCaptionBody: false,
     labelClassFollowsFigure: false,
     figureToLabelClassMap: null,
+    notes: undefined,
   }
   const hasExplicitAutoLabelNumberSets = hasOwnOption(option, 'autoLabelNumberSets')
   const hasExplicitImageOnlyParagraphWithoutCaption = hasOwnOption(option, 'imageOnlyParagraphWithoutCaption')
@@ -1347,6 +1531,7 @@ const mditFigureWithPCaption = (md, option) => {
   const hasExplicitFigureClassThatWrapsSlides = hasOwnOption(option, 'figureClassThatWrapsSlides')
   const hasExplicitLabelClassFollowsFigure = hasOwnOption(option, 'labelClassFollowsFigure')
   if (option) Object.assign(opt, option)
+  opt.notes = normalizeNotesOptions(opt.notes)
   if (Array.isArray(opt.removeUnnumberedLabelExceptMarks)) {
     opt.removeUnnumberedLabelExceptMarks = opt.removeUnnumberedLabelExceptMarks.map(
       canonicalizeCaptionNumberingMark,
@@ -1396,6 +1581,9 @@ const mditFigureWithPCaption = (md, option) => {
   const classPrefix = buildClassPrefix(opt.classPrefix)
   opt.figureClassPrefix = classPrefix
   opt.captionClassPrefix = classPrefix
+  opt.notesCatalog = opt.notes.enabled
+    ? createNotesCatalog(opt.markRegState.languages)
+    : null
   const defaultIframeTypeBlockquoteClass = classPrefix + 'img'
   const defaultSlideFigureClass = classPrefix + 'slide'
   if (!hasExplicitFigureClassThatWrapsIframeTypeBlockquote) {
@@ -1426,8 +1614,16 @@ const mditFigureWithPCaption = (md, option) => {
     opt.labelPrefixMarkerWithoutLabelNextReg = null
   }
 
+  if (opt.notes.referencedLocalNotes) {
+    registerReferencedLocalNotes(md, opt.notesCatalog, classPrefix)
+  }
+
   // Run after markdown-it-attrs has attached paragraph attrs, but before text replacements.
   md.core.ruler.before('replacements', 'figure_with_caption', (state) => {
+    if (opt.notes.enabled && !opt.notes.referencedLocalNotes) {
+      const env = state.env || (state.env = {})
+      resetFigureNotesDiagnostics(env)
+    }
     figureWithCaption(state, opt)
   })
   Object.defineProperty(md, installedKey, {

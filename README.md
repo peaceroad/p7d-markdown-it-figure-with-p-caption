@@ -6,7 +6,9 @@ media blocks into semantic `<figure>` / `<figcaption>` structures.
 Caption-label parsing, numbering grammar, and language catalogs are delegated
 to [`p7d-markdown-it-p-captions`](https://www.npmjs.com/package/p7d-markdown-it-p-captions).
 This plugin owns figure-candidate detection, wrapping, figure classes, and
-optional document/chapter-aware numbering.
+optional document/chapter-aware numbering. Its opt-in notes feature also keeps
+figure annotations and target-local figure/table notes distinct from captions
+and document-scoped footnotes.
 
 Supported targets include images, tables, code fences, terminal/samp fences,
 blockquotes, video/audio blocks, iframes, social embeds, and slide iframes.
@@ -280,6 +282,50 @@ recognized string label.
 See the [complete option reference](docs/reference.md#behavior-customization)
 and [option examples](docs/examples.md#option-examples) for class mapping,
 caption markers, role helpers, captionless conversion, and formatting options.
+
+## Figure annotations and local notes
+
+Figure annotations and figure/table-local notes are opt-in. They are separate
+from explanatory captions and from document-scoped footnotes:
+
+```js
+const md = markdownIt().use(figureWithCaption, {
+  notes: { enabled: true },
+})
+```
+
+```md
+![A chart](chart.png)
+
+図注：値は四捨五入しています。
+
+データ：Example Dataset
+```
+
+The image, local note, and source annotation are wrapped in one figure. Built-in
+English and Japanese labels follow the existing `languages` recognition option.
+The initial annotation roles are `source`, `credit`, and `rights`; source text
+such as `出典：` / `Data source:`, provider credits, and `©` remain visibly as
+written. Use one `図注：...` / `表注：...` paragraph for one note that applies
+to the whole target, or a list of labeled items for several such notes.
+
+When table cells contain note references, end the table with a blank line and
+then place consecutive one-line definitions. Referenced table notes use
+target-local `tn-` or `table-` labels and do not share counters, IDs, or
+backlinks with ordinary footnotes:
+
+```md
+| Item | Value |
+| --- | ---: |
+| A[^tn-1] | 10 |
+
+[^tn-1]: 暫定値。
+```
+
+The package reuses only the browser-safe marker grammar from
+`@peaceroad/markdown-it-footnote-here`; it does not activate that plugin or
+reuse its document-scoped runtime. See the
+[notes option and grammar reference](docs/reference.md#figure-annotations-and-local-notes).
 
 ## Automatic numbering
 

@@ -132,6 +132,22 @@ const buildCaptionlessImageDocument = (count) => {
   return images.join('\n\n')
 }
 
+const buildAnnotatedImageDocument = (count) => {
+  const images = []
+  for (let i = 0; i < count; i++) {
+    images.push(`![Image ${i}](https://example.com/annotated-${i}.png)\n\n出典：Dataset ${i}`)
+  }
+  return images.join('\n\n')
+}
+
+const buildPostCaptionAnnotatedImageDocument = (count) => {
+  const images = []
+  for (let i = 0; i < count; i++) {
+    images.push(`![Image ${i}](https://example.com/annotated-caption-${i}.png)\n\nFigure. Caption ${i}\n\nSource: Dataset ${i}`)
+  }
+  return images.join('\n\n')
+}
+
 const buildScopedFigureDocument = (count) => {
   const figures = []
   for (let i = 0; i < count; i++) {
@@ -232,6 +248,10 @@ const sampNumberedMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption, { autoLabelNumberSets: ['samp'] })
 const mixedNumberedMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption, { autoLabelNumberSets: ['img', 'code', 'samp', 'video'] })
+const notesDisabledMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption)
+const notesMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { notes: { enabled: true } })
 
 console.log(`markdown-it maxNesting=${pluginMd.options.maxNesting}`)
 console.log('=== Render benchmark ===')
@@ -239,6 +259,10 @@ runRenderBench('baseline/small', baseMd, corpusSmall)
 runRenderBench('plugin/small', pluginMd, corpusSmall)
 runRenderBench('baseline/full', baseMd, corpusFull)
 runRenderBench('plugin/full', pluginMd, corpusFull)
+runRenderBench('notes-disabled/no-candidates', notesDisabledMd, corpusFull)
+runRenderBench('notes-enabled/no-candidates', notesMd, corpusFull)
+runRenderBench('notes/annotations/500', notesMd, buildAnnotatedImageDocument(500), 7, 2)
+runRenderBench('notes/post-caption-annotations/500', notesMd, buildPostCaptionAnnotatedImageDocument(500), 7, 2)
 
 console.log('\nNumbering/scope probes:')
 runRenderBench('numbered/siblings/500', numberedMd, buildSiblingFigureDocument(500), 9, 3)

@@ -1,0 +1,214 @@
+[Markdown]
+![x](a.png)
+
+出典：Example
+[HTML]
+<figure class="f-img">
+<img src="a.png" alt="x">
+<p class="f-annotation f-source"><span class="f-annotation-label">出典：</span>Example</p>
+</figure>
+
+[Markdown]
+![x](a.png)
+
+図注：全体への注。
+
+データ：Dataset
+[HTML]
+<figure class="f-img">
+<img src="a.png" alt="x">
+<aside class="f-local-notes f-img-notes" aria-label="図注">
+<p class="f-local-note"><span class="f-local-note-label">図注：</span>全体への注。</p>
+</aside>
+<p class="f-annotation f-source"><span class="f-annotation-label">データ：</span>Dataset</p>
+</figure>
+
+[Markdown]
+![x](a.png)
+
+- 図注1：一つ。
+- 図注2：二つ。
+[HTML]
+<figure class="f-img">
+<img src="a.png" alt="x">
+<aside class="f-local-notes f-img-notes" aria-label="図注">
+<ul>
+<li class="f-local-note"><span class="f-local-note-label">図注1：</span>一つ。</li>
+<li class="f-local-note"><span class="f-local-note-label">図注2：</span>二つ。</li>
+</ul>
+</aside>
+</figure>
+
+[Markdown]
+![x](a.png)
+
+Figure. Caption
+
+Source: Dataset
+[HTML]
+<figure class="f-img">
+<img src="a.png" alt="x">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption<p class="f-annotation f-source"><span class="f-annotation-label">Source: </span>Dataset</p>
+</figcaption>
+</figure>
+
+[Markdown]
+![x](a.png)
+
+Figure. Caption
+
+Source: Dataset
+
+Provided by: Team
+
+License: CC BY
+[HTML]
+<figure class="f-img">
+<img src="a.png" alt="x">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption<p class="f-annotation f-source"><span class="f-annotation-label">Source: </span>Dataset</p>
+<p class="f-annotation f-credit"><span class="f-annotation-label">Provided by: </span>Team</p>
+<p class="f-annotation f-rights"><span class="f-annotation-label">License: </span>CC BY</p>
+</figcaption>
+</figure>
+
+[Markdown]
+Figure. Caption
+
+![x](a.png)
+
+Source: Dataset
+[HTML]
+<figure class="f-img">
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Caption</figcaption>
+<img src="a.png" alt="x">
+<p class="f-annotation f-source"><span class="f-annotation-label">Source: </span>Dataset</p>
+</figure>
+
+[Markdown]
+| Value |
+| --- |
+| value |
+
+表注：全体への注。
+[HTML]
+<figure class="f-table">
+<table>
+<thead>
+<tr>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+</tr>
+</tbody>
+</table>
+<aside class="f-local-notes f-table-notes" aria-label="表注">
+<p class="f-local-note"><span class="f-local-note-label">表注：</span>全体への注。</p>
+</aside>
+</figure>
+
+[Markdown]
+| Value |
+| --- |
+| value |
+
+- Table note 1: First.
+- Table note ABC: Second.
+[HTML]
+<figure class="f-table">
+<table>
+<thead>
+<tr>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>value</td>
+</tr>
+</tbody>
+</table>
+<aside class="f-local-notes f-table-notes" aria-label="Table note">
+<ul>
+<li class="f-local-note"><span class="f-local-note-label">Table note 1: </span>First.</li>
+<li class="f-local-note"><span class="f-local-note-label">Table note ABC: </span>Second.</li>
+</ul>
+</aside>
+</figure>
+
+[Markdown]
+| Value |
+| --- |
+| [^tn-1] and [^tn-1] |
+
+[^tn-1]: 暫定値。
+
+データ：Dataset
+[HTML]
+<figure class="f-table">
+<table>
+<thead>
+<tr>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#table-local-1-note-1" id="table-local-1-ref-1-1" class="f-local-note-ref" role="doc-noteref">[1]</a> and <a href="#table-local-1-note-1" id="table-local-1-ref-1-2" class="f-local-note-ref" role="doc-noteref">[1]</a></td>
+</tr>
+</tbody>
+</table>
+<aside class="f-local-notes f-table-notes" aria-label="Table notes">
+<ol>
+<li id="table-local-1-note-1"><p><span class="f-local-note-label">[1]</span> 暫定値。 <a href="#table-local-1-ref-1-1" class="f-local-note-backlink" role="doc-backlink">↩a</a> <a href="#table-local-1-ref-1-2" class="f-local-note-backlink" role="doc-backlink">↩b</a></p></li>
+</ol>
+</aside>
+<p class="f-annotation f-source"><span class="f-annotation-label">データ：</span>Dataset</p>
+</figure>
+
+[Markdown]
+| Value |
+| --- |
+| [^tn-old] |
+
+表注：
+[^tn-old]: The removed opener form.
+[HTML]
+<table>
+<thead>
+<tr>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[^tn-old]</td>
+</tr>
+</tbody>
+</table>
+<p>表注：</p>
+<p>[^tn-old]: The removed opener form.</p>
+
+[Markdown]
+| Value |
+| --- |
+| [^tn-row] |
+[^tn-row]: Parsed as a table row without a blank line.
+[HTML]
+<table>
+<thead>
+<tr>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[^tn-row]</td>
+</tr>
+<tr>
+<td>[^tn-row]: Parsed as a table row without a blank line.</td>
+</tr>
+</tbody>
+</table>

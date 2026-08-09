@@ -9,6 +9,7 @@ guidance, recommended options, and representative conversions, start with the
 
 - [Behavior](#behavior)
 - [Behavior customization](#behavior-customization)
+- [Figure annotations and local notes](#figure-annotations-and-local-notes)
 - [Basic usage](#basic-usage)
 - [Recommended options](#recommended-options)
 - [Automatic numbering and integration API](numbering.md)
@@ -111,6 +112,134 @@ shared option state to p-captions:
 - `languages`: optional available caption-recognition catalogs delegated to `p7d-markdown-it-p-captions` (default: `['en', 'ja']`). Most users can leave this unset. Set it only when you want to restrict or extend which labels can be recognized (for example English `Figure.` and Japanese `図　`) and which catalogs are available for generated fallback labels. It is separate from the active locale used to choose among those available catalogs.
 - Automatic image-label fallback text and punctuation (`Figure. `, `図　`, etc.) are generated from `p7d-markdown-it-p-captions` locale metadata, not from a local hardcoded map in this plugin.
 - Generated fallback label tie-break is resolved lazily, at most once per render, when an image actually needs an unlabeled fallback. Prefer passing the active locale through `env.locale` or `env.preferredLocales`. Compatibility fallbacks are `preferredLanguages`, `env.preferredLanguages`, `env.lang`, and `env.language`. If none of those selects an available catalog, this plugin finally uses a cheap document-script heuristic that skips a leading hyphen-fenced frontmatter block (`---` or longer, spaces allowed before newline), then falls back to the raw `languages` order. This tie-break only affects generated fallback labels; it does not change the caption-recognition dictionaries selected by `languages`. Compatibility note: for generated fallback labels, `env.locale` / `env.preferredLocales` intentionally take precedence over the legacy `preferredLanguages` option so a shared `md` instance can render different documents with different active locales. Laziness is based on the final image token stream rather than raw `![` source text, so image tokens inserted by an earlier core rule receive the same locale behavior.
+
+## Figure annotations and local notes
+
+The `notes` feature is disabled by default and accepts only this structured
+option shape:
+
+```js
+{
+  notes: {
+    enabled: false,
+    annotations: true,
+    unreferencedLocalNotes: true,
+    referencedLocalNotes: true,
+  },
+}
+```
+
+All supplied fields must be actual booleans. Unknown keys and values such as
+`"false"` throw during the first plugin setup. `notes.enabled: false` prevents
+the notes catalog and block/inline rules from being constructed; the three
+subfeatures are considered only when the parent feature is enabled.
+
+Recognition catalogs use the existing top-level `languages` option. The
+built-in catalogs are English and Japanese. Input labels are normalized to
+language-independent roles, while the exact source label and joint remain
+visible in the output.
+
+### Annotations
+
+Annotations apply only to image and table figures and use independent paragraphs
+directly after the target sidecar group. A joint such as `:` / `：` or `.` / `。`
+is required, except for the `©` prefix. Consecutive recognized annotation
+paragraphs belong to the same figure in source order, so a source, credit, and
+rights statement can coexist. The first non-annotation block ends the group.
+
+Built-in Japanese labels:
+
+- `source`: `出典`, `引用元`, `データ`, `データ出典`, `データ引用`, `転載`, `転載元`
+- `credit`: `クレジット`, `提供`, `提供元`
+- `rights`: `著作権`, `ライセンス`, and the language-independent `©` prefix
+
+Built-in English labels:
+
+- `source`: `Source`, `Quoted from`, `Data source`, `Reprinted from`, `Reproduced from`
+- `credit`: `Credit`, `Courtesy of`, `Provided by`
+- `rights`: `Copyright`, `License`, and `©`
+
+The compact Japanese `データ：` form is accepted as a source annotation;
+`データ出典：` remains the clearer authoring form. General `参考` / `参照`
+vocabulary is intentionally not recognized in this initial contract.
+
+Output uses dedicated token types which render as paragraphs with stable
+classes such as `f-annotation`, `f-source`, `f-credit`, `f-rights`, and
+`f-annotation-label`. A following source annotation is not reinterpreted as a
+document-level semantic container. When a caption follows the target, the
+annotation is placed after its caption content inside the final `figcaption`;
+otherwise it remains a direct figure child after the target and local notes.
+If a label such as `クレジット：` is also enabled by a document-level semantic
+container plugin, direct adjacency to an eligible figure gives ownership to
+this plugin. Use that plugin's explicit HR-sandwiched form when a document-level
+container must begin immediately after a figure.
+
+### Unreferenced figure and table notes
+
+An unreferenced local note describes the whole target and creates no automatic
+number, ID, reference, or backlink:
+
+```md
+図注：値はすべて税込みです。
+```
+
+```md
+- 表注1：空欄は未回答です。
+- 表注2：値は四捨五入しています。
+```
+
+Use a paragraph when one note applies to the whole target and a bullet list when
+there are several. A one-item bullet list is accepted, but the paragraph form is
+the clearer authoring recommendation for one note. Nested or multi-block list
+items are not note syntax. Neither form creates reference links.
+
+Japanese openers are `図注` and `表注`. English openers are `Figure note`,
+`Figure notes`, `Table note`, and `Table notes`. An optional manual suffix is
+one or more decimal digits or uppercase ASCII letters; it remains source text
+and is not interpreted as an automatic sequence. The suffix may directly follow
+the opener, or follow one or more ASCII spaces. Thus, natural English list items
+such as `- Table note 1: Provisional value.` are accepted.
+
+The result is placed in `aside.f-local-notes` with `f-img-notes` or
+`f-table-notes`. A post-target caption follows the local-note container.
+
+### Referenced table notes
+
+Referenced local notes are initially table-only. A marker inside the table or
+its caption uses a source label beginning with `tn-` or `table-`. End the table
+with a blank line; the consecutive one-line definitions that follow form the
+table-local group, with no blank lines between definitions. No empty `表注：` /
+`Table notes:` opener is written:
+
+```md
+| Item | Value |
+| --- | ---: |
+| A[^tn-a] | 10 |
+
+[^tn-a]: Provisional value.
+```
+
+Source labels are local to the owning table. Visible numbers, document-unique
+IDs, and backlinks are generated independently from normal footnotes. The
+table and its adjacent caption share that local scope; repeated-reference IDs
+follow their rendered source order, including a caption placed before the table.
+Definitions precede a post-target caption so the sidecar order remains target,
+local notes, caption, then annotation. The generated `aside` label follows
+`env.locale` / `env.preferredLocales` when available and otherwise falls back to
+the first configured recognition language. The plugin imports only
+`@peaceroad/markdown-it-footnote-here/note-grammar.js` and does not register
+footnote-here automatically. Both plugin installation orders are supported.
+
+The blank line is required by Markdown's table grammar; without it, a definition
+line can be parsed as another table row before this plugin sees it. The first
+release accepts one definition per source line. A `tn-` / `table-` definition
+that is not directly after an eligible table is not claimed merely because of
+its prefix. Once an adjacent group is claimed, duplicate definitions or other
+invalid ownership remain visible instead of falling through to a normal footnote
+definition. Diagnostics are appended to
+`env.figureNotesDiagnostics` with codes such as `duplicate-definition`,
+`undefined-reference`, `unreferenced-definition`, and
+`scope-outside-reference`. The library does not log them to the console.
 
 ## Basic Usage
 
