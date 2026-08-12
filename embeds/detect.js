@@ -175,23 +175,22 @@ export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWit
     type: 'html',
     tagName: matchedTag,
     en: candidate.endIndex,
-    replaceInsteadOfWrap: false,
     wrapWithoutCaption: resolveHtmlWrapWithoutCaption(
       matchedTag,
       isVideoIframe,
       isIframeTypeBlockquote,
       htmlWrapWithoutCaption,
     ),
-    canWrap: true,
     isVideoIframe,
     isIframeTypeBlockquote,
     transform: candidate.transform,
   }
 }
 
-export const applyHtmlFigureTransform = (tokens, detection) => {
+export const prepareHtmlFigureTransform = (detection) => {
   const transform = detection && detection.transform
-  if (!transform) return detection ? detection.en : 0
+  if (!detection) return 0
+  if (!transform) return detection.en
   detection.transform = null
   if (transform.type === 'append-newline') {
     transform.token.content += '\n'
@@ -199,10 +198,9 @@ export const applyHtmlFigureTransform = (tokens, detection) => {
   }
   if (transform.type === 'merge-blockquote-script') {
     transform.token.content += transform.addedContent
-    const removeCount = transform.endIndex - transform.startIndex
-    if (removeCount > 0) tokens.splice(transform.startIndex + 1, removeCount)
-    detection.en = transform.startIndex
-    return detection.en
+    // The caller's batch emitter skips the remaining source range after
+    // emitting outputEnd; do not splice the document token array here.
+    return transform.startIndex
   }
   return detection.en
 }

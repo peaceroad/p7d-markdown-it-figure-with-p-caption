@@ -9,13 +9,14 @@
 ## 2. Core Pipeline
 - Registers the `figure_with_caption` core rule before `replacements` (after markdown-it-attrs has decorated paragraphs).
 - Repeated `.use(mditFigureWithPCaption)` calls on one markdown-it instance are ignored before later options are validated. Initial setup validates/registers before setting the sentinel, so an invalid first call leaves the instance reusable; use separate instances for different successful option sets.
-- `figureWithCaptionCore` walks token arrays recursively, respecting container boundaries (`blockquote`, `list_item`, `dd`).
+- The core rule analyzes the original token array without structural mutation, builds nested figure plans across `blockquote`, `list_item`, and `dd` boundaries, applies validated semantic decisions, then rebuilds the block-token sequence once.
+- Balanced open/close indexes are built lazily only when a block/container candidate needs them. Malformed or unbalanced candidate ranges fail closed.
 - Tight list paragraphs (`token.hidden`) are skipped to avoid invalid HTML.
 - Caption detection (delegated to p-captions) intentionally skips paragraphs that appear immediately after `list_item_open`; first-block captions inside list items are treated as non-captions.
 - Final structural eligibility (`canWrap`, hidden/tight-list guards) is established before adjacent-caption or auto-caption mutation. Invalid candidates must preserve the original caption tokens.
 - Unbalanced block-container token ranges fail closed instead of wrapping a lone open token.
-- When advanced numbering uses heading scopes, only configured top-level headings update the render-local scope state. Recursive container walkers inherit that state but do not create nested heading scopes.
-- After a captioned blockquote, its recursive walker must return at that blockquote's close token so following top-level headings remain visible to the top-level scope walker.
+- When advanced numbering uses heading scopes, only configured top-level headings update the render-local scope state. Recursive container planners inherit that state but do not create nested heading scopes.
+- After a captioned blockquote, its nested plan must end at that blockquote's close token so following top-level headings remain visible to the top-level scope planner.
 
 ## 3. Detection Inputs
 - Block tokens: `table_open`, `pre_open`, `blockquote_open` via `detectCheckTypeOpen`.
@@ -42,8 +43,8 @@
 - `imageOnlyParagraphWithoutCaption` is the canonical captionless image wrapping option. `oneImageWithoutCaption` remains a legacy alias; when both are set, `imageOnlyParagraphWithoutCaption` wins. Multi-image image-only paragraphs keep their layout class suffixes (`-horizontal`, `-vertical`, `-multiple`) when wrapped captionlessly.
 
 ## 5. Caption Pairing & Auto Caption
-- `checkPrevCaption` / `checkNextCaption` normally call `setCaptionParagraph` (from p-captions), then convert paragraphs into `figcaption` tokens. The iframe + figure-class-mirroring path uses p-captions' analyze/apply pair so a caption-driven slide class is final before label/body spans are constructed.
-- Caption detection trusts `sp.captionDecision.mark` from p-captions rather than re-parsing class strings.
+- Adjacent and generated captions use p-captions' `analyzeCaptionParagraph()` during planning and `applyCaptionParagraph()` during semantic application. The final caption-driven wrapper class is resolved before p-captions constructs mirrored label/body span classes.
+- Caption detection trusts `captionDecision.mark` from p-captions rather than re-parsing class strings.
 - `labelPrefixMarker` (optional) strips a prefix marker before a label; `allowLabelPrefixMarkerWithoutLabel` allows marker-only captions.
 - Caption regex resolution is language-aware via p-captions helper state (`getMarkRegStateForLanguages`); image auto-caption reuse goes through p-captions' pure `analyzeCaptionStart(...preferredMark:'img')` helper.
 - Auto caption for images runs only when no caption paragraph exists:
@@ -58,7 +59,7 @@
 
 ## 6. Numbering Integration
 - p-captions owns number resolution and label mutation through `createCaptionNumberingPolicy` / `createCaptionNumberingRuntime`; this plugin supplies the enabled marks and optional scope context. Do not reintroduce post-hoc label-span scanning.
-- Build one stable policy at setup and one runtime per render. All recursive walkers for that render share the runtime; separate renders, even on the same markdown-it instance, never share counters.
+- Build one stable policy at setup and one runtime per render. All recursive plans for that render share the runtime; separate renders, even on the same markdown-it instance, never share counters.
 - `autoLabelNumberSets` accepts strict user-facing marks `img`, `table`, `code` / `pre-code`, `samp` / `pre-samp`, and `video`; p-captions owns alias normalization. Unknown/non-string/empty entries and explicit `undefined` / `null` fail initial setup. `[]` explicitly disables numbering. `autoLabelNumber: true` remains only the img/table shorthand, and an explicit sets property wins.
 - Enabled checks use canonical `captionDecision.mark`, not wrapper classes or counter series. `removeUnnumberedLabelExceptMarks` is also compared by canonical decision mark after code/samp alias normalization.
 - The stable policy supplies a semantic `getCounterKey`: `img -> figure`, `pre-code -> listing`, `video -> video`, `table -> table`; `pre-samp` joins `figure` when its exact source label is also an active img label, joins `listing` when also a pre-code label, otherwise uses `samp`. Exact overlap checks call p-captions' cached `isCaptionLabelForMark` only for enabled pre-samp decisions.
@@ -70,20 +71,20 @@
 - Render-level `env.figureCaptionNumbering` takes precedence over parsed frontmatter; its `scope` accepts `auto`, `document`, or a validated fixed scope object, and its optional `separator` overrides the setup default for that render. `document` fixes the render to the unscoped per-series context so later headings cannot re-enable chapter/appendix prefixes.
 - Existing raw `front_matter` tokens require the explicit `resolveFrontmatterTitle` adapter; the plugin neither registers a frontmatter rule nor parses YAML. The parsed frontmatter override is available only when the host supplies the parsed object in `env`.
 - The public `caption-numbering.js` subpath exposes only opaque policy normalization, an immutable scope timeline, the semantic counter-key resolver, and the scope-aware number codec. These APIs reuse the same modules as the renderer but never expose candidate detection, wrapping, or token mutation. Policies and numbering contexts are branded/frozen; do not replace them with look-alike objects or duplicate their hidden state in consumers.
-- `createFigureCaptionScopeTimeline` is a batch-analysis API for source editors. Call it with the real post-inline `StateCore`; it must not mutate state/tokens/children. Its top-level-heading scan mirrors the streaming walker's container exclusion, and recognized headings without a valid source map set `hasUnmappableBoundaries` so source editors can fail closed.
+- `createFigureCaptionScopeTimeline` is a batch-analysis API for source editors. Call it with the real post-inline `StateCore`; it must not mutate state/tokens/children. Its top-level-heading scan mirrors the renderer planner's container exclusion, and recognized headings without a valid source map set `hasUnmappableBoundaries` so source editors can fail closed.
 - `captionDecision` remains source-only. Generated numbers never overwrite its `number` / `hasExplicitNumber` fields.
 - All policy callbacks, explicit overrides, and generated-number validation complete before p-captions mutates tokens; counter commit follows successful label construction. Callback external side effects are outside rollback guarantees, so callbacks must be pure and synchronous.
 - Reject p-captions' `setFigureNumber` at setup. This plugin owns numbering through `autoLabelNumber` / `autoLabelNumberSets`; enabling both systems can duplicate labels and resets p-captions counters because helper calls are figure-local.
 
 ## 7. Figure Tokens, Classes, and Attrs
-- `wrapWithFigure` inserts `figure_open` / `figure_close` and forwards:
+- Figure-plan preparation creates `figure_open` / `figure_close` and forwards:
   - figure class names (prefix + type, or iframe overrides),
   - attrs from image paragraphs/image tokens (`styleProcess` path), especially trailing `{...}` attrs on image-only paragraphs.
 - Wrapper/class-prefix options are trimmed during setup; whitespace-only overrides fall back to the default class for that option.
 - Caption paragraph attrs remain on the converted `figcaption` token (not moved onto `figure`).
 - `figure_open` / `figure_close` inherit `.map` from the wrapped source-line range to improve VS Code click/scroll sync.
 - Wrapper map propagation accepts only non-negative safe-integer source ranges; malformed third-party maps are ignored instead of being copied onto synthetic figure tokens.
-- `figure_open` / `figure_close` are block-level tokens, but this plugin still does not install renderer rules. `wrapWithFigure` inserts a distinct empty text token immediately after `figure_open` so markdown-it's default renderer emits the opening-tag newline without adding a blank line; image paragraph replacement still inserts an explicit newline before `figure_close`.
+- `figure_open` / `figure_close` are block-level tokens, but this plugin still does not install renderer rules. The plan emitter inserts a distinct empty text token immediately after `figure_open` so markdown-it's default renderer emits the opening-tag newline without adding a blank line; image paragraph replacement still inserts an explicit newline before `figure_close`.
 - `labelClassFollowsFigure` and `figureToLabelClassMap` use the final wrapper class. For slide captions, resolve `figureClassThatWrapsSlides` before p-captions builds mirrored span classes; map keys therefore use `f-slide` (or the custom final slide class), not the preliminary `f-iframe` class.
 
 ## 7a. Figure Annotations and Local Notes
@@ -92,7 +93,7 @@
 - Annotation roles are `source`, `credit`, and `rights`. General `参考` / `参照` vocabulary is intentionally excluded from the initial contract. Annotations and unreferenced local notes apply only to image/table targets and require adjacent, joint-delimited sidecar paragraphs. Consecutive recognized annotations belong to one figure in source order; the first non-annotation block ends the group.
 - `図注` / `表注` and `Figure note(s)` / `Table note(s)` are target-local notes, not captions or document footnotes. Manual decimal/uppercase suffixes have no fixed length cap and may follow ASCII spaces; they remain source text and never seed a counter. Multiple whole-target notes use a flat bullet list, not an ordered, nested, or multi-block list.
 - Referenced table notes use consecutive one-line `tn-` / `table-` definitions after the blank line that terminates a table, without an empty group opener or blank lines between definitions. The early block rule claims a group only when the previous parsed block closes a table; definitions elsewhere are not reserved by prefix alone. They reuse only `@peaceroad/markdown-it-footnote-here/note-grammar.js`; never activate or import footnote-here numbering, tokens, IDs, renderers, or locale runtime.
-- Local references are candidate inline tokens until the existing figure walker resolves them inside the owning table or its adjacent caption. Repeated-reference IDs follow rendered source order, including pre-captions. Scope-outside references render their original marker. Invalid explicit groups stay visible and must not fall through to ordinary footnote definitions.
+- Local references are candidate inline tokens until the figure plan resolves them inside the owning table or its adjacent caption. Repeated-reference IDs follow rendered source order, including pre-captions. Scope-outside references render their original marker. Invalid explicit groups stay visible and must not fall through to ordinary footnote definitions.
 - Successful annotations use dedicated token types even though they render as `<p>`, preventing later semantic-container rules from claiming the same paragraphs. Keep integration tests for both semantic-container and footnote-here installation orders.
 - Child order is target, local notes, then a post-caption; annotations follow the target/local notes when there is no post-caption and follow caption content inside a post `figcaption`. Caption-only output remains unchanged.
 - `env.figureNotesDiagnostics` is render-local, reused-env safe, and silent by default. IDs and backlinks for referenced local notes are document-unique but independent from normal footnote sequences.
@@ -110,14 +111,15 @@
 - Numbering-disabled renders allocate no numbering runtime. When no marks are enabled and the policy is omitted/`undefined`, setup also skips default-scope policy normalization; explicitly supplied policies are still validated. Scope catalogs and heading-prefix scans are used only when automatic/advanced numbering enables the corresponding source.
 - The renderer keeps the streaming scope runtime and does not build the public immutable timeline. Timeline allocation and its full token scan are paid only by explicit API consumers such as source editors.
 - The exact-label matcher table is built with the cached language state, but render-time overlap lookup occurs only for numbered `pre-samp` captions. Do not rescan the catalog or compile regexes per caption.
-- Heading-scope guards and parent close-token names are precomputed per walker. Captionless image wrapping resumes after the inserted figure instead of rescanning its new child tokens.
+- Heading-scope guards are precomputed per planning range. The planner advances in the original index space and never rescans generated wrapper tokens.
 - ASCII `Chapter` / `Appendix` prefix checks compare character codes case-insensitively instead of allocating lowercase substrings for every candidate heading.
 - Raw frontmatter resolution checks only the initial token, matching frontmatter's document-start grammar instead of scanning ordinary paragraph tokens.
 - Default numbering no longer scans already-created label spans; p-captions resolves and applies the number during label-token construction.
 - Alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
-- `wrapWithFigure` uses module-level token/attribute helpers to avoid allocating helper closures per figure. It must still create distinct newline tokens; do not reuse one token object across multiple insert positions.
-- Annotation-only and pre-caption flows extend the original figure range instead of moving annotations afterward; post-caption annotation groups use repeated fixed-slot rotation in the validated common layout. Small local-note sidecars use one replacement splice, while unusually large sidecar lists use bounded fixed-width insertions to avoid engine argument-count limits.
-- The current in-place walker is intentionally retained for nested-container correctness, but repeated wrapper `splice()` calls still make very large documents with many sibling figures superlinear. Fixed-width caption moves use direct slot rotation, and image/single-token wrappers use one replacement splice; preserve those local fast paths. p-captions 0.25.0 provides pure `analyzeCaptionParagraph()` plus validated `applyCaptionParagraph()` decisions for a future collect/plan/rebuild pass. Except for the narrow iframe/class-mirroring case above, do not replace the compatibility wrapper one-for-one on the current immediate path: snapshot/freeze validation adds overhead unless it also enables batched token reconstruction.
+- Figure-plan preparation uses module-level token/attribute helpers and must create distinct padding/newline tokens for every figure; do not reuse one token object across multiple output positions.
+- Caption, annotation, local-note, auto-caption, and social-embed structural changes are represented in the plan and emitted in final order rather than moved with block-array `splice()` calls. Inline-child label decoration may still use a small local `splice()` because it does not shift the document token tail.
+- p-captions 0.25.0's pure `analyzeCaptionParagraph()` and validated `applyCaptionParagraph()` are used as intended: decisions are collected against the unchanged original token array, applied in renderer traversal order, and only then followed by one structural rebuild.
+- Rebuilding writes the emitted token references back into the existing `state.tokens` object and truncates it, preserving array identity for surrounding core rules while keeping block-token work linear. No-op documents allocate no output array, and balanced close indexes stay lazy on image/plain-text paths.
 
 ## 9. Tests
 - Fixtures under `test/*.txt` feed `test/test.js` (`npm run test:core`).
@@ -142,8 +144,8 @@
 - Ship `docs/` in the npm package and verify its contents with `npm pack --dry-run --json` whenever documentation paths change.
 
 ## 11. Future Work
-- Investigate token pooling in `wrapWithFigure` to reduce GC churn on huge documents.
+- Investigate whether pooling selected plan records or wrapper-token construction measurably reduces GC churn on huge documents; never share one mutable token across output positions.
 - Expand HTML tag caching with subtype hints (e.g., iframe + YouTube).
-- Keep dense-sibling `splice()` instrumentation and a collect/plan/rebuild comparison as a separate performance project; do not combine that traversal rewrite with numbering semantics.
+- Keep dense-sibling scaling probes at counts large enough to expose accidental quadratic regressions, and compare core-rule behavior separately when host load makes end-to-end timing noisy.
 - Continue splitting `index.js` only along measured, stable responsibility boundaries (remaining setup/options, candidate detection, transforms/wrapping). Numbering policy/scope/series/codec already live under `caption-numbering/`; preserve the root default entry point, the explicit pure subpath, one-way dependencies, and no per-render helper allocation.
 - Explore an opt-in strategy for tight lists (temporary split/merge or diagnostics).

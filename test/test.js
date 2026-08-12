@@ -757,6 +757,34 @@ try {
   console.log('Result:', captionGuardHtml)
 }
 
+// The batch rebuild must preserve the StateCore token-array identity for
+// surrounding core rules while replacing its contents in linear time.
+const tokenArrayIdentityPlugin = (md) => {
+  let capturedTokens = null
+  md.core.ruler.before('figure_with_caption', 'capture_figure_token_array', (state) => {
+    capturedTokens = state.tokens
+  })
+  md.core.ruler.after('figure_with_caption', 'verify_figure_token_array', (state) => {
+    state.env.figureTokenArrayIdentityPreserved = state.tokens === capturedTokens
+  })
+}
+const mdTokenArrayIdentity = mdit({ html: true })
+  .use(mdFigureWithPCaption)
+  .use(tokenArrayIdentityPlugin)
+const tokenArrayIdentityEnv = {}
+const tokenArrayIdentityHtml = mdTokenArrayIdentity.render(
+  'Figure. First.\n\n![First](first.jpg)\n\nFigure. Second.\n\n![Second](second.jpg)',
+  tokenArrayIdentityEnv,
+)
+try {
+  assert.strictEqual(tokenArrayIdentityEnv.figureTokenArrayIdentityPreserved, true)
+  assert.strictEqual((tokenArrayIdentityHtml.match(/<figure class="f-img">/g) || []).length, 2)
+} catch (e) {
+  pass = false
+  console.log('Token-array identity regression failed.')
+  console.log(e)
+}
+
 // Regression guard: p-captions language selection in another md instance
 // must not change figure-with-p-caption detection behavior.
 const languageIsolationMarkdown = '図. 日本語キャプション\n\n![alt](a.jpg)'

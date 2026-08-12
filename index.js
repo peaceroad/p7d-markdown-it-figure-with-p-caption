@@ -9,11 +9,10 @@ import {
   getGeneratedLabelDefaults,
   normalizeAutoLabelNumberSets,
   normalizeLabelPrefixMarkers,
-  setCaptionParagraph,
   getMarkRegStateForLanguages,
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
-import { applyHtmlFigureTransform, detectHtmlFigureCandidate } from './embeds/detect.js'
+import { detectHtmlFigureCandidate, prepareHtmlFigureTransform } from './embeds/detect.js'
 import { normalizeNotesOptions } from './notes/options.js'
 import { createNotesCatalog } from './notes/catalog.js'
 import { resetFigureNotesDiagnostics } from './notes/diagnostics.js'
@@ -21,8 +20,7 @@ import {
   analyzeAnnotationAt,
   analyzeUnreferencedLocalNotesAt,
   applyAnnotationDecision,
-  applyUnreferencedLocalNotesDecision,
-  moveAnnotationIntoFigure,
+  prepareUnreferencedLocalNotesDecision,
 } from './notes/sidecars.js'
 import {
   analyzeReferencedLocalNotesAt,
@@ -56,12 +54,18 @@ const asciiLabelReg = /^[A-Za-z]/
 const attrNameReg = /^[^\s=]+$/
 const labelTrailingJointReg = /[.\u3002\uff0e:：\u3000]\s*$/
 const installedKey = Symbol.for('p7d-markdown-it-figure-with-p-caption.installed')
-const MAX_SINGLE_SPLICE_REPLACEMENT_TOKENS = 1024
 const CHECK_TYPE_TOKEN_MAP = {
   table_open: 'table',
   pre_open: 'pre',
   blockquote_open: 'blockquote',
 }
+const PLANNED_CONTAINER_OPEN_TYPES = new Set([
+  'blockquote_open',
+  'list_item_open',
+  'dd_open',
+  'table_open',
+  'pre_open',
+])
 const hasOwnOption = (option, name) => !!(
   option && Object.prototype.hasOwnProperty.call(option, name)
 )
@@ -572,90 +576,6 @@ const consumeAutoCaptionSource = (imageToken, autoCaption) => {
   }
 }
 
-const setFigureCaptionParagraph = (index, captionState, caption, sp, opt) => {
-  const needsCaptionDrivenClassBeforeApply = !!(
-    opt.labelClassFollowsFigure &&
-    caption.name === 'iframe' &&
-    !opt.allIframeTypeFigureClassName
-  )
-  if (!needsCaptionDrivenClassBeforeApply) {
-    return setCaptionParagraph(index, captionState, caption, captionState.numberingRuntime, sp, opt)
-  }
-  const decision = analyzeCaptionParagraph(index, captionState, {
-    captionName: caption.name,
-    isIframeTypeBlockquote: sp.isIframeTypeBlockquote,
-    isVideoIframe: sp.isVideoIframe,
-  }, opt)
-  if (!decision) return false
-  // Figure-following label classes need the final caption-driven wrapper class
-  // before p-captions constructs the label/body spans.
-  applyCaptionDrivenFigureClass(caption, sp, opt, decision)
-  return applyCaptionParagraph(
-    decision,
-    captionState,
-    sp,
-    captionState.numberingRuntime,
-    opt,
-  )
-}
-
-const trackCaptionTokens = (caption, openToken, inlineToken, closeToken) => {
-  if (!('openToken' in caption)) return
-  caption.openToken = openToken
-  caption.inlineToken = inlineToken
-  caption.closeToken = closeToken
-}
-
-const checkPrevCaption = (tokens, n, caption, sp, opt, captionState) => {
-  if (n < 3) return
-  const captionStartToken = tokens[n - 3]
-  const captionInlineToken = tokens[n - 2]
-  const captionEndToken = tokens[n - 1]
-  if (captionStartToken === undefined || captionEndToken === undefined) return
-  if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setFigureCaptionParagraph(n - 3, captionState, caption, sp, opt)
-  const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
-  if (!captionName) {
-    if (opt.labelPrefixMarkerWithoutLabelPrevReg) {
-      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelPrevReg)
-      if (markerMatch) {
-        stripLabelPrefixMarker(captionInlineToken, markerMatch)
-        caption.isPrev = true
-        trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
-      }
-    }
-    return
-  }
-  caption.name = captionName
-  caption.isPrev = true
-  trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
-}
-
-const checkNextCaption = (tokens, en, caption, sp, opt, captionState) => {
-  if (en + 3 >= tokens.length) return
-  const captionStartToken = tokens[en + 1]
-  const captionInlineToken = tokens[en + 2]
-  const captionEndToken = tokens[en + 3]
-  if (captionStartToken === undefined || captionEndToken === undefined) return
-  if (captionStartToken.type !== 'paragraph_open' || captionEndToken.type !== 'paragraph_close') return
-  setFigureCaptionParagraph(en + 1, captionState, caption, sp, opt)
-  const captionName = sp && sp.captionDecision ? sp.captionDecision.mark : ''
-  if (!captionName) {
-    if (opt.labelPrefixMarkerWithoutLabelNextReg) {
-      const markerMatch = getLabelPrefixMarkerMatch(captionInlineToken, opt.labelPrefixMarkerWithoutLabelNextReg)
-      if (markerMatch) {
-        stripLabelPrefixMarker(captionInlineToken, markerMatch)
-        caption.isNext = true
-        trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
-      }
-    }
-    return
-  }
-  caption.name = captionName
-  caption.isNext = true
-  trackCaptionTokens(caption, captionStartToken, captionInlineToken, captionEndToken)
-}
-
 const cleanCaptionTokenAttrs = (token, captionName, opt) => {
   if (!captionName || !token.attrs || !opt) return
   const prefix = opt.captionClassPrefix || ''
@@ -701,7 +621,7 @@ const resolveFigureClassName = (checkTokenTagName, sp, opt) => {
   return className
 }
 
-const applyCaptionDrivenFigureClass = (caption, sp, opt, decision = sp && sp.captionDecision) => {
+const applyCaptionDrivenFigureClass = (caption, sp, opt, decision) => {
   if (!sp) return
   const figureClassForSlides = opt.figureClassThatWrapsSlides
   if (!figureClassForSlides) return
@@ -730,46 +650,6 @@ const convertCaptionTokens = (
   captionEndToken.tag = 'figcaption'
   captionEndToken.block = true
   captionEndToken.level = figureBaseLevel + 1
-}
-
-const changePrevCaptionPosition = (tokens, n, caption, opt) => {
-  const captionStartToken = tokens[n-3]
-  const captionInlineToken = tokens[n-2]
-  const captionEndToken = tokens[n-1]
-  const figureStartToken = tokens[n]
-  const figureStartPaddingToken = tokens[n+1]
-  convertCaptionTokens(
-    captionStartToken,
-    captionInlineToken,
-    captionEndToken,
-    getTokenLevel(tokens[n]),
-    caption.name,
-    opt,
-  )
-  tokens[n-3] = figureStartToken
-  tokens[n-2] = figureStartPaddingToken
-  tokens[n-1] = captionStartToken
-  tokens[n] = captionInlineToken
-  tokens[n+1] = captionEndToken
-}
-
-const changeNextCaptionPosition = (tokens, en, caption, opt) => {
-  const figureEndToken = tokens[en]
-  const captionStartToken = tokens[en+1]
-  const captionInlineToken = tokens[en+2]
-  const captionEndToken = tokens[en+3]
-  convertCaptionTokens(
-    captionStartToken,
-    captionInlineToken,
-    captionEndToken,
-    getTokenLevel(tokens[en]),
-    caption.name,
-    opt,
-  )
-  tokens[en] = captionStartToken
-  tokens[en+1] = captionInlineToken
-  tokens[en+2] = captionEndToken
-  tokens[en+3] = figureEndToken
 }
 
 const getTokenMap = (token) => {
@@ -834,137 +714,7 @@ const joinTokenAttrs = (token, attrs) => {
   }
 }
 
-const wrapWithFigure = (tokens, range, checkTokenTagName, caption, replaceInsteadOfWrap, sp, opt, TokenConstructor) => {
-  let n = range.start
-  let en = range.end
-  const baseLevel = getTokenLevel(tokens[n])
-  const childLevel = baseLevel + 1
-  const figureStartToken = new TokenConstructor('figure_open', 'figure', 1)
-  figureStartToken.attrSet('class', sp.figureClassName)
-  figureStartToken.block = true
-  figureStartToken.level = baseLevel
-
-  if (opt.roleDocExample && (checkTokenTagName === 'pre-code' || checkTokenTagName === 'pre-samp')) {
-    figureStartToken.attrSet('role', 'doc-example')
-  }
-  const figureEndToken = new TokenConstructor('figure_close', 'figure', -1)
-  figureEndToken.block = true
-  figureEndToken.level = baseLevel
-  const rangeMap = getRangeMap(tokens, n, en)
-  if (rangeMap) {
-    figureStartToken.map = [rangeMap[0], rangeMap[1]]
-    figureEndToken.map = [rangeMap[0], rangeMap[1]]
-  }
-  if (caption.name === 'img') {
-    // `styleProcess` should keep working even when markdown-it-attrs is absent.
-    if (opt.styleProcess) joinTokenAttrs(figureStartToken, sp.attrs)
-    // Forward attrs already materialized by markdown-it-attrs on the image paragraph.
-    joinTokenAttrs(figureStartToken, tokens[n].attrs)
-  }
-  if (replaceInsteadOfWrap) {
-    const contentToken = tokens[n + 1]
-    const trailingLength = Math.max(0, en - n - 2)
-    const paddingToken = createTextToken(TokenConstructor, '', childLevel)
-    const newlineToken = createTextToken(TokenConstructor, '\n', childLevel)
-    if (trailingLength <= MAX_SINGLE_SPLICE_REPLACEMENT_TOKENS) {
-      const trailingTokens = trailingLength > 0
-        ? tokens.slice(n + 3, en + 1)
-        : []
-      if (trailingLength > 0) {
-        adjustTokenLevels(trailingTokens, 0, trailingLength - 1, 1)
-      }
-      tokens.splice(
-        n,
-        en - n + 1,
-        figureStartToken,
-        paddingToken,
-        contentToken,
-        newlineToken,
-        ...trailingTokens,
-        figureEndToken,
-      )
-    } else {
-      // Keep unusually large sidecar lists away from engine argument-count limits.
-      adjustTokenLevels(tokens, n + 3, en, 1)
-      tokens[n] = figureStartToken
-      tokens[n + 2] = newlineToken
-      tokens.splice(en + 1, 0, figureEndToken)
-      tokens.splice(n + 1, 0, paddingToken)
-    }
-    en = en + 2
-  } else if (n === en) {
-    const contentToken = tokens[n]
-    adjustTokenLevels(tokens, n, en, 1)
-    tokens.splice(
-      n,
-      1,
-      figureStartToken,
-      createTextToken(TokenConstructor, '', childLevel),
-      contentToken,
-      figureEndToken,
-    )
-    en = en + 3
-  } else {
-    adjustTokenLevels(tokens, n, en, 1)
-    tokens.splice(en+1, 0, figureEndToken)
-    tokens.splice(n, 0, figureStartToken, createTextToken(TokenConstructor, '', childLevel))
-    en = en + 3
-  }
-  range.start = n
-  range.end = en
-  return { figureStartToken, figureEndToken }
-}
-
-const checkCaption = (tokens, n, en, caption, sp, opt, captionState) => {
-  checkPrevCaption(tokens, n, caption, sp, opt, captionState)
-  if (caption.isPrev) return
-  checkNextCaption(tokens, en, caption, sp, opt, captionState)
-}
-
-const resetRangeState = (range, start) => {
-  range.start = start
-  range.end = start
-}
-
-const resetCaptionState = (caption) => {
-  caption.name = ''
-  caption.nameSuffix = ''
-  caption.isPrev = false
-  caption.isNext = false
-  if ('openToken' in caption) {
-    caption.openToken = null
-    caption.inlineToken = null
-    caption.closeToken = null
-  }
-}
-
-const resetSpecialState = (sp) => {
-  sp.attrs.length = 0
-  sp.isVideoIframe = false
-  sp.isIframeTypeBlockquote = false
-  sp.figureClassName = ''
-  sp.captionDecision = null
-  sp.numbering = null
-}
-
-const findClosingTokenIndex = (tokens, startIndex, tag) => {
-  const openType = tag + '_open'
-  const closeType = tag + '_close'
-  let depth = 1
-  let i = startIndex + 1
-  while (i < tokens.length) {
-    const tokenType = tokens[i].type
-    if (tokenType === openType) depth++
-    if (tokenType === closeType) {
-      depth--
-      if (depth === 0) return i
-    }
-    i++
-  }
-  return -1
-}
-
-const detectCheckTypeOpen = (tokens, token, n, caption, baseType) => {
+const detectCheckTypeOpen = (tokens, token, n, caption, baseType, knownCloseIndex = -1) => {
   if (!token || !baseType) return null
   if (n > 1 && tokens[n - 2] && tokens[n - 2].type === 'figure_open') return null
   const tagName = token.tag
@@ -973,15 +723,12 @@ const detectCheckTypeOpen = (tokens, token, n, caption, baseType) => {
     if (tokens[n + 1] && tokens[n + 1].tag === 'code') caption.name = 'pre-code'
     if (tokens[n + 1] && tokens[n + 1].tag === 'samp') caption.name = 'pre-samp'
   }
-  const en = findClosingTokenIndex(tokens, n, tagName)
+  const en = knownCloseIndex
   if (en < 0) return null
   return {
     type: 'block',
     tagName,
     en,
-    replaceInsteadOfWrap: false,
-    wrapWithoutCaption: false,
-    canWrap: true,
   }
 }
 
@@ -994,9 +741,6 @@ const detectFenceToken = (token, n, caption) => {
     type: 'fence',
     tagName,
     en: n,
-    replaceInsteadOfWrap: false,
-    wrapWithoutCaption: false,
-    canWrap: true,
     token,
     useSampTag,
   }
@@ -1023,15 +767,14 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
   let isMultipleImagesVertical = true
   let isValid = true
   let trailingAttrToken = null
+  let nameSuffix = ''
   caption.name = 'img'
   if (childrenLength === 1) {
     return {
       type: 'image',
       tagName: 'img',
       en: n + 2,
-      replaceInsteadOfWrap: true,
       wrapWithoutCaption: allowImageParagraphWithoutCaption,
-      canWrap: true,
       imageToken,
     }
   }
@@ -1040,7 +783,6 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
       type: 'image',
       tagName: 'img',
       en: n + 2,
-      replaceInsteadOfWrap: true,
       wrapWithoutCaption: false,
       canWrap: false,
       imageToken,
@@ -1055,6 +797,7 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
         if (imageAttrs) {
           const parsedAttrs = parseImageAttrs(imageAttrs[1])
           if (parsedAttrs) {
+            sp.attrs = []
             for (let i = 0; i < parsedAttrs.length; i++) {
               sp.attrs.push(parsedAttrs[i])
             }
@@ -1090,21 +833,19 @@ const detectImageParagraph = (nextToken, n, caption, sp, opt) => {
   }
   if (isValid && imageNum > 1 && multipleImagesEnabled) {
     if (isMultipleImagesHorizontal) {
-      caption.nameSuffix = '-horizontal'
+      nameSuffix = '-horizontal'
     } else if (isMultipleImagesVertical) {
-      caption.nameSuffix = '-vertical'
+      nameSuffix = '-vertical'
     } else {
-      caption.nameSuffix = '-multiple'
+      nameSuffix = '-multiple'
     }
   }
   const en = n + 2
-  let tagName = 'img'
-  if (caption.nameSuffix) tagName += caption.nameSuffix
+  const tagName = 'img' + nameSuffix
   return {
     type: 'image',
     tagName,
     en,
-    replaceInsteadOfWrap: true,
     wrapWithoutCaption: isValid && allowImageParagraphWithoutCaption,
     canWrap: isValid,
     imageToken,
@@ -1135,6 +876,752 @@ const applyWrappedCandidateTransform = (detection) => {
   }
 }
 
+const buildBalancedCloseIndex = (tokens) => {
+  const closeByOpen = new Map()
+  const stack = []
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index]
+    if (!token || typeof token.type !== 'string') continue
+    if (token.nesting === 1 && token.type.endsWith('_open')) {
+      stack.push(index)
+      continue
+    }
+    if (token.nesting !== -1 || !token.type.endsWith('_close') || stack.length === 0) continue
+    const expectedOpenType = token.type.slice(0, -6) + '_open'
+    const openIndex = stack[stack.length - 1]
+    const openType = tokens[openIndex].type
+    if (openType !== expectedOpenType) continue
+    stack.pop()
+    if (PLANNED_CONTAINER_OPEN_TYPES.has(openType)) {
+      closeByOpen.set(openIndex, index)
+    }
+  }
+  return closeByOpen
+}
+
+const getBalancedCloseIndex = (tokens, state, openIndex) => {
+  state.closeByOpen ||= buildBalancedCloseIndex(tokens)
+  return state.closeByOpen.get(openIndex)
+}
+
+const analyzeCaptionAt = (
+  tokens,
+  index,
+  position,
+  caption,
+  sp,
+  opt,
+  captionState,
+  lowerBound,
+  upperBound,
+) => {
+  if (index < lowerBound || index + 2 >= upperBound) return null
+  const openToken = tokens[index]
+  const inlineToken = tokens[index + 1]
+  const closeToken = tokens[index + 2]
+  if (
+    openToken?.type !== 'paragraph_open'
+    || inlineToken?.type !== 'inline'
+    || closeToken?.type !== 'paragraph_close'
+  ) return null
+  const decision = analyzeCaptionParagraph(index, captionState, {
+    captionName: caption.name,
+    isIframeTypeBlockquote: sp.isIframeTypeBlockquote,
+    isVideoIframe: sp.isVideoIframe,
+  }, opt)
+  if (decision) {
+    return {
+      position,
+      start: index,
+      end: index + 2,
+      openToken,
+      inlineToken,
+      closeToken,
+      decision,
+      state: captionState,
+    }
+  }
+  const markerReg = position === 'prev'
+    ? opt.labelPrefixMarkerWithoutLabelPrevReg
+    : opt.labelPrefixMarkerWithoutLabelNextReg
+  if (!markerReg) return null
+  const markerMatch = getLabelPrefixMarkerMatch(inlineToken, markerReg)
+  if (!markerMatch) return null
+  return {
+    position,
+    start: index,
+    end: index + 2,
+    openToken,
+    inlineToken,
+    closeToken,
+    markerMatch,
+  }
+}
+
+const getLastPlanEnd = (owner) => {
+  const plans = owner.children
+  return plans.length === 0 ? -1 : plans[plans.length - 1].sourceEnd
+}
+
+const analyzeAdjacentCaption = (
+  tokens,
+  targetStart,
+  targetEnd,
+  caption,
+  sp,
+  opt,
+  captionState,
+  lowerBound,
+  upperBound,
+  owner,
+) => {
+  const previousIndex = targetStart - 3
+  if (previousIndex > getLastPlanEnd(owner)) {
+    const previous = analyzeCaptionAt(
+      tokens,
+      previousIndex,
+      'prev',
+      caption,
+      sp,
+      opt,
+      captionState,
+      lowerBound,
+      upperBound,
+    )
+    if (previous) return previous
+  }
+  return analyzeCaptionAt(
+    tokens,
+    targetEnd + 1,
+    'next',
+    caption,
+    sp,
+    opt,
+    captionState,
+    lowerBound,
+    upperBound,
+  )
+}
+
+const createAutoCaptionAnalysis = (
+  detection,
+  caption,
+  sp,
+  opt,
+  captionState,
+  TokenConstructor,
+) => {
+  if (detection.type !== 'image' || !opt.autoCaptionDetection) return null
+  const pending = getAutoCaptionFromImage(detection.imageToken, opt, captionState)
+  if (!pending) return null
+  const tokens = createAutoCaptionParagraph(pending.text, TokenConstructor)
+  const state = { ...captionState, tokens }
+  const decision = analyzeCaptionParagraph(0, state, {
+    captionName: caption.name,
+    isIframeTypeBlockquote: sp.isIframeTypeBlockquote,
+    isVideoIframe: sp.isVideoIframe,
+  }, opt)
+  if (!decision) return null
+  return {
+    position: 'prev',
+    openToken: tokens[0],
+    inlineToken: tokens[1],
+    closeToken: tokens[2],
+    decision,
+    state,
+    autoCaption: pending,
+  }
+}
+
+const mergeRangeMaps = (left, right) => {
+  if (!left) return right ? [right[0], right[1]] : null
+  if (!right) return [left[0], left[1]]
+  return [Math.min(left[0], right[0]), Math.max(left[1], right[1])]
+}
+
+const getPlanBaseMap = (tokens, plan) => {
+  let map = getRangeMap(tokens, plan.targetStart, plan.targetOutputEnd)
+  if (plan.localNotesDecision) {
+    const localNotesMap = plan.preparedLocalNotes
+      ? getTokenMap(plan.preparedLocalNotes.open)
+      : getRangeMap(tokens, plan.localNotesDecision.start, plan.localNotesDecision.end)
+    map = mergeRangeMaps(
+      map,
+      localNotesMap,
+    )
+  }
+  return map
+}
+
+const getAnnotationMap = (tokens, decisions) => {
+  let map = null
+  for (let index = 0; index < decisions.length; index++) {
+    map = mergeRangeMaps(
+      map,
+      getRangeMap(tokens, decisions[index].start, decisions[index].end),
+    )
+  }
+  return map
+}
+
+const createFigurePlanTokens = (tokens, plan, annotationMap, opt, TokenConstructor) => {
+  const baseLevel = getTokenLevel(tokens[plan.targetStart])
+  const childLevel = baseLevel + 1
+  const figureStartToken = new TokenConstructor('figure_open', 'figure', 1)
+  figureStartToken.attrSet('class', plan.sp.figureClassName)
+  figureStartToken.block = true
+  figureStartToken.level = baseLevel
+  if (
+    opt.roleDocExample
+    && (plan.detection.tagName === 'pre-code' || plan.detection.tagName === 'pre-samp')
+  ) {
+    figureStartToken.attrSet('role', 'doc-example')
+  }
+  const figureEndToken = new TokenConstructor('figure_close', 'figure', -1)
+  figureEndToken.block = true
+  figureEndToken.level = baseLevel
+  const rangeMap = mergeRangeMaps(getPlanBaseMap(tokens, plan), annotationMap)
+  if (rangeMap) {
+    figureStartToken.map = [rangeMap[0], rangeMap[1]]
+    figureEndToken.map = [rangeMap[0], rangeMap[1]]
+  }
+  if (plan.caption.name === 'img') {
+    if (opt.styleProcess) joinTokenAttrs(figureStartToken, plan.sp.attrs)
+    joinTokenAttrs(figureStartToken, tokens[plan.targetStart].attrs)
+  }
+  plan.figureStartToken = figureStartToken
+  plan.figureEndToken = figureEndToken
+  plan.paddingToken = createTextToken(TokenConstructor, '', childLevel)
+  if (plan.detection.type === 'image') {
+    plan.imageNewlineToken = createTextToken(TokenConstructor, '\n', childLevel)
+  }
+}
+
+const adjustPreparedLocalNotesLevels = (tokens, prepared, delta) => {
+  if (!prepared || !delta) return
+  prepared.open.level += delta
+  prepared.close.level += delta
+  adjustTokenLevels(tokens, prepared.start, prepared.end, delta)
+}
+
+const setAnnotationLevels = (decision, parentLevel) => {
+  decision.open.level = parentLevel + 1
+  decision.inline.level = parentLevel + 2
+  decision.close.level = parentLevel + 1
+}
+
+const prepareFigurePlan = (tokens, plan, opt, TokenConstructor, captionState) => {
+  const captionAnalysis = plan.captionAnalysis
+  if (captionAnalysis) {
+    let applied = false
+    if (captionAnalysis.decision) {
+      applied = applyCaptionParagraph(
+        captionAnalysis.decision,
+        captionAnalysis.state,
+        plan.sp,
+        captionState.numberingRuntime,
+        opt,
+      )
+    } else if (captionAnalysis.markerMatch) {
+      stripLabelPrefixMarker(captionAnalysis.inlineToken, captionAnalysis.markerMatch)
+      applied = true
+    }
+    if (!applied) {
+      throw new Error('Caption decision became stale before token rebuild')
+    }
+    if (captionAnalysis.autoCaption) {
+      consumeAutoCaptionSource(plan.detection.imageToken, captionAnalysis.autoCaption)
+    }
+  }
+
+  if (plan.detection.type === 'html') {
+    plan.targetOutputEnd = prepareHtmlFigureTransform(plan.detection)
+  }
+
+  if (plan.localNotesDecision?.kind === 'unreferenced-local-notes') {
+    plan.preparedLocalNotes = prepareUnreferencedLocalNotesDecision(
+      tokens,
+      plan.localNotesDecision,
+      TokenConstructor,
+      opt.figureClassPrefix,
+    )
+    if (!plan.preparedLocalNotes) {
+      throw new Error('Figure local-note decision became stale before token rebuild')
+    }
+  }
+
+  if (plan.localNotesDecision?.kind === 'referenced-local-notes') {
+    captionState.notesRuntime ||= { targetOrdinal: 0 }
+    resolveReferencedLocalNotes(
+      tokens,
+      plan.targetStart,
+      plan.targetOutputEnd,
+      plan.localNotesDecision,
+      captionAnalysis?.inlineToken || null,
+      captionAnalysis?.position === 'prev',
+      captionState.env,
+      captionState.notesRuntime,
+    )
+  }
+
+  for (let index = 0; index < plan.annotationDecisions.length; index++) {
+    if (!applyAnnotationDecision(
+      plan.annotationDecisions[index],
+      TokenConstructor,
+      opt.figureClassPrefix,
+    )) {
+      throw new Error('Figure annotation decision became stale before token rebuild')
+    }
+  }
+
+  const annotationMap = getAnnotationMap(tokens, plan.annotationDecisions)
+  applyWrappedCandidateTransform(plan.detection)
+  createFigurePlanTokens(tokens, plan, annotationMap, opt, TokenConstructor)
+
+  if (plan.detection.type !== 'image') {
+    adjustTokenLevels(tokens, plan.targetStart, plan.targetOutputEnd, 1)
+  }
+  if (plan.preparedLocalNotes) {
+    adjustPreparedLocalNotesLevels(tokens, plan.preparedLocalNotes, 1)
+  } else if (plan.localNotesDecision) {
+    adjustTokenLevels(
+      tokens,
+      plan.localNotesDecision.start,
+      plan.localNotesDecision.end,
+      1,
+    )
+  }
+
+  const captionIsNext = captionAnalysis?.position === 'next'
+  if (!captionIsNext) {
+    for (let index = 0; index < plan.annotationDecisions.length; index++) {
+      adjustTokenLevels(
+        tokens,
+        plan.annotationDecisions[index].start,
+        plan.annotationDecisions[index].end,
+        1,
+      )
+    }
+  }
+
+  if (captionAnalysis) {
+    convertCaptionTokens(
+      captionAnalysis.openToken,
+      captionAnalysis.inlineToken,
+      captionAnalysis.closeToken,
+      getTokenLevel(tokens[plan.targetStart]),
+      plan.caption.name,
+      opt,
+    )
+    if (captionIsNext) {
+      const captionLevel = captionAnalysis.openToken.level
+      for (let index = 0; index < plan.annotationDecisions.length; index++) {
+        setAnnotationLevels(plan.annotationDecisions[index], captionLevel)
+      }
+      if (annotationMap) {
+        const captionMap = mergeRangeMaps(getTokenMap(captionAnalysis.openToken), annotationMap)
+        if (captionMap) {
+          captionAnalysis.openToken.map = [captionMap[0], captionMap[1]]
+          captionAnalysis.closeToken.map = [captionMap[0], captionMap[1]]
+        }
+      }
+    }
+  }
+}
+
+const pushTokenRange = (tokens, start, end, output) => {
+  for (let index = start; index <= end; index++) output.push(tokens[index])
+}
+
+const emitPlannedRange = (tokens, start, end, plans, output) => {
+  let sourceIndex = start
+  for (let index = 0; index < plans.length; index++) {
+    const plan = plans[index]
+    if (sourceIndex < plan.sourceStart) {
+      pushTokenRange(tokens, sourceIndex, plan.sourceStart - 1, output)
+    }
+    if (plan.kind === 'figure') {
+      emitFigurePlan(tokens, plan, output)
+    } else {
+      pushTokenRange(tokens, plan.sourceStart, plan.outputEnd, output)
+    }
+    sourceIndex = plan.sourceEnd + 1
+  }
+  if (sourceIndex <= end) pushTokenRange(tokens, sourceIndex, end, output)
+}
+
+const emitAnnotations = (tokens, decisions, output) => {
+  for (let index = 0; index < decisions.length; index++) {
+    pushTokenRange(tokens, decisions[index].start, decisions[index].end, output)
+  }
+}
+
+const emitFigurePlan = (tokens, plan, output) => {
+  const captionAnalysis = plan.captionAnalysis
+  output.push(plan.figureStartToken, plan.paddingToken)
+  if (captionAnalysis?.position === 'prev') {
+    output.push(captionAnalysis.openToken, captionAnalysis.inlineToken, captionAnalysis.closeToken)
+  }
+
+  if (plan.detection.type === 'image') {
+    output.push(tokens[plan.targetStart + 1], plan.imageNewlineToken)
+  } else {
+    emitPlannedRange(
+      tokens,
+      plan.targetStart,
+      plan.targetOutputEnd,
+      plan.children,
+      output,
+    )
+  }
+
+  if (plan.preparedLocalNotes) {
+    output.push(plan.preparedLocalNotes.open)
+    pushTokenRange(
+      tokens,
+      plan.preparedLocalNotes.start,
+      plan.preparedLocalNotes.end,
+      output,
+    )
+    output.push(plan.preparedLocalNotes.close)
+  } else if (plan.localNotesDecision) {
+    pushTokenRange(
+      tokens,
+      plan.localNotesDecision.start,
+      plan.localNotesDecision.end,
+      output,
+    )
+  }
+
+  if (captionAnalysis?.position === 'next') {
+    output.push(captionAnalysis.openToken, captionAnalysis.inlineToken)
+    emitAnnotations(tokens, plan.annotationDecisions, output)
+    output.push(captionAnalysis.closeToken)
+  } else {
+    emitAnnotations(tokens, plan.annotationDecisions, output)
+  }
+  output.push(plan.figureEndToken)
+}
+
+const commitPlannedTokens = (tokens, rootPlans) => {
+  if (rootPlans.length === 0) return
+  const output = []
+  emitPlannedRange(tokens, 0, tokens.length - 1, rootPlans, output)
+  // Preserve StateCore's array identity for surrounding rules while replacing
+  // the document in one linear copy instead of shifting its tail per figure.
+  for (let index = 0; index < output.length; index++) tokens[index] = output[index]
+  tokens.length = output.length
+}
+
+const collectFigurePlansInRange = (
+  tokens,
+  start,
+  end,
+  owner,
+  closeIndexState,
+  opt,
+  TokenConstructor,
+  captionState,
+  applyOrder,
+  isTopLevel,
+) => {
+  const headingScopeState = isTopLevel
+    && captionState.numberingScopeState
+    && !captionState.numberingScopeState.fixed
+    && captionState.numberingScopeState.scopeConfig.usesHeading
+    ? captionState.numberingScopeState
+    : null
+  let n = start
+  while (n < end) {
+    const token = tokens[n]
+    if (headingScopeState && token?.type === 'heading_open') {
+      updateFigureCaptionScopeFromHeading(tokens, n, headingScopeState)
+    }
+    const containerType = getFigureCaptionScopeNestedContainerType(token)
+    if (containerType && containerType !== 'blockquote') {
+      const closeIndex = getBalancedCloseIndex(tokens, closeIndexState, n)
+      if (closeIndex === undefined || closeIndex >= end) {
+        collectFigurePlansInRange(
+          tokens,
+          n + 1,
+          end,
+          owner,
+          closeIndexState,
+          opt,
+          TokenConstructor,
+          captionState,
+          applyOrder,
+          false,
+        )
+        return
+      }
+      collectFigurePlansInRange(
+        tokens,
+        n + 1,
+        closeIndex,
+        owner,
+        closeIndexState,
+        opt,
+        TokenConstructor,
+        captionState,
+        applyOrder,
+        false,
+      )
+      n = closeIndex + 1
+      continue
+    }
+
+    const tokenType = token?.type
+    const blockType = CHECK_TYPE_TOKEN_MAP[tokenType]
+    const imageInlineToken = tokenType === 'paragraph_open' ? tokens[n + 1] : null
+    const isCandidateToken = !!(
+      (imageInlineToken && hasLeadingImageChild(imageInlineToken))
+      || tokenType === 'html_block'
+      || tokenType === 'fence'
+      || blockType
+    )
+    if (!isCandidateToken) {
+      n++
+      continue
+    }
+
+    const caption = { name: '' }
+    const sp = { figureClassName: '' }
+    if (captionState.numberingRuntime) {
+      sp.numbering = captionState.numberingScopeState
+        ? captionState.numberingScopeState.currentContext
+        : opt.unscopedNumberingContext
+    }
+    let detection = null
+    if (tokenType === 'paragraph_open') {
+      if (tokens[n + 2]?.type === 'paragraph_close') {
+        detection = detectImageParagraph(imageInlineToken, n, caption, sp, opt)
+      }
+    } else if (tokenType === 'html_block') {
+      detection = detectHtmlFigureCandidate(tokens, token, n, opt.htmlWrapWithoutCaption)
+      if (detection) {
+        caption.name = detection.tagName
+        if (detection.isVideoIframe) sp.isVideoIframe = true
+        if (detection.isIframeTypeBlockquote) sp.isIframeTypeBlockquote = true
+      }
+    } else if (tokenType === 'fence') {
+      detection = detectFenceToken(token, n, caption)
+    } else if (blockType) {
+      const knownCloseIndex = getBalancedCloseIndex(tokens, closeIndexState, n)
+      detection = detectCheckTypeOpen(
+        tokens,
+        token,
+        n,
+        caption,
+        blockType,
+        knownCloseIndex === undefined ? -1 : knownCloseIndex,
+      )
+    }
+
+    if (!detection || detection.en >= end) {
+      if (containerType === 'blockquote') {
+        const closeIndex = getBalancedCloseIndex(tokens, closeIndexState, n)
+        const nestedEnd = closeIndex === undefined || closeIndex >= end ? end : closeIndex
+        collectFigurePlansInRange(
+          tokens,
+          n + 1,
+          nestedEnd,
+          owner,
+          closeIndexState,
+          opt,
+          TokenConstructor,
+          captionState,
+          applyOrder,
+          false,
+        )
+        if (closeIndex === undefined || closeIndex >= end) return
+        n = closeIndex + 1
+      } else {
+        n++
+      }
+      continue
+    }
+
+    const targetStart = n
+    const targetSourceEnd = detection.en
+    if (detection.canWrap === false || (detection.type === 'image' && token.hidden === true)) {
+      if (containerType === 'blockquote') {
+        collectFigurePlansInRange(
+          tokens,
+          targetStart + 1,
+          targetSourceEnd,
+          owner,
+          closeIndexState,
+          opt,
+          TokenConstructor,
+          captionState,
+          applyOrder,
+          false,
+        )
+      }
+      n = targetSourceEnd + 1
+      continue
+    }
+
+    let notesTargetType = ''
+    if (opt.notes.enabled) {
+      notesTargetType = detection.type === 'image'
+        ? 'img'
+        : (detection.tagName === 'table' ? 'table' : '')
+    }
+    let localNotesDecision = null
+    const sidecarIndex = targetSourceEnd + 1
+    if (
+      notesTargetType === 'table'
+      && opt.notes.referencedLocalNotes
+      && sidecarIndex < end
+    ) {
+      localNotesDecision = analyzeReferencedLocalNotesAt(tokens, sidecarIndex)
+      if (localNotesDecision && localNotesDecision.end >= end) {
+        localNotesDecision = null
+      }
+      if (
+        localNotesDecision
+        && !prepareReferencedLocalNotes(localNotesDecision, captionState.env)
+      ) {
+        localNotesDecision = null
+      }
+    }
+    if (!localNotesDecision && notesTargetType && opt.notes.unreferencedLocalNotes) {
+      localNotesDecision = analyzeUnreferencedLocalNotesAt(
+        tokens,
+        sidecarIndex,
+        notesTargetType,
+        opt.notesCatalog,
+      )
+    }
+    if (localNotesDecision && localNotesDecision.end >= end) localNotesDecision = null
+    const captionTargetEnd = localNotesDecision ? localNotesDecision.end : targetSourceEnd
+    let captionAnalysis = analyzeAdjacentCaption(
+      tokens,
+      targetStart,
+      captionTargetEnd,
+      caption,
+      sp,
+      opt,
+      captionState,
+      start,
+      end,
+      owner,
+    )
+    if (captionAnalysis?.decision) caption.name = captionAnalysis.decision.mark
+
+    let annotationStart = captionTargetEnd + 1
+    if (captionAnalysis?.position === 'next') annotationStart = captionAnalysis.end + 1
+    const annotationDecisions = []
+    if (notesTargetType && opt.notes.annotations) {
+      let annotationDecision = analyzeAnnotationAt(tokens, annotationStart, opt.notesCatalog)
+      while (annotationDecision && annotationDecision.end < end) {
+        annotationDecisions.push(annotationDecision)
+        annotationStart = annotationDecision.end + 1
+        annotationDecision = analyzeAnnotationAt(tokens, annotationStart, opt.notesCatalog)
+      }
+    }
+
+    if (!captionAnalysis) {
+      captionAnalysis = createAutoCaptionAnalysis(
+        detection,
+        caption,
+        sp,
+        opt,
+        captionState,
+        TokenConstructor,
+      )
+      if (captionAnalysis?.decision) caption.name = captionAnalysis.decision.mark
+    }
+    sp.figureClassName = resolveFigureClassName(detection.tagName, sp, opt)
+    if (captionAnalysis) applyCaptionDrivenFigureClass(caption, sp, opt, captionAnalysis.decision)
+
+    const hasCaption = !!captionAnalysis
+    let shouldWrap = hasCaption || !!localNotesDecision || annotationDecisions.length > 0
+    if (detection.type === 'html' || detection.type === 'image') {
+      shouldWrap = shouldWrap || detection.wrapWithoutCaption
+    }
+
+    if (!shouldWrap) {
+      if (detection.type === 'html' && detection.transform) {
+        const htmlPlan = {
+          kind: 'html-only',
+          sourceStart: targetStart,
+          sourceEnd: targetSourceEnd,
+          outputEnd: targetSourceEnd,
+          detection,
+        }
+        applyOrder.push(htmlPlan)
+        if (detection.transform.type === 'merge-blockquote-script') {
+          owner.children.push(htmlPlan)
+        }
+      }
+      if (containerType === 'blockquote') {
+        collectFigurePlansInRange(
+          tokens,
+          targetStart + 1,
+          targetSourceEnd,
+          owner,
+          closeIndexState,
+          opt,
+          TokenConstructor,
+          captionState,
+          applyOrder,
+          false,
+        )
+      }
+      n = targetSourceEnd + 1
+      continue
+    }
+
+    const sourceStart = captionAnalysis?.position === 'prev' && !captionAnalysis.autoCaption
+      ? captionAnalysis.start
+      : targetStart
+    let sourceEnd = targetSourceEnd
+    if (localNotesDecision) sourceEnd = localNotesDecision.end
+    if (captionAnalysis?.position === 'next') sourceEnd = captionAnalysis.end
+    if (annotationDecisions.length > 0) {
+      sourceEnd = annotationDecisions[annotationDecisions.length - 1].end
+    }
+    const targetOutputEnd = detection.type === 'html'
+      && detection.transform?.type === 'merge-blockquote-script'
+      ? targetStart
+      : targetSourceEnd
+    const plan = {
+      kind: 'figure',
+      sourceStart,
+      sourceEnd,
+      targetStart,
+      targetOutputEnd,
+      detection,
+      caption,
+      sp,
+      captionAnalysis,
+      localNotesDecision,
+      annotationDecisions,
+      children: [],
+    }
+    owner.children.push(plan)
+    applyOrder.push(plan)
+    if (containerType === 'blockquote') {
+      collectFigurePlansInRange(
+        tokens,
+        targetStart + 1,
+        targetSourceEnd,
+        plan,
+        closeIndexState,
+        opt,
+        TokenConstructor,
+        captionState,
+        applyOrder,
+        false,
+      )
+    }
+    n = sourceEnd + 1
+  }
+}
+
 const figureWithCaption = (state, opt) => {
   const numberingRuntime = opt.captionNumberingPolicy
     ? createCaptionNumberingRuntime(opt.captionNumberingPolicy, { env: state.env })
@@ -1155,318 +1642,34 @@ const figureWithCaption = (state, opt) => {
   }
   if (opt.notes.referencedLocalNotes) captionState.env = state.env
   if (opt.shouldResolvePreferredLanguages) captionState.preferredLanguageState = state
-  figureWithCaptionCore(state.tokens, opt, state.Token, captionState, null, 0)
+
+  const closeIndexState = {}
+  const root = { children: [] }
+  const applyOrder = []
+  // All decisions use the unchanged source index space. Structural output is
+  // emitted only after every semantic mutation has been validated and applied.
+  collectFigurePlansInRange(
+    state.tokens,
+    0,
+    state.tokens.length,
+    root,
+    closeIndexState,
+    opt,
+    state.Token,
+    captionState,
+    applyOrder,
+    true,
+  )
+  for (let index = 0; index < applyOrder.length; index++) {
+    const plan = applyOrder[index]
+    if (plan.kind === 'figure') {
+      prepareFigurePlan(state.tokens, plan, opt, state.Token, captionState)
+    } else {
+      plan.outputEnd = prepareHtmlFigureTransform(plan.detection)
+    }
+  }
+  commitPlannedTokens(state.tokens, root.children)
   if (opt.notes.referencedLocalNotes) finalizeReferencedLocalNotes(state.tokens, state.env)
-}
-
-const figureWithCaptionCore = (tokens, opt, TokenConstructor, captionState, parentType = null, startIndex = 0) => {
-  const rRange = { start: startIndex, end: startIndex }
-  const rCaption = { name: '', nameSuffix: '', isPrev: false, isNext: false }
-  if (opt.notes.annotations || opt.notes.referencedLocalNotes) {
-    rCaption.openToken = null
-    rCaption.inlineToken = null
-    rCaption.closeToken = null
-  }
-  const rSp = {
-    attrs: [],
-    isVideoIframe: false,
-    isIframeTypeBlockquote: false,
-    figureClassName: '',
-    captionDecision: null,
-    numbering: null,
-  }
-  const numberingScopeState = parentType ? null : captionState.numberingScopeState
-  const headingScopeState = numberingScopeState &&
-    !numberingScopeState.fixed &&
-    numberingScopeState.scopeConfig.usesHeading
-    ? numberingScopeState
-    : null
-  const parentCloseType = parentType ? parentType + '_close' : ''
-  let n = startIndex
-  while (n < tokens.length) {
-    const token = tokens[n]
-    if (headingScopeState && token.type === 'heading_open') {
-      updateFigureCaptionScopeFromHeading(tokens, n, headingScopeState)
-    }
-    const containerType = getFigureCaptionScopeNestedContainerType(token)
-
-    if (containerType && containerType !== 'blockquote') {
-      const closeIndex = figureWithCaptionCore(tokens, opt, TokenConstructor, captionState, containerType, n + 1)
-      n = closeIndex + 1
-      continue
-    }
-
-    if (parentCloseType && token.type === parentCloseType) {
-      return n
-    }
-
-    let detection = null
-    const tokenType = token.type
-    const blockType = CHECK_TYPE_TOKEN_MAP[tokenType]
-    if (tokenType === 'paragraph_open') {
-      const nextToken = tokens[n + 1]
-      if (hasLeadingImageChild(nextToken)) {
-        resetRangeState(rRange, n)
-        resetCaptionState(rCaption)
-        resetSpecialState(rSp)
-        detection = detectImageParagraph(nextToken, n, rCaption, rSp, opt)
-      }
-    } else if (tokenType === 'html_block') {
-      resetRangeState(rRange, n)
-      resetCaptionState(rCaption)
-      resetSpecialState(rSp)
-      detection = detectHtmlFigureCandidate(tokens, token, n, opt.htmlWrapWithoutCaption)
-      if (detection) {
-        rCaption.name = detection.tagName
-        rSp.isVideoIframe = !!detection.isVideoIframe
-        rSp.isIframeTypeBlockquote = !!detection.isIframeTypeBlockquote
-      }
-    } else if (tokenType === 'fence') {
-      resetRangeState(rRange, n)
-      resetCaptionState(rCaption)
-      resetSpecialState(rSp)
-      detection = detectFenceToken(token, n, rCaption)
-    } else if (blockType) {
-      resetRangeState(rRange, n)
-      resetCaptionState(rCaption)
-      resetSpecialState(rSp)
-      detection = detectCheckTypeOpen(tokens, token, n, rCaption, blockType)
-    }
-
-    if (!detection) {
-      if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, TokenConstructor, captionState, containerType, n + 1)
-        n = closeIndex + 1
-      } else {
-        n++
-      }
-      continue
-    }
-
-    rRange.end = detection.en
-
-    if (detection.canWrap === false || (detection.type === 'image' && token.hidden === true)) {
-      let nextIndex = rRange.end + 1
-      if (containerType === 'blockquote') {
-        const closeIndex = figureWithCaptionCore(tokens, opt, TokenConstructor, captionState, containerType, rRange.start + 1)
-        nextIndex = Math.max(nextIndex, closeIndex + 1)
-      }
-      n = nextIndex
-      continue
-    }
-
-    if (detection.type === 'html') {
-      rRange.end = applyHtmlFigureTransform(tokens, detection)
-    }
-
-    if (captionState.numberingRuntime) {
-      rSp.numbering = captionState.numberingScopeState
-        ? captionState.numberingScopeState.currentContext
-        : opt.unscopedNumberingContext
-    }
-    rSp.figureClassName = resolveFigureClassName(detection.tagName, rSp, opt)
-    let notesTargetType = ''
-    let localNotesDecision = null
-    if (opt.notes.enabled) {
-      notesTargetType = detection.type === 'image'
-        ? 'img'
-        : (detection.tagName === 'table' ? 'table' : '')
-    }
-    if (notesTargetType) {
-      const targetEnd = rRange.end
-      let referencedLocalNotesPending = false
-      const sidecarIndex = rRange.end + 1
-      if (opt.notes.referencedLocalNotes && notesTargetType === 'table') {
-        localNotesDecision = analyzeReferencedLocalNotesAt(tokens, sidecarIndex)
-        if (localNotesDecision) {
-          if (prepareReferencedLocalNotes(localNotesDecision, captionState.env)) {
-            rRange.end = localNotesDecision.end
-            referencedLocalNotesPending = true
-          } else {
-            localNotesDecision = null
-          }
-        }
-      }
-      if (!localNotesDecision && opt.notes.unreferencedLocalNotes) {
-        localNotesDecision = analyzeUnreferencedLocalNotesAt(
-          tokens,
-          sidecarIndex,
-          notesTargetType,
-          opt.notesCatalog,
-        )
-        if (localNotesDecision) {
-          const appliedLocalNotes = applyUnreferencedLocalNotesDecision(
-            tokens,
-            localNotesDecision,
-            TokenConstructor,
-            opt.figureClassPrefix,
-          )
-          if (appliedLocalNotes) {
-            rRange.end = appliedLocalNotes.end
-          } else {
-            localNotesDecision = null
-          }
-        }
-      }
-      checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
-      if (referencedLocalNotesPending) {
-        captionState.notesRuntime ||= { targetOrdinal: 0 }
-        resolveReferencedLocalNotes(
-          tokens,
-          rRange.start,
-          targetEnd,
-          localNotesDecision,
-          rCaption.inlineToken,
-          rCaption.isPrev,
-          captionState.env,
-          captionState.notesRuntime,
-        )
-      }
-    } else {
-      checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
-    }
-
-    let annotationDecisions = null
-    if (notesTargetType && opt.notes.annotations) {
-      const annotationIndex = rCaption.isNext ? rRange.end + 4 : rRange.end + 1
-      let nextAnnotationIndex = annotationIndex
-      let annotationDecision = analyzeAnnotationAt(
-        tokens,
-        nextAnnotationIndex,
-        opt.notesCatalog,
-      )
-      while (annotationDecision) {
-        annotationDecisions ||= []
-        annotationDecisions.push(annotationDecision)
-        nextAnnotationIndex += 3
-        annotationDecision = analyzeAnnotationAt(
-          tokens,
-          nextAnnotationIndex,
-          opt.notesCatalog,
-        )
-      }
-      if (annotationDecisions) {
-        for (let i = 0; i < annotationDecisions.length; i++) {
-          if (!applyAnnotationDecision(
-            annotationDecisions[i],
-            TokenConstructor,
-            opt.figureClassPrefix,
-          )) {
-            annotationDecisions = null
-            break
-          }
-        }
-      }
-    }
-    const hasAnnotation = !!annotationDecisions
-    const annotationNeedsMove = hasAnnotation && rCaption.isNext
-    if (hasAnnotation && !annotationNeedsMove) {
-      rRange.end = annotationDecisions[annotationDecisions.length - 1].end
-    }
-
-    let hasCaption = rCaption.isPrev || rCaption.isNext
-    if (hasCaption) applyCaptionDrivenFigureClass(rCaption, rSp, opt)
-    let pendingAutoCaption = null
-    if (!hasCaption && detection.type === 'image' && opt.autoCaptionDetection) {
-      pendingAutoCaption = getAutoCaptionFromImage(detection.imageToken, opt, captionState)
-      if (pendingAutoCaption) {
-        hasCaption = true
-      }
-    }
-
-    let shouldWrap = hasCaption
-    if (detection.type === 'html' || detection.type === 'image') {
-      shouldWrap = shouldWrap || detection.wrapWithoutCaption
-    }
-    shouldWrap = shouldWrap || !!localNotesDecision || hasAnnotation
-    if (pendingAutoCaption) {
-      const captionTokens = createAutoCaptionParagraph(pendingAutoCaption.text, TokenConstructor)
-      const insertIndex = rRange.start
-      const insertedLength = captionTokens.length
-      tokens.splice(insertIndex, 0, ...captionTokens)
-      rRange.start += insertedLength
-      rRange.end += insertedLength
-      n += insertedLength
-      try {
-        checkCaption(tokens, rRange.start, rRange.end, rCaption, rSp, opt, captionState)
-      } catch (error) {
-        tokens.splice(insertIndex, insertedLength)
-        throw error
-      }
-      if (rCaption.isPrev || rCaption.isNext) {
-        consumeAutoCaptionSource(detection.imageToken, pendingAutoCaption)
-        applyCaptionDrivenFigureClass(rCaption, rSp, opt)
-      } else {
-        tokens.splice(insertIndex, insertedLength)
-        rRange.start -= insertedLength
-        rRange.end -= insertedLength
-        n -= insertedLength
-        shouldWrap = detection.wrapWithoutCaption || !!localNotesDecision || hasAnnotation
-      }
-    }
-    let figureTokens = null
-    if (shouldWrap) {
-      if (detection.type !== 'html') {
-        applyWrappedCandidateTransform(detection)
-      }
-      figureTokens = wrapWithFigure(
-        tokens,
-        rRange,
-        detection.tagName,
-        rCaption,
-        detection.replaceInsteadOfWrap,
-        rSp,
-        opt,
-        TokenConstructor,
-      )
-    }
-
-    let nextIndex
-    if (!rCaption.isPrev && !rCaption.isNext) {
-      nextIndex = shouldWrap ? rRange.end + 1 : n + 1
-    } else {
-      const en = rRange.end
-      if (rCaption.isPrev) {
-        changePrevCaptionPosition(tokens, rRange.start, rCaption, opt)
-        nextIndex = en + 1
-      } else if (rCaption.isNext) {
-        changeNextCaptionPosition(tokens, en, rCaption, opt)
-        nextIndex = en + 4
-      }
-    }
-
-    if (annotationNeedsMove && figureTokens) {
-      for (let i = 0; i < annotationDecisions.length; i++) {
-        const figureCloseIndex = moveAnnotationIntoFigure(
-          tokens,
-          annotationDecisions[i],
-          figureTokens.figureStartToken,
-          figureTokens.figureEndToken,
-          rCaption.openToken,
-          rCaption.closeToken,
-          nextIndex - 1,
-        )
-        if (figureCloseIndex < 0) break
-        nextIndex = figureCloseIndex + 1
-      }
-    }
-
-    if (containerType === 'blockquote') {
-      const nestedContentStart = rRange.start + (shouldWrap ? 3 : 1)
-      const closeIndex = figureWithCaptionCore(
-        tokens,
-        opt,
-        TokenConstructor,
-        captionState,
-        containerType,
-        nestedContentStart,
-      )
-      nextIndex = Math.max(nextIndex, closeIndex + 1)
-    }
-
-    n = nextIndex
-  }
-  return tokens.length
 }
 
 const mditFigureWithPCaption = (md, option) => {

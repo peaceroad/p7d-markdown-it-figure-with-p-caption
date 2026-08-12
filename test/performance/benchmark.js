@@ -64,6 +64,25 @@ const runRenderBench = (label, md, source, rounds = 30, warmup = 10) => {
   return result
 }
 
+const runCoreTransformBench = (label, md, source, rounds = 7, warmup = 2) => {
+  for (let i = 0; i < warmup; i++) md.parse(source, {})
+  const times = []
+  for (let i = 0; i < rounds; i++) {
+    const env = {}
+    md.parse(source, env)
+    times.push(env.figureCoreElapsed)
+  }
+  const result = {
+    label,
+    median: median(times),
+    p95: p95(times),
+  }
+  console.log(
+    `${label}: median=${formatMs(result.median)} p95=${formatMs(result.p95)} (rounds=${rounds})`,
+  )
+  return result
+}
+
 const getBlockquoteStats = (tokens) => {
   let openCount = 0
   let maxLevel = 0
@@ -215,7 +234,9 @@ const runSiblingProbe = (md, counts) => {
   for (let i = 0; i < counts.length; i++) {
     const count = counts[i]
     const doc = buildSiblingFigureDocument(count)
-    const result = runRenderBench(`siblings/${count}`, md, doc, 7, 2)
+    const rounds = count >= 4000 ? 3 : 7
+    const warmup = count >= 4000 ? 1 : 2
+    const result = runRenderBench(`siblings/${count}`, md, doc, rounds, warmup)
     results.push({ count, ...result })
   }
   return results
@@ -252,6 +273,13 @@ const notesDisabledMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption)
 const notesMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption, { notes: { enabled: true } })
+const coreTimedMd = markdownIt({ html: true }).use(mdFigureWithPCaption)
+coreTimedMd.core.ruler.before('figure_with_caption', 'figure_perf_start', (state) => {
+  state.env.figureCoreStarted = performance.now()
+})
+coreTimedMd.core.ruler.after('figure_with_caption', 'figure_perf_end', (state) => {
+  state.env.figureCoreElapsed = performance.now() - state.env.figureCoreStarted
+})
 
 console.log(`markdown-it maxNesting=${pluginMd.options.maxNesting}`)
 console.log('=== Render benchmark ===')
@@ -280,4 +308,16 @@ for (const count of [100, 500, 1000]) {
 }
 
 runDepthProbe(pluginMd, [5, 10, 20, 40, 80, 120, 180, 260, 360, 500, 700, 900])
-runSiblingProbe(pluginMd, [100, 500, 1000])
+runSiblingProbe(pluginMd, [100, 500, 1000, 2000, 4000, 8000])
+
+console.log('\nCore transform probe (dense figure documents):')
+for (const count of [1000, 2000, 4000, 8000]) {
+  const rounds = count >= 4000 ? 3 : 7
+  runCoreTransformBench(
+    `core/siblings/${count}`,
+    coreTimedMd,
+    buildSiblingFigureDocument(count),
+    rounds,
+    count >= 4000 ? 1 : 2,
+  )
+}

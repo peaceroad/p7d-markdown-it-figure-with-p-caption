@@ -391,7 +391,7 @@ render-level overrides.
 
 Source editors and other markdown-it plugins can reuse the same figure-specific
 scope, counter-series, and number-codec semantics without importing the
-renderer walker:
+renderer transform:
 
 ```js
 import {

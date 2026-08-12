@@ -174,7 +174,7 @@ When `sequenceKey` is omitted from a fixed scope it defaults to `scopeKey`; spec
 
 ### Caption-numbering integration API
 
-Source editors and other markdown-it integrations can reuse the figure-specific numbering semantics without importing the renderer walker:
+Source editors and other markdown-it integrations can reuse the figure-specific numbering semantics without importing the renderer transform:
 
 ```js
 import {

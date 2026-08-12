@@ -38,8 +38,6 @@ const createToken = (Token, type, tag, nesting, level, map = null) => {
   return token
 }
 
-const MAX_SINGLE_SPLICE_SIDECAR_TOKENS = 1024
-
 const splitInlineLabel = (inline, match, Token, labelClass) => {
   const children = inline?.children
   if (!Array.isArray(children) || children.length === 0) return false
@@ -199,8 +197,14 @@ export const applyAnnotationDecision = (decision, Token, classPrefix) => {
   )
 }
 
-export const applyUnreferencedLocalNotesDecision = (tokens, decision, Token, classPrefix) => {
+export const prepareUnreferencedLocalNotesDecision = (tokens, decision, Token, classPrefix) => {
   if (!decision || decision.kind !== 'unreferenced-local-notes') return null
+  // Validate the whole group again before mutating its first paragraph so a
+  // stale later item cannot leave a partially retagged sidecar.
+  for (let i = 0; i < decision.paragraphs.length; i++) {
+    const paragraph = decision.paragraphs[i]
+    if (!canSplitInlineLabel(paragraph.inline, paragraph.match)) return null
+  }
   for (let i = 0; i < decision.paragraphs.length; i++) {
     if (!retagSidecarParagraph(
       decision.paragraphs[i],
@@ -219,102 +223,13 @@ export const applyUnreferencedLocalNotesDecision = (tokens, decision, Token, cla
   open.attrSet('class', `${classPrefix}local-notes ${classPrefix}${decision.targetType}-notes`)
   open.attrSet('aria-label', decision.paragraphs[0].match.baseLabel)
   const close = createToken(Token, 'figure_local_notes_close', 'aside', -1, baseLevel, map)
-  const sourceLength = decision.end - decision.start + 1
   for (let i = decision.start; i <= decision.end; i++) {
     if (typeof tokens[i]?.level === 'number') tokens[i].level++
   }
-  if (sourceLength <= MAX_SINGLE_SPLICE_SIDECAR_TOKENS) {
-    const sourceTokens = tokens.slice(decision.start, decision.end + 1)
-    tokens.splice(
-      decision.start,
-      sourceTokens.length,
-      open,
-      ...sourceTokens,
-      close,
-    )
-  } else {
-    // Avoid engine argument-count limits for unusually large note lists.
-    tokens.splice(decision.end + 1, 0, close)
-    tokens.splice(decision.start, 0, open)
-  }
   return {
     start: decision.start,
-    end: decision.end + 2,
+    end: decision.end,
     open,
     close,
-    map,
   }
-}
-
-export const moveAnnotationIntoFigure = (
-  tokens,
-  decision,
-  figureOpen,
-  figureClose,
-  figcaptionOpen = null,
-  figcaptionClose = null,
-  expectedFigureCloseIndex = -1,
-) => {
-  if (!decision || !figureOpen || !figureClose) return -1
-  let figureCloseIndex = tokens[expectedFigureCloseIndex] === figureClose
-    ? expectedFigureCloseIndex
-    : tokens.indexOf(figureClose)
-  if (figureCloseIndex < 0) return -1
-  let start = figureCloseIndex + 1
-  if (tokens[start] !== decision.open || tokens[start + 2] !== decision.close) {
-    start = tokens.indexOf(decision.open)
-  }
-  if (start < 0 || tokens[start + 2] !== decision.close) return -1
-  let destination = figureCloseIndex
-  if (figcaptionClose) {
-    const expectedCaptionCloseIndex = figureCloseIndex - 1
-    const captionCloseIndex = tokens[expectedCaptionCloseIndex] === figcaptionClose
-      ? expectedCaptionCloseIndex
-      : tokens.indexOf(figcaptionClose)
-    if (captionCloseIndex >= 0) destination = captionCloseIndex
-  }
-  const moved = [tokens[start], tokens[start + 1], tokens[start + 2]]
-  const parentLevel = figcaptionOpen
-    ? (typeof figcaptionOpen.level === 'number' ? figcaptionOpen.level : 1)
-    : (typeof figureOpen.level === 'number' ? figureOpen.level : 0)
-  moved[0].level = parentLevel + 1
-  moved[1].level = parentLevel + 2
-  moved[2].level = parentLevel + 1
-  if (
-    figcaptionClose
-    && destination === figureCloseIndex - 1
-    && start === figureCloseIndex + 1
-  ) {
-    tokens[destination] = moved[0]
-    tokens[destination + 1] = moved[1]
-    tokens[destination + 2] = moved[2]
-    tokens[destination + 3] = figcaptionClose
-    tokens[destination + 4] = figureClose
-    figureCloseIndex += 3
-  } else {
-    tokens.splice(start, 3)
-    if (start < figureCloseIndex) figureCloseIndex -= 3
-    if (start < destination) destination -= 3
-    tokens.splice(destination, 0, ...moved)
-    if (destination <= figureCloseIndex) figureCloseIndex += 3
-  }
-
-  const annotationMap = getRangeMap(moved, 0, moved.length - 1)
-  if (annotationMap) {
-    const currentFigureMap = getMap(figureOpen)
-    const combinedFigureMap = currentFigureMap
-      ? [Math.min(currentFigureMap[0], annotationMap[0]), Math.max(currentFigureMap[1], annotationMap[1])]
-      : annotationMap
-    figureOpen.map = [combinedFigureMap[0], combinedFigureMap[1]]
-    figureClose.map = [combinedFigureMap[0], combinedFigureMap[1]]
-    if (figcaptionOpen && figcaptionClose) {
-      const currentCaptionMap = getMap(figcaptionOpen)
-      const combinedCaptionMap = currentCaptionMap
-        ? [Math.min(currentCaptionMap[0], annotationMap[0]), Math.max(currentCaptionMap[1], annotationMap[1])]
-        : annotationMap
-      figcaptionOpen.map = [combinedCaptionMap[0], combinedCaptionMap[1]]
-      figcaptionClose.map = [combinedCaptionMap[0], combinedCaptionMap[1]]
-    }
-  }
-  return figureCloseIndex
 }
