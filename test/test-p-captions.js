@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import mdit from 'markdown-it'
-import Token from 'markdown-it/lib/token.mjs'
 
 import mditPCaption, {
   analyzeCaptionParagraph,
@@ -16,6 +15,10 @@ import mditPCaption, {
   getMarkRegStateForLanguages,
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
+
+const Token = mdit.Token
+
+assert.equal(typeof Token, 'function')
 
 const normalize = (text) => text.replace(/\r\n/g, '\n')
 

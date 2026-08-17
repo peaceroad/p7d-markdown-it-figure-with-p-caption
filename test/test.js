@@ -4,6 +4,7 @@ import path from 'path'
 import mdit from 'markdown-it'
 import mditAttrs from 'markdown-it-attrs'
 import mditRndererFence from '@peaceroad/markdown-it-renderer-fence'
+import mditRendererImage from '@peaceroad/markdown-it-renderer-image'
 import mditStrongJa from '@peaceroad/markdown-it-strong-ja'
 import mditBreaks from '@peaceroad/markdown-it-cjk-breaks-mod'
 import mditPCaption from 'p7d-markdown-it-p-captions'
@@ -782,6 +783,55 @@ try {
 } catch (e) {
   pass = false
   console.log('Token-array identity regression failed.')
+  console.log(e)
+}
+
+// markdown-it 15 stores normalized reference labels in null-prototype token
+// metadata. Figure planning must retain the original image token and metadata.
+const referenceMetadataTokens = mdit()
+  .use(mdFigureWithPCaption)
+  .parse('Figure. Reference.\n\n![Figure][ref]\n\n[ref]: first.jpg', {})
+const referenceMetadataImage = referenceMetadataTokens
+  .find((token) => token.type === 'inline' && token.children?.some((child) => child.type === 'image'))
+  ?.children.find((child) => child.type === 'image')
+try {
+  assert.strictEqual(referenceMetadataImage.meta.label, 'REF')
+  assert.strictEqual(Object.getPrototypeOf(referenceMetadataImage.meta), null)
+} catch (e) {
+  pass = false
+  console.log('Reference-image metadata regression failed.')
+  console.log(e)
+}
+
+// renderer-image 0.17 runs after replacements. Both installation orders must
+// see the original image token retained inside the rebuilt figure structure.
+const rendererImageIntegrationOptions = Object.freeze({
+  checkImgExtensions: '',
+  resolveSrc: false,
+  asyncDecode: true,
+  lazyLoad: true,
+})
+const createRendererImageIntegration = (rendererFirst) => {
+  const instance = mdit()
+  if (rendererFirst) {
+    instance.use(mditRendererImage, rendererImageIntegrationOptions)
+  }
+  instance.use(mdFigureWithPCaption, { autoCaptionDetection: true })
+  if (!rendererFirst) {
+    instance.use(mditRendererImage, rendererImageIntegrationOptions)
+  }
+  return instance
+}
+try {
+  for (const rendererFirst of [false, true]) {
+    const html = createRendererImageIntegration(rendererFirst)
+      .render('![Figure. Cat](cat.jpg)')
+    assert.ok(html.includes('<figure class="f-img">'))
+    assert.ok(html.includes('<img src="cat.jpg" alt="" decoding="async" loading="lazy">'))
+  }
+} catch (e) {
+  pass = false
+  console.log('renderer-image integration regression failed.')
   console.log(e)
 }
 

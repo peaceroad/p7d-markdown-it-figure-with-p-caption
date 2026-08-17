@@ -84,6 +84,7 @@
 - Caption paragraph attrs remain on the converted `figcaption` token (not moved onto `figure`).
 - `figure_open` / `figure_close` inherit `.map` from the wrapped source-line range to improve VS Code click/scroll sync.
 - Wrapper map propagation accepts only non-negative safe-integer source ranges; malformed third-party maps are ignored instead of being copied onto synthetic figure tokens.
+- Preserve the original target-token references and treat upstream `token.meta` as opaque. In particular, markdown-it 15 reference images may carry a null-prototype `meta` object with `meta.label`; figure planning/rebuilding must not clone it into a plain object or discard it.
 - `figure_open` / `figure_close` are block-level tokens, but this plugin still does not install renderer rules. The plan emitter inserts a distinct empty text token immediately after `figure_open` so markdown-it's default renderer emits the opening-tag newline without adding a blank line; image paragraph replacement still inserts an explicit newline before `figure_close`.
 - `labelClassFollowsFigure` and `figureToLabelClassMap` use the final wrapper class. For slide captions, resolve `figureClassThatWrapsSlides` before p-captions builds mirrored span classes; map keys therefore use `f-slide` (or the custom final slide class), not the preliminary `f-iframe` class.
 
@@ -118,7 +119,7 @@
 - Alt text aggregation avoids temporary arrays; auto-caption fallback does not keep a second per-mark locale cache because p-captions already caches locale metadata in `markRegState`.
 - Figure-plan preparation uses module-level token/attribute helpers and must create distinct padding/newline tokens for every figure; do not reuse one token object across multiple output positions.
 - Caption, annotation, local-note, auto-caption, and social-embed structural changes are represented in the plan and emitted in final order rather than moved with block-array `splice()` calls. Inline-child label decoration may still use a small local `splice()` because it does not shift the document token tail.
-- p-captions 0.25.0's pure `analyzeCaptionParagraph()` and validated `applyCaptionParagraph()` are used as intended: decisions are collected against the unchanged original token array, applied in renderer traversal order, and only then followed by one structural rebuild.
+- p-captions' pure `analyzeCaptionParagraph()` and validated `applyCaptionParagraph()` are used as intended: decisions are collected against the unchanged original token array, applied in renderer traversal order, and only then followed by one structural rebuild. Keep this contract version-neutral when dependency-only releases preserve the API.
 - Rebuilding writes the emitted token references back into the existing `state.tokens` object and truncates it, preserving array identity for surrounding core rules while keeping block-token work linear. No-op documents allocate no output array, and balanced close indexes stay lazy on image/plain-text paths.
 
 ## 9. Tests
@@ -133,6 +134,7 @@
 - `npm test` aggregates the core, renderer-numbering, numbering-API, notes, and documentation-example suites. Additional dependency-focused checks run from repository-controlled paths through `npm run test:p-captions`; `npm run test:all` includes all six suites.
 - Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, shared figure/listing samp sequences, parsed frontmatter auto/document and separator overrides, fixed env overrides, frontmatter adapters, render reuse, and pre-mutation failure behavior.
 - Option/integration tests cover strict aliases and validation, invalid-first/retry and duplicate-use sentinel behavior, native fences and pre/code/samp token blocks, shared `図` / `リスト` series, raw/known/unknown video paths, captionless no-op counters, formatting options, and remove/except decision-mark filtering.
+- markdown-it 15 compatibility tests must import constructors from the public package root rather than `markdown-it/lib/*`, preserve reference-image metadata through figure rebuilding, and cover both installation orders with `@peaceroad/markdown-it-renderer-image` because its core transform runs after `replacements`.
 - Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95 and deep blockquote probe output.
 - Consumer repos may not include upstream dependency test files under `node_modules`; keep integration checks in root-owned scripts/tests.
 - Do not rely on durable tests under `node_modules`; treat those as ephemeral.
