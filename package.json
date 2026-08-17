@@ -1,6 +1,6 @@
 {
   "name": "@peaceroad/markdown-it-figure-with-p-caption",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "A markdown-it plugin that wraps captioned media in semantic figures with optional annotations and target-local figure/table notes.",
   "main": "index.js",
   "type": "module",
