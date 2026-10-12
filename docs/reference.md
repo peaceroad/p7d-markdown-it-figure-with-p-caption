@@ -41,8 +41,8 @@ Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it in
 
 ### Table
 
-- Markdown tables (including those produced by `markdown-it-multimd-table` or similar) convert into `<figure class="f-table">` blocks.
-- Caption paragraphs immediately before/after the table become `<figcaption>` element ahead of the `<table>`.
+- Eligible Markdown tables (including those produced by `markdown-it-multimd-table` or similar) convert into `<figure class="f-table">` blocks when they have a caption or enabled figure annotations/local notes.
+- Caption paragraphs immediately before/after the table become `<figcaption>` elements in the same before/after position relative to the table, with local notes placed before a post-caption.
 
 ### Code block
 
@@ -60,12 +60,58 @@ Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it in
 
 ### Embedded content by iframe
 
-- HTML blocks containing `<iframe>` elements become `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
+- Eligible HTML blocks containing `<iframe>` elements use `<figure class="f-video">` when they point to known video hosts (YouTube `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, Vimeo `player.vimeo.com`).
 - `<div>` wrappers are treated as iframe-type embeds only when the same HTML block contains an `<iframe ...>` tag (for example common video wrapper markup).
 - `videoWithoutCaption` enables captionless wrapping for `<video>` blocks and for iframes (including those nested in `<div>` wrappers) whose `src` host is a known YouTube/Vimeo provider. `iframeWithoutCaption` also enables captionless wrapping for iframe candidates generally. A known video iframe keeps the `f-video` classification through either option; a generic iframe requires `iframeWithoutCaption` and uses `f-iframe`.
-- Blockquote-based social embeds (Twitter/X `twitter-tweet`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Threads `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes, `data-*` attributes, inline styles, SVG content, and the embed-script host do not block detection. By default they become `<figure class="f-img">` so the caption label behaves like an image label; quote labels are also accepted. You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
+- Blockquote-based social embeds (Twitter/X `twitter-tweet` / `twitter-video`, Mastodon `mastodon-embed`, Bluesky `bluesky-embed`, Instagram `instagram-media`, Threads `text-post-media`) are treated like iframe-type embeds when their class list contains one of those provider classes. Extra classes, `data-*` attributes, inline styles, SVG content, and the embed-script host do not block detection. When wrapping is enabled by a caption or `iframeTypeBlockquoteWithoutCaption`, they use `<figure class="f-img">` by default so the caption label behaves like an image label; quote labels are also accepted. You can override that figure class with `figureClassThatWrapsIframeTypeBlockquote` or the global `allIframeTypeFigureClassName`.
+- Twitter/X embeds preserve `data-status="hidden"`, `x.com` post links, and either `platform.x.com/widgets.js` or the legacy `platform.twitter.com/widgets.js`. The `twitter-video` class uses the same social-embed wrapper and caption options as `twitter-tweet`; captionless wrapping requires `iframeTypeBlockquoteWithoutCaption: true`.
+- When blank lines split a recognized social embed into HTML and paragraph tokens, consecutive paragraph fragments ending with `</blockquote>` and a complete adjacent script are reassembled as raw HTML. The script can follow on the same line, on the next line, or after blank lines in a separate HTML block. Caption pairing includes that source script before collection, so a caption after the script still belongs to the embed. Blank-line counts inside the post are retained when token source maps are valid. Reassembly also runs without a caption or captionless wrapping, avoiding extra Markdown paragraph tags inside the provider markup. Incomplete or structurally ambiguous split ranges remain unchanged.
 - `p7d-markdown-it-p-captions` ships with a `Slide.` label. When you use it (for example with Speaker Deck or SlideShare iframes), the `<figure>` wrapper automatically switches to `f-slide` (or whatever you set via `figureClassThatWrapsSlides`) so slides can get their own layout. If `allIframeTypeFigureClassName` is also configured, that class takes precedence even for slides, so you get a uniform embed wrapper without touching the slide option.
 - Other eligible iframe blocks use `<figure class="f-iframe">` unless you override the class via `allIframeTypeFigureClassName`. Eligibility still requires a caption or the corresponding captionless-wrapping option.
+
+### Social embed scripts
+
+By default, complete empty external loader scripts adjacent to recognized
+social blockquotes are collected at the end of the current render's block
+token sequence, outside figures and nested Markdown containers. This also
+runs when captionless figure wrapping is disabled. Even a single loader moves
+to the end. All source embed elements therefore precede their collected
+loaders, including when an async loader executes as soon as it is fetched.
+Collected loaders appear in first-occurrence order; their async/defer
+attributes and original HTML spelling are preserved.
+
+Collection recognizes X loaders on `platform.x.com` / `platform.twitter.com`,
+Bluesky on `embed.bsky.app`, Instagram on `instagram.com` / `www.instagram.com`,
+and Threads on `threads.com` / `www.threads.com` / `threads.net` /
+`www.threads.net`. Mastodon loaders must share the HTTP(S) origin of the
+blockquote's `data-embed-url`, supporting independent instances. Loader paths
+are not hardcoded. Ordinary scripts, standalone scripts not attached to a
+recognized embed, legacy iframe scripts, and unknown loader hosts remain in
+place. Inline bodies, module scripts, event-handler attributes, duplicate or
+malformed attributes, nested quotes, and ambiguous HTML siblings also remain
+in place. Fragments containing raw-text or inert elements (such as `textarea`,
+`title`, `noscript`, or `template`) or HTML declarations/comments are not
+collected. Closing-tag spellings inside quoted attributes also prevent
+collection, so script-like source content cannot become an active loader.
+
+Deduplication compares the complete `src` attribute and all script attributes,
+including query parameters, `data-allowed-prefixes`, `nonce`, and `integrity`.
+Attribute-name case, attribute order, quote style, semicolon-terminated HTML
+entity spellings, and boolean-attribute value spelling do not make otherwise
+identical loaders different. The first occurrence supplies the emitted HTML and source map.
+Different URLs or attribute values remain separate; collection never combines
+Mastodon prefix lists or treats an entire domain as one script.
+
+`keepEmbedScriptsInPlace: true` disables both relocation and deduplication,
+retaining each script with its source embed after any required HTML reassembly.
+Use it to preserve the loader placement used by earlier releases.
+The default is `false`, and explicit non-boolean values throw during initial
+setup. Use `true` when the caller needs independently reusable embed fragments
+or manages loader placement itself. Collection is local to each `render()` /
+`parse()` call and never carries a script registry through `env` or the
+markdown-it instance. Separately rendered fragments joined into one page still
+need page-level loader management; `renderInline()` is unchanged. Other core
+plugins may append their own content after this plugin's collected scripts.
 
 ### Label span class name
 
@@ -90,6 +136,10 @@ Calling `.use(mditFigureWithPCaption)` more than once on the same markdown-it in
 - `imageOnlyParagraphWithoutCaption`: turn valid image-only paragraphs into `<figure>` elements even when no caption paragraph/auto caption is present. This includes single-image paragraphs and, when `multipleImages` is enabled, multi-image paragraphs that receive classes such as `f-img-horizontal`, `f-img-vertical`, or `f-img-multiple`. This is independent of automatic detection.
 - `oneImageWithoutCaption`: legacy alias for `imageOnlyParagraphWithoutCaption`. When both are provided, `imageOnlyParagraphWithoutCaption` wins.
 - `videoWithoutCaption`, `audioWithoutCaption`, `iframeWithoutCaption`, `iframeTypeBlockquoteWithoutCaption`: wrap the respective media blocks without caption.
+
+### Embed script placement
+
+- `keepEmbedScriptsInPlace` (default `false`): set to `true` to keep each recognized social embed loader at its original position and preserve duplicate occurrences. The default collects identical loaders at the end of the current render. See [Social embed scripts](#social-embed-scripts) for collection boundaries and attribute matching.
 
 ### Caption text helpers (integrated with `p7d-markdown-it-p-captions`)
 
@@ -266,7 +316,8 @@ The canonical practical baseline is kept in the project README under
 visible to new users and is less likely to drift from the quick-start example.
 
 That configuration enables captionless media wrapping, gives iframe-like
-embeds one predictable class, and enables document-wide image/table numbering.
+embeds one predictable class, and enables image/table numbering with automatic
+Chapter/Appendix scope recognition.
 `removeUnnumberedLabel` is shown separately because it removes labels for every
 caption that still lacks a number. Use `removeUnnumberedLabelExceptMarks` when
 specific unnumbered labels, such as `Quote.` / `Source.`, must remain visible.

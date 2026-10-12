@@ -1,0 +1,63 @@
+[Markdown]
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Dummy first paragraph.
+
+Dummy second paragraph with a link. https://t.co/dummy-link</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-post-id?ref_src=dummy">Dummy date</a></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">Dummy first paragraph.
+
+Dummy second paragraph with a link. https://t.co/dummy-link</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-post-id?ref_src=dummy">Dummy date</a></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+</figure>
+
+[Markdown]
+<blockquote class="twitter-video" data-status="hidden"><p lang="en" dir="ltr">Dummy first video paragraph.
+
+Dummy second video paragraph. https://t.co/dummy-video-link</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-video-post-id?ref_src=dummy">Dummy date</a></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="twitter-video" data-status="hidden"><p lang="en" dir="ltr">Dummy first video paragraph.
+
+Dummy second video paragraph. https://t.co/dummy-video-link</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-video-post-id?ref_src=dummy">Dummy date</a></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+</figure>
+
+[Markdown]
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id" data-bluesky-cid="dummy-content-id" data-bluesky-embed-color-mode="system"><p lang="en">Dummy first paragraph.
+
+Dummy second paragraph with an em dash—dummy text.
+
+Dummy third paragraph. You&#x27;ll see dummy content.<br><br><a href="https://bsky.app/profile/dummy-user-id/post/dummy-post-id?ref_src=dummy">[dummy image or embed]</a></p>&mdash; Dummy User (<a href="https://bsky.app/profile/dummy-user-id?ref_src=dummy">@dummy-user</a>) <a href="https://bsky.app/profile/dummy-user-id/post/dummy-post-id?ref_src=dummy">Dummy date</a></blockquote><script async src="https://embed.bsky.app/dummy-embed.js" charset="utf-8"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id" data-bluesky-cid="dummy-content-id" data-bluesky-embed-color-mode="system"><p lang="en">Dummy first paragraph.
+
+Dummy second paragraph with an em dash—dummy text.
+
+Dummy third paragraph. You&#x27;ll see dummy content.<br><br><a href="https://bsky.app/profile/dummy-user-id/post/dummy-post-id?ref_src=dummy">[dummy image or embed]</a></p>&mdash; Dummy User (<a href="https://bsky.app/profile/dummy-user-id?ref_src=dummy">@dummy-user</a>) <a href="https://bsky.app/profile/dummy-user-id/post/dummy-post-id?ref_src=dummy">Dummy date</a></blockquote><script async src="https://embed.bsky.app/dummy-embed.js" charset="utf-8"></script>
+</figure>
+
+[Markdown]
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@dummy-user/dummy-post-id/embed" style="background: #FCF8FF; border-radius: 8px; border: 1px solid #C9C4DA; margin: 0; max-width: 540px; min-width: 270px; overflow: hidden; padding: 0;"> <a href="https://mastodon.social/@dummy-user/dummy-post-id" target="_blank" style="align-items: center; color: #1C1A25; display: flex; flex-direction: column; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Roboto, sans-serif; font-size: 14px; justify-content: center; letter-spacing: 0.25px; line-height: 20px; padding: 24px; text-decoration: none;"> <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="32" height="32" viewBox="0 0 79 75"><path d="M0 0h32v32H0z" fill="currentColor"/></svg> <div style="color: #787588; margin-top: 16px;">Dummy author</div> <div style="font-weight: 500;">Dummy link text</div> </a> </blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/dummy-embed.js"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@dummy-user/dummy-post-id/embed" style="background: #FCF8FF; border-radius: 8px; border: 1px solid #C9C4DA; margin: 0; max-width: 540px; min-width: 270px; overflow: hidden; padding: 0;"> <a href="https://mastodon.social/@dummy-user/dummy-post-id" target="_blank" style="align-items: center; color: #1C1A25; display: flex; flex-direction: column; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Roboto, sans-serif; font-size: 14px; justify-content: center; letter-spacing: 0.25px; line-height: 20px; padding: 24px; text-decoration: none;"> <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="32" height="32" viewBox="0 0 79 75"><path d="M0 0h32v32H0z" fill="currentColor"/></svg> <div style="color: #787588; margin-top: 16px;">Dummy author</div> <div style="font-weight: 500;">Dummy link text</div> </a> </blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/dummy-embed.js"></script>
+</figure>
+
+[Markdown]
+<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@dummy-user/post/dummy-post-id" data-text-post-version="0" id="ig-tp-dummy-post-id" style=" background:#FFF; border-width: 1px; border-style: solid; border-color: #00000026; border-radius: 16px; max-width:650px; margin: 1px; min-width:270px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);"> <a href="https://www.threads.com/@dummy-user/post/dummy-post-id" style=" background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif;" target="_blank"> <div style=" padding: 40px; display: flex; flex-direction: column; align-items: center;"><div style=" display:block; height:32px; width:32px; padding-bottom:20px;"> <svg aria-label="Dummy icon" height="32px" role="img" viewBox="0 0 192 192" width="32px" xmlns="http://www.w3.org/2000/svg"> <path d="M0 0h32v32H0z" /></svg></div><div style=" font-size: 15px; line-height: 21px; color: #000000; font-weight: 600; "> Dummy link text</div></div></a></blockquote>
+<script async src="https://www.threads.com/dummy-embed.js"></script>
+[HTML]
+<figure class="f-img">
+<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@dummy-user/post/dummy-post-id" data-text-post-version="0" id="ig-tp-dummy-post-id" style=" background:#FFF; border-width: 1px; border-style: solid; border-color: #00000026; border-radius: 16px; max-width:650px; margin: 1px; min-width:270px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);"> <a href="https://www.threads.com/@dummy-user/post/dummy-post-id" style=" background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif;" target="_blank"> <div style=" padding: 40px; display: flex; flex-direction: column; align-items: center;"><div style=" display:block; height:32px; width:32px; padding-bottom:20px;"> <svg aria-label="Dummy icon" height="32px" role="img" viewBox="0 0 192 192" width="32px" xmlns="http://www.w3.org/2000/svg"> <path d="M0 0h32v32H0z" /></svg></div><div style=" font-size: 15px; line-height: 21px; color: #000000; font-weight: 600; "> Dummy link text</div></div></a></blockquote>
+<script async src="https://www.threads.com/dummy-embed.js"></script>
+</figure>
+
+[Markdown]
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[HTML]
+<figure class="f-video">
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</figure>

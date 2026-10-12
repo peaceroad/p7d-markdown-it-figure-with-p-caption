@@ -283,6 +283,14 @@ See the [complete option reference](docs/reference.md#behavior-customization)
 and [option examples](docs/examples.md#option-examples) for class mapping,
 caption markers, role helpers, captionless conversion, and formatting options.
 
+Social embed loader scripts are collected at the end of each render by default,
+outside the figures. Identical script URLs and attributes emit once, while
+different settings such as Mastodon's `data-allowed-prefixes` stay separate.
+Set `keepEmbedScriptsInPlace: true` to retain each loader with its embed as in
+earlier releases, including duplicates. Collection applies to recognized social
+loaders even without captions; independently rendered fragments require
+page-level loader management. See [script placement](docs/reference.md#social-embed-scripts).
+
 ## Figure annotations and local notes
 
 Figure annotations and figure/table-local notes are opt-in. They are separate

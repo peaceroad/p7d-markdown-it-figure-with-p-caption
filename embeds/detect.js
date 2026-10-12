@@ -7,9 +7,11 @@ import {
 const htmlRegCache = new Map()
 const openingClassAttrReg = /^<[^>]*?\bclass=(?:"([^"]*)"|'([^']*)')/i
 const iframeSrcAttrReg = /<iframe\b[^>]*?\bsrc=(?:"([^"]*)"|'([^']*)')/i
-const endBlockquoteScriptReg = /<\/blockquote> *<script[^>]*?><\/script>$/i
+const endBlockquoteScriptReg = /<\/blockquote>[ \t\n]*(<script(?=[\s>])[^>]*><\/script>)?[ \t\n]*$/i
+const standaloneScriptReg = /^<script(?=[\s>])[^>]*><\/script>[ \t\n]*$/i
+const endBlockquoteReg = /<\/blockquote>[ \t\n]*$/i
+const blockquoteBoundaryReg = /<\/?blockquote(?=[\s>])/i
 const targetHtmlHintReg = /<(?:video|audio|iframe|blockquote|div)(?=[\s>])/i
-const blueskyEmbedHintReg = /bluesky-embed/i
 const videoTagHintReg = /<video(?=[\s>])/i
 const audioTagHintReg = /<audio(?=[\s>])/i
 const iframeTagHintReg = /<iframe(?=[\s>])/i
@@ -28,8 +30,7 @@ const getHtmlReg = (tag) => {
 const getHtmlDetectionHints = (content) => {
   const source = typeof content === 'string' ? content : ''
   const hasTargetHtmlHint = targetHtmlHintReg.test(source)
-  const hasBlueskyHint = blueskyEmbedHintReg.test(source)
-  if (!hasTargetHtmlHint && !hasBlueskyHint) {
+  if (!hasTargetHtmlHint) {
     return null
   }
   const hasVideoHint = videoTagHintReg.test(source)
@@ -38,7 +39,6 @@ const getHtmlDetectionHints = (content) => {
   const hasBlockquoteHint = blockquoteTagHintReg.test(source)
   const hasDivHint = divTagHintReg.test(source)
   return {
-    hasBlueskyHint,
     hasVideoHint,
     hasAudioHint,
     hasIframeHint,
@@ -52,27 +52,76 @@ const needsHtmlBlockNewline = (hasTag) => !!(
   (hasTag[1] !== '\n' && hasTag[2] === undefined)
 )
 
-const findBlockquoteEmbedScriptTransform = (tokens, token, startIndex) => {
-  let addedContent = ''
-  let i = startIndex + 1
-  if (tokens[i] && tokens[i].type === 'paragraph_open') {
-    addedContent = '\n'
-    i++
-  }
-  const inlineToken = tokens[i]
-  if (!inlineToken || inlineToken.type !== 'inline' || !endBlockquoteScriptReg.test(inlineToken.content)) {
-    return null
-  }
-  addedContent += inlineToken.content + '\n'
-  let endIndex = i
-  if (tokens[i + 1] && tokens[i + 1].type === 'paragraph_close') endIndex++
+const isBoundedSourceMap = (map, sourceLength) => !!(
+  Array.isArray(map)
+  && Number.isSafeInteger(map[0])
+  && Number.isSafeInteger(map[1])
+  && map[0] >= 0
+  && map[1] >= map[0]
+  && map[1] <= sourceLength
+)
+
+const getSourceBlankLineCount = (previous, next, sourceLength, fallback) => {
+  // Source character length is also an upper bound on source line indexes.
+  // Ignore malformed third-party maps instead of trusting an unbounded repeat.
+  if (
+    !Number.isSafeInteger(sourceLength)
+    || !isBoundedSourceMap(previous.map, sourceLength)
+    || !isBoundedSourceMap(next.map, sourceLength)
+    || next.map[0] < previous.map[1]
+  ) return fallback
+  return next.map[0] - previous.map[1]
+}
+
+const findFollowingBlockquoteScriptTransform = (tokens, token, startIndex, sourceLength) => {
+  const scriptToken = tokens[startIndex + 1]
+  if (scriptToken?.type !== 'html_block' || !standaloneScriptReg.test(scriptToken.content)) return null
+  const gap = getSourceBlankLineCount(token, scriptToken, sourceLength, 0)
   return {
     type: 'merge-blockquote-script',
-    token,
     startIndex,
-    endIndex,
-    addedContent,
+    endIndex: startIndex + 1,
+    addedContent: (token.content.endsWith('\n') ? '' : '\n')
+      + '\n'.repeat(gap) + scriptToken.content
+      + (scriptToken.content.endsWith('\n') ? '' : '\n'),
   }
+}
+
+const findBlockquoteEmbedScriptTransform = (tokens, token, startIndex, sourceLength) => {
+  // A blank line can split provider HTML into an html_block, paragraph
+  // triples, and a separate script block. Recover only complete, known embeds.
+  if (blockquoteBoundaryReg.test(token.content.slice(1))) return null
+  let addedContent = ''
+  let previousBlock = token
+  let i = startIndex + 1
+  while (tokens[i]?.type === 'paragraph_open' && !tokens[i].hidden) {
+    const inlineToken = tokens[i + 1]
+    if (inlineToken?.type !== 'inline' || tokens[i + 2]?.type !== 'paragraph_close') return null
+    const boundary = inlineToken.content.match(blockquoteBoundaryReg)
+    const ending = inlineToken.content.match(endBlockquoteScriptReg)
+    if (boundary && (!ending || boundary.index !== ending.index)) return null
+    const gap = getSourceBlankLineCount(previousBlock, tokens[i], sourceLength, 1)
+    addedContent += '\n'.repeat(gap) + inlineToken.content + '\n'
+    previousBlock = tokens[i]
+    i += 3
+    if (!ending) continue
+    let endIndex = i - 1
+    if (!ending[1]) {
+      const scriptToken = tokens[i]
+      if (scriptToken?.type !== 'html_block' || !standaloneScriptReg.test(scriptToken.content)) return null
+      const scriptGap = getSourceBlankLineCount(previousBlock, scriptToken, sourceLength, 0)
+      addedContent += '\n'.repeat(scriptGap) + scriptToken.content
+      if (!scriptToken.content.endsWith('\n')) addedContent += '\n'
+      endIndex = i
+    }
+    return {
+      type: 'merge-blockquote-script',
+      startIndex,
+      endIndex,
+      addedContent,
+    }
+  }
+  return null
 }
 
 const getOpeningAttrValue = (content, reg) => {
@@ -112,24 +161,32 @@ const isKnownVideoIframe = (content) => {
   return VIDEO_IFRAME_HOSTS.has(host)
 }
 
-const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints) => {
+const detectHtmlTagCandidate = (tokens, token, startIndex, detector, hints, sourceLength) => {
   if (detector.requiresIframeTag && !hints.hasIframeHint) return null
   const hasTagHint = !!(detector.hintKey && hints[detector.hintKey])
-  const allowBlueskyFallback = detector.candidate === 'blockquote' && hints.hasBlueskyHint
-  if (!hasTagHint && !allowBlueskyFallback) return null
-  const hasTag = hasTagHint ? token.content.match(getHtmlReg(detector.lookupTag)) : null
-  const isBlueskyFallback = detector.candidate === 'blockquote' && !hasTag && hints.hasBlueskyHint
-  if (!hasTag && !isBlueskyFallback) return null
+  if (!hasTagHint) return null
+  if (detector.candidate === 'blockquote' && !hasKnownBlockquoteEmbedClass(token.content)) return null
+  const hasTag = token.content.match(getHtmlReg(detector.lookupTag))
   if (hasTag) {
+    if (
+      detector.candidate === 'blockquote'
+      && !hasTag[2]
+      && tokens[startIndex + 1]?.type === 'html_block'
+      && endBlockquoteReg.test(token.content)
+    ) {
+      const transform = findFollowingBlockquoteScriptTransform(tokens, token, startIndex, sourceLength)
+      if (transform) return { matchedTag: 'blockquote', endIndex: transform.endIndex, transform }
+    }
     return {
       matchedTag: detector.matchedTag || detector.candidate,
       endIndex: startIndex,
       transform: needsHtmlBlockNewline(hasTag)
-        ? { type: 'append-newline', token }
+        ? { type: 'append-newline' }
         : null,
     }
   }
-  const transform = findBlockquoteEmbedScriptTransform(tokens, token, startIndex)
+  if (detector.candidate !== 'blockquote') return null
+  const transform = findBlockquoteEmbedScriptTransform(tokens, token, startIndex, sourceLength)
   return transform
     ? { matchedTag: 'blockquote', endIndex: transform.endIndex, transform }
     : null
@@ -151,24 +208,19 @@ const resolveHtmlWrapWithoutCaption = (
   return !!htmlWrapWithoutCaption[matchedTag]
 }
 
-export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWithoutCaption) => {
+export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWithoutCaption, sourceLength) => {
   if (!token || token.type !== 'html_block') return null
   const hints = getHtmlDetectionHints(token.content)
   if (!hints) return null
 
   let candidate = null
   for (let i = 0; i < HTML_EMBED_CANDIDATES.length; i++) {
-    candidate = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints)
+    candidate = detectHtmlTagCandidate(tokens, token, startIndex, HTML_EMBED_CANDIDATES[i], hints, sourceLength)
     if (candidate) break
   }
   if (!candidate) return null
   const matchedTag = candidate.matchedTag
-  let isIframeTypeBlockquote = false
-
-  if (matchedTag === 'blockquote') {
-    if (!hasKnownBlockquoteEmbedClass(token.content)) return null
-    isIframeTypeBlockquote = true
-  }
+  const isIframeTypeBlockquote = matchedTag === 'blockquote'
   const isVideoIframe = matchedTag === 'iframe' && isKnownVideoIframe(token.content)
 
   return {
@@ -187,20 +239,17 @@ export const detectHtmlFigureCandidate = (tokens, token, startIndex, htmlWrapWit
   }
 }
 
-export const prepareHtmlFigureTransform = (detection) => {
+export const prepareHtmlFigureTransform = (detection, token) => {
   const transform = detection && detection.transform
   if (!detection) return 0
-  if (!transform) return detection.en
   detection.transform = null
-  if (transform.type === 'append-newline') {
-    transform.token.content += '\n'
-    return detection.en
+  if (detection.scriptCollection) {
+    token.content = detection.scriptCollection.content
+  } else if (transform?.type === 'append-newline') {
+    token.content += '\n'
+  } else if (transform?.type === 'merge-blockquote-script') {
+    token.content += transform.addedContent
   }
-  if (transform.type === 'merge-blockquote-script') {
-    transform.token.content += transform.addedContent
-    // The caller's batch emitter skips the remaining source range after
-    // emitting outputEnd; do not splice the document token array here.
-    return transform.startIndex
-  }
-  return detection.en
+  // The batch emitter skips the absorbed source range after this token.
+  return transform?.type === 'merge-blockquote-script' ? transform.startIndex : detection.en
 }

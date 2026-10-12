@@ -24,8 +24,15 @@
 - HTML blocks: `video`, `audio`, `iframe`, `blockquote`, and `div` wrappers that contain an `<iframe>`; tag detection is case-insensitive. Social blockquotes (Twitter/Mastodon/etc.) are treated as iframe-type embeds only when known embed class patterns match.
 - Known video iframe hosts include `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`, and `player.vimeo.com`; known video iframes can be captionlessly wrapped by `videoWithoutCaption`.
 - An unknown iframe can still accept an explicit `Video.` / `動画` caption through the existing iframe caption-mark path. Its wrapper remains `f-iframe`; do not promote it to a known video wrapper based on caption text alone.
-- Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry + `detect.js` detector) so `index.js` only consumes detection results and wrapper policy.
+- Provider-specific HTML knowledge is kept under `embeds/` (`providers.js` registry, `detect.js` detector, and `scripts.js` loader analysis/collection) so `index.js` only consumes detection results and wrapper policy.
 - Image paragraphs: inline children that start with an `image` and meet the image-only rules below.
+
+## 3a. Social Embed Scripts
+- Known social blockquotes include both `twitter-tweet` and `twitter-video`. Blank-line-split embeds are recovered only from complete, consecutive paragraph fragments followed by an adjacent empty script; preserve raw content and valid source-map gaps. Caption pairing uses the complete source range before loader collection.
+- `keepEmbedScriptsInPlace` is a strict boolean, default `false`. The default collects eligible loaders at the end of each render's block-token sequence, outside figures and Markdown containers, even without figure wrapping. `true` preserves per-embed loaders and duplicates after any required HTML reassembly. No registry persists in `env` or the markdown-it instance; separately rendered fragments need host-level loader management.
+- Collect only complete empty external classic scripts on the provider's configured hosts; Mastodon requires the origin of `data-embed-url`. Leave unknown/standalone/legacy-iframe scripts, inline bodies, modules, event handlers, malformed attributes, and ambiguous HTML in place. Closing-tag spellings inside quoted attributes, raw-text or inert elements, and declarations must fail closed so tag-like source content cannot become an active loader.
+- Deduplicate by the complete `src` and every script attribute, preserving the first occurrence's HTML, source map, and loader order. Normalize attribute names/order, semicolon-terminated HTML entities, and boolean-attribute values for comparison; do not apply Markdown backslash unescaping or merge different Mastodon prefix lists.
+- Loader extraction remains a pure analysis decision. Apply the prepared HTML once, emit distinct root-level `html_block` tokens for retained loaders, and append them through the same structural rebuild. Other core plugins may append content afterward.
 
 ## 4. Image Paragraph Rules
 - A valid image-only paragraph can include:
@@ -104,6 +111,7 @@
 - HTML detection uses case-insensitive tag hints before regex checks and skips regex when no target tag hint exists in the block.
 - HTML detection keeps newline/script normalization pending until the block is validated as a supported embed, so rejected HTML candidates remain untouched. Strict tag hints do not confuse custom tags such as `<iframe-widget>` or `<video-player>` with supported HTML elements.
 - Social embed blockquotes are matched by class-token membership, so extra classes on the provider blockquote do not block detection.
+- Social loader analysis skips entity replacement for values without `&` and newline-offset scans when no valid source map exists. Keep terminal whitespace trimming linear, and apply already-prepared collection content without reconstructing discarded HTML.
 - `detectHtmlFigureCandidate` has an early non-target tag guard (`video/audio/iframe/blockquote/div`) before expensive checks.
 - `htmlWrapWithoutCaption` options are precomputed once and reused in HTML detection.
 - Generated fallback locale resolution is skipped unless auto alt/title fallback is enabled, multiple languages are active, and a valid image candidate actually needs fallback text. Resolve from the final token stream, not a raw `![` source hint, so image tokens injected by earlier core rules are handled correctly. The document-script fallback scans the original normalized source from a frontmatter-skipping offset; do not slice/copy the remaining document merely to inspect its bounded prefix.
@@ -123,7 +131,8 @@
 - Rebuilding writes the emitted token references back into the existing `state.tokens` object and truncates it, preserving array identity for surrounding core rules while keeping block-token work linear. No-op documents allocate no output array, and balanced close indexes stay lazy on image/plain-text paths.
 
 ## 9. Tests
-- Fixtures under `test/*.txt` feed `test/test.js` (`npm run test:core`).
+- Core fixtures under `test/*.txt` feed `test/test.js` (`npm run test:core`); responsibility-specific fixtures are loaded by their own suites.
+- Social embed recovery and loader collection live in `test/test-embeds.js` (`npm run test:embeds`), with reviewable fixtures in `test/examples-embeds.txt` and `test/examples-embed-script-collection.txt`. Cover split blank lines, captions, duplicate/different attributes, render reuse, source maps, raw-text/inert contexts, and malformed input. Retain provider domains and necessary HTML structure but use dummy text, IDs, and URL payloads; these tests must not fetch remote resources.
 - Caption-numbering policy, scope, option-flow, code/samp, and video regressions live in `test/test-caption-numbering.js` (`npm run test:numbering`). Keep this suite named by stable responsibility rather than a release number.
 - Reviewable notes render contracts live in the single `[Markdown]` / `[HTML]` fixture file `test/examples-figure-annotations-and-local-notes.txt`. Structural token/map checks, diagnostics, locale reuse, option validation, malformed streams, and plugin-order regressions remain in `test/test-notes.js`; `npm run test:notes` runs both layers.
 - Executable README/docs pairs use fenced info strings such as `md {test id="..."}` and `html {test id="..."}`. `test/test-doc-examples.js` discovers them through `npm run test:docs`; keep setup names on a fixed allowlist and never evaluate documentation metadata as JavaScript.
@@ -131,11 +140,11 @@
 - The pure integration subpath is covered independently by `test/test-caption-numbering-api.js` (`npm run test:numbering-api`), including branding/freeze, non-mutation, scope boundaries, mapless headings, malformed nested-container fail-closed behavior, counter series, and the number codec.
 - Image-only coverage includes single/multi-image layouts, attrs, auto-caption detection, and invalid trailing text cases.
 - Dedicated examples cover slide class overrides and label class mirroring.
-- `npm test` aggregates the core, renderer-numbering, numbering-API, notes, and documentation-example suites. Additional dependency-focused checks run from repository-controlled paths through `npm run test:p-captions`; `npm run test:all` includes all six suites.
+- `npm test` aggregates the core, embeds, renderer-numbering, numbering-API, notes, and documentation-example suites. Additional dependency-focused checks run from repository-controlled paths through `npm run test:p-captions`; `npm run test:all` includes those checks too.
 - Advanced-numbering tests cover all scope catalog forms, ambiguous inline-token boundaries, heading levels/nesting, repeat continue/reset, explicit scoped synchronization, shared figure/listing samp sequences, parsed frontmatter auto/document and separator overrides, fixed env overrides, frontmatter adapters, render reuse, and pre-mutation failure behavior.
 - Option/integration tests cover strict aliases and validation, invalid-first/retry and duplicate-use sentinel behavior, native fences and pre/code/samp token blocks, shared `図` / `リスト` series, raw/known/unknown video paths, captionless no-op counters, formatting options, and remove/except decision-mark filtering.
 - markdown-it 15 compatibility tests must import constructors from the public package root rather than `markdown-it/lib/*`, preserve reference-image metadata through figure rebuilding, and cover both installation orders with `@peaceroad/markdown-it-renderer-image` because its core transform runs after `replacements`.
-- Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95 and deep blockquote probe output.
+- Performance/robustness checks run via `npm run perf` (`test/performance/benchmark.js`) with render medians/p95, deep blockquote probes, and separate core timings for mixed embeds and many embed siblings in one HTML block.
 - Consumer repos may not include upstream dependency test files under `node_modules`; keep integration checks in root-owned scripts/tests.
 - Do not rely on durable tests under `node_modules`; treat those as ephemeral.
 

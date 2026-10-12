@@ -13,6 +13,7 @@ import {
   stripLabelPrefixMarker,
 } from 'p7d-markdown-it-p-captions'
 import { detectHtmlFigureCandidate, prepareHtmlFigureTransform } from './embeds/detect.js'
+import { analyzeEmbedScriptCollection, createCollectedEmbedScriptTokens } from './embeds/scripts.js'
 import { normalizeNotesOptions } from './notes/options.js'
 import { createNotesCatalog } from './notes/catalog.js'
 import { resetFigureNotesDiagnostics } from './notes/diagnostics.js'
@@ -1040,7 +1041,8 @@ const mergeRangeMaps = (left, right) => {
 }
 
 const getPlanBaseMap = (tokens, plan) => {
-  let map = getRangeMap(tokens, plan.targetStart, plan.targetOutputEnd)
+  const targetEnd = plan.detection.type === 'html' ? plan.detection.en : plan.targetOutputEnd
+  let map = getRangeMap(tokens, plan.targetStart, targetEnd)
   if (plan.localNotesDecision) {
     const localNotesMap = plan.preparedLocalNotes
       ? getTokenMap(plan.preparedLocalNotes.open)
@@ -1135,7 +1137,7 @@ const prepareFigurePlan = (tokens, plan, opt, TokenConstructor, captionState) =>
   }
 
   if (plan.detection.type === 'html') {
-    plan.targetOutputEnd = prepareHtmlFigureTransform(plan.detection)
+    plan.targetOutputEnd = prepareHtmlFigureTransform(plan.detection, tokens[plan.targetStart])
   }
 
   if (plan.localNotesDecision?.kind === 'unreferenced-local-notes') {
@@ -1303,10 +1305,13 @@ const emitFigurePlan = (tokens, plan, output) => {
   output.push(plan.figureEndToken)
 }
 
-const commitPlannedTokens = (tokens, rootPlans) => {
-  if (rootPlans.length === 0) return
+const commitPlannedTokens = (tokens, rootPlans, trailingScripts) => {
+  if (rootPlans.length === 0 && !trailingScripts) return
   const output = []
   emitPlannedRange(tokens, 0, tokens.length - 1, rootPlans, output)
+  if (trailingScripts) {
+    for (const token of trailingScripts) output.push(token)
+  }
   // Preserve StateCore's array identity for surrounding rules while replacing
   // the document in one linear copy instead of shifting its tail per figure.
   for (let index = 0; index < output.length; index++) tokens[index] = output[index]
@@ -1398,7 +1403,7 @@ const collectFigurePlansInRange = (
         detection = detectImageParagraph(imageInlineToken, n, caption, sp, opt)
       }
     } else if (tokenType === 'html_block') {
-      detection = detectHtmlFigureCandidate(tokens, token, n, opt.htmlWrapWithoutCaption)
+      detection = detectHtmlFigureCandidate(tokens, token, n, opt.htmlWrapWithoutCaption, captionState.sourceLength)
       if (detection) {
         caption.name = detection.tagName
         if (detection.isVideoIframe) sp.isVideoIframe = true
@@ -1461,6 +1466,22 @@ const collectFigurePlansInRange = (
       }
       n = targetSourceEnd + 1
       continue
+    }
+
+    if (detection.isIframeTypeBlockquote && !opt.keepEmbedScriptsInPlace) {
+      const transform = detection.transform
+      const completeContent = transform?.type === 'merge-blockquote-script'
+        ? token.content + transform.addedContent
+        : token.content
+      const sourceMap = getRangeMap(tokens, targetStart, targetSourceEnd)
+      detection.scriptCollection = analyzeEmbedScriptCollection(
+        completeContent,
+        sourceMap && sourceMap[1] <= captionState.sourceLength ? sourceMap : null,
+        captionState.unescape,
+      )
+      if (detection.scriptCollection) {
+        captionState.hasCollectedEmbedScripts = true
+      }
     }
 
     let notesTargetType = ''
@@ -1544,7 +1565,7 @@ const collectFigurePlansInRange = (
     }
 
     if (!shouldWrap) {
-      if (detection.type === 'html' && detection.transform) {
+      if (detection.type === 'html' && (detection.transform || detection.scriptCollection)) {
         const htmlPlan = {
           kind: 'html-only',
           sourceStart: targetStart,
@@ -1553,7 +1574,7 @@ const collectFigurePlansInRange = (
           detection,
         }
         applyOrder.push(htmlPlan)
-        if (detection.transform.type === 'merge-blockquote-script') {
+        if (detection.transform?.type === 'merge-blockquote-script' || detection.scriptCollection) {
           owner.children.push(htmlPlan)
         }
       }
@@ -1635,6 +1656,8 @@ const figureWithCaption = (state, opt) => {
     : null
   const captionState = {
     tokens: state.tokens,
+    sourceLength: state.src.length,
+    unescape: state.md.utils.unescapeAll,
     Token: state.Token,
     preferredLanguages: opt.preferredLanguages,
     numberingRuntime,
@@ -1665,10 +1688,16 @@ const figureWithCaption = (state, opt) => {
     if (plan.kind === 'figure') {
       prepareFigurePlan(state.tokens, plan, opt, state.Token, captionState)
     } else {
-      plan.outputEnd = prepareHtmlFigureTransform(plan.detection)
+      plan.outputEnd = prepareHtmlFigureTransform(plan.detection, state.tokens[plan.sourceStart])
     }
   }
-  commitPlannedTokens(state.tokens, root.children)
+  commitPlannedTokens(
+    state.tokens,
+    root.children,
+    captionState.hasCollectedEmbedScripts
+      ? createCollectedEmbedScriptTokens(applyOrder, state.Token)
+      : null,
+  )
   if (opt.notes.referencedLocalNotes) finalizeReferencedLocalNotes(state.tokens, state.env)
 }
 
@@ -1693,6 +1722,7 @@ const mditFigureWithPCaption = (md, option) => {
     videoWithoutCaption: false,
     audioWithoutCaption: false,
     iframeTypeBlockquoteWithoutCaption: false,
+    keepEmbedScriptsInPlace: false,
     multipleImages: true,
     roleDocExample: false,
     allIframeTypeFigureClassName: '', // e.g. 'f-embed' to force a single class for iframe-like embeds (recommended)
@@ -1734,6 +1764,9 @@ const mditFigureWithPCaption = (md, option) => {
   const hasExplicitFigureClassThatWrapsSlides = hasOwnOption(option, 'figureClassThatWrapsSlides')
   const hasExplicitLabelClassFollowsFigure = hasOwnOption(option, 'labelClassFollowsFigure')
   if (option) Object.assign(opt, option)
+  if (typeof opt.keepEmbedScriptsInPlace !== 'boolean') {
+    throw new TypeError('keepEmbedScriptsInPlace must be a boolean')
+  }
   opt.notes = normalizeNotesOptions(opt.notes)
   if (Array.isArray(opt.removeUnnumberedLabelExceptMarks)) {
     opt.removeUnnumberedLabelExceptMarks = opt.removeUnnumberedLabelExceptMarks.map(

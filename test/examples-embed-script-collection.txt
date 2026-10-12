@@ -1,0 +1,26 @@
+[Markdown]
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+
+Figure. Dummy first caption.
+
+<blockquote class="twitter-video" data-status="hidden"><p>Dummy second post.</p></blockquote>
+<script charset='utf-8' async src='https://platform.x.com/dummy-widgets.js'></script>
+
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id"><p>Dummy third post.</p></blockquote><script async src="https://embed.bsky.app/dummy-embed.js"></script>
+
+Dummy last paragraph.
+[HTML]
+<figure class="f-img">
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+<figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Dummy first caption.</figcaption>
+</figure>
+<figure class="f-img">
+<blockquote class="twitter-video" data-status="hidden"><p>Dummy second post.</p></blockquote>
+</figure>
+<figure class="f-img">
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id"><p>Dummy third post.</p></blockquote>
+</figure>
+<p>Dummy last paragraph.</p>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+<script async src="https://embed.bsky.app/dummy-embed.js"></script>

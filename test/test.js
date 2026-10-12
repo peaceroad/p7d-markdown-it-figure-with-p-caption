@@ -286,7 +286,7 @@ const getTestData = (pat) => {
       } else {
         // If the HTML block ends with a closing tag (like <dl>), do not add a newline at the end.
         // Also, markdown-it does not output a newline after closing tags like </dd> or </dt>, so this prevents false negatives in tests.
-        if (/<\/[a-zA-Z]+>$/.test(mhs[0].trim()) && !/<\/(?:video|figure)>$/.test(mhs[1].trim())) {
+        if (/<\/[a-zA-Z]+>$/.test(mhs[0].trim()) && !/<\/(?:video|figure|script)>$/.test(mhs[1].trim())) {
           mhs[i] = mhs[i]
         } else {
           mhs[i] = mhs[i] + '\n';
@@ -537,8 +537,8 @@ try {
     '<p><img src="a.jpg" alt="A"></p>\n',
   )
   assert.strictEqual(
-    mdVideoWithoutCaptionOnly.render('<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>'),
-    '<figure class="f-video">\n<IFRAME width="560" height="315" src="https://www.youtube.com/embed/56b9uHAcHYc?si=azphXJdsZGrojpgp" title="YouTube video player"></IFRAME>\n</figure>\n',
+    mdVideoWithoutCaptionOnly.render('<IFRAME width="560" height="315" src="https://www.youtube.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player"></IFRAME>'),
+    '<figure class="f-video">\n<IFRAME width="560" height="315" src="https://www.youtube.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player"></IFRAME>\n</figure>\n',
   )
   assert.strictEqual(
     mdVideoWithoutCaptionOnly.render('<div class="embed"><iframe src="https://example.com/embed"></iframe></div>'),

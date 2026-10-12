@@ -23,6 +23,7 @@ containing `...` remain illustrative and intentionally omit the test metadata.
   - [Automatic detection fallbacks](#automatic-detection-fallbacks)
   - [Role helpers](#role-helpers)
   - [Captionless conversion toggles](#captionless-conversion-toggles)
+  - [Embed script collection](#embed-script-collection)
     - [Current social embed structures](#current-social-embed-structures)
   - [Iframe-type blockquote class override](#iframe-type-blockquote-class-override)
   - [All iframe/embed class override](#all-iframeembed-class-override)
@@ -398,12 +399,12 @@ If `imageOnlyParagraphWithoutCaption` (or the legacy alias `oneImageWithoutCapti
 If `videoWithoutCaption` is enabled, `<video>` elements and iframes pointing to known video hosts (such as `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, or Vimeo) will be wrapped with `<figure class="f-video">`.
 
 ```md {test id="docs-captionless-video-iframe" setup="captionless-video"}
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX"></iframe>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 ```
 
 ```html {test id="docs-captionless-video-iframe"}
 <figure class="f-video">
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/XXXXXXXXXXX"></iframe>
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/dummy-video-id?si=dummy-query" title="Dummy video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </figure>
 ```
 
@@ -446,49 +447,143 @@ Additional `data-*` attributes, inline styles, SVG content, and current script
 hosts are preserved. The following compact examples exercise the same
 structures as the longer provider-generated snippets.
 
+The samples use dummy text, IDs, and resource paths; provider domains and HTML
+structure are retained for detection tests. The dummy script URLs do not load
+live widgets. Multiple blank lines in post text are retained during reassembly
+when source maps are valid. The default output collects loader scripts after
+the figures; `keepEmbedScriptsInPlace: true` also retains the original spacing
+before each script.
+
+Twitter/X recognizes both `twitter-tweet` and `twitter-video`. The latter uses
+the same social-embed options and default `f-img` wrapper. Blank lines in the
+post text and a script on the following line are supported, including
+`data-status="hidden"` and `https://platform.x.com/widgets.js`.
+
 ```md {test id="docs-modern-mastodon" setup="captionless-social"}
-<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@Mastodon/1/embed" style="background: #FCF8FF"><a href="https://mastodon.social/@Mastodon/1"><svg viewBox="0 0 79 75"><path d="M0 0"/></svg><span>View on Mastodon</span></a></blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@dummy-user/dummy-post-id/embed" style="background: #FCF8FF"><a href="https://mastodon.social/@dummy-user/dummy-post-id"><svg viewBox="0 0 79 75"><path d="M0 0h32v32H0z"/></svg><span>Dummy link text</span></a></blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/dummy-embed.js"></script>
 ```
 
 ```html {test id="docs-modern-mastodon"}
 <figure class="f-img">
-<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@Mastodon/1/embed" style="background: #FCF8FF"><a href="https://mastodon.social/@Mastodon/1"><svg viewBox="0 0 79 75"><path d="M0 0"/></svg><span>View on Mastodon</span></a></blockquote> <script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/embed.js"></script>
+<blockquote class="mastodon-embed" data-embed-url="https://mastodon.social/@dummy-user/dummy-post-id/embed" style="background: #FCF8FF"><a href="https://mastodon.social/@dummy-user/dummy-post-id"><svg viewBox="0 0 79 75"><path d="M0 0h32v32H0z"/></svg><span>Dummy link text</span></a></blockquote>
 </figure>
+<script data-allowed-prefixes="https://mastodon.social/" async src="https://mastodon.social/dummy-embed.js"></script>
 ```
 
 ```md {test id="docs-modern-threads" setup="captionless-social"}
-<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@threads/post/1" data-text-post-version="0" id="ig-tp-1"><a href="https://www.threads.com/@threads/post/1"><svg aria-label="Threads" viewBox="0 0 192 192"><path d="M0 0"/></svg><span>Threadsで見る</span></a></blockquote>
-<script async src="https://www.threads.com/embed.js"></script>
+<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@dummy-user/post/dummy-post-id" data-text-post-version="0" id="ig-tp-dummy-post-id"><a href="https://www.threads.com/@dummy-user/post/dummy-post-id"><svg aria-label="Dummy icon" viewBox="0 0 192 192"><path d="M0 0h32v32H0z"/></svg><span>Dummy link text</span></a></blockquote>
+
+<script async src="https://www.threads.com/dummy-embed.js"></script>
 ```
 
 ```html {test id="docs-modern-threads"}
 <figure class="f-img">
-<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@threads/post/1" data-text-post-version="0" id="ig-tp-1"><a href="https://www.threads.com/@threads/post/1"><svg aria-label="Threads" viewBox="0 0 192 192"><path d="M0 0"/></svg><span>Threadsで見る</span></a></blockquote>
-<script async src="https://www.threads.com/embed.js"></script>
+<blockquote class="text-post-media" data-text-post-permalink="https://www.threads.com/@dummy-user/post/dummy-post-id" data-text-post-version="0" id="ig-tp-dummy-post-id"><a href="https://www.threads.com/@dummy-user/post/dummy-post-id"><svg aria-label="Dummy icon" viewBox="0 0 192 192"><path d="M0 0h32v32H0z"/></svg><span>Dummy link text</span></a></blockquote>
 </figure>
+<script async src="https://www.threads.com/dummy-embed.js"></script>
 ```
 
 ```md {test id="docs-modern-x" setup="captionless-social"}
-<blockquote class="twitter-tweet" data-dnt="true"><p lang="en" dir="ltr">A post</p>&mdash; X (@X)</blockquote> <script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="en" dir="ltr">Dummy first paragraph.
+
+Dummy second paragraph.</p>&mdash; Dummy User (@dummy_user)</blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
 ```
 
 ```html {test id="docs-modern-x"}
 <figure class="f-img">
-<blockquote class="twitter-tweet" data-dnt="true"><p lang="en" dir="ltr">A post</p>&mdash; X (@X)</blockquote> <script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet" data-dnt="true"><p lang="en" dir="ltr">Dummy first paragraph.
+
+Dummy second paragraph.</p>&mdash; Dummy User (@dummy_user)</blockquote>
 </figure>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+```
+
+```md {test id="docs-modern-x-video" setup="captionless-social"}
+<blockquote class="twitter-video" data-status="hidden"><p lang="en" dir="ltr">Dummy first video paragraph.
+
+Dummy second video paragraph.</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-post-id">Dummy date</a></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
+```
+
+```html {test id="docs-modern-x-video"}
+<figure class="f-img">
+<blockquote class="twitter-video" data-status="hidden"><p lang="en" dir="ltr">Dummy first video paragraph.
+
+Dummy second video paragraph.</p>&mdash; Dummy User (@dummy_user) <a href="https://x.com/dummy-user/status/dummy-post-id">Dummy date</a></blockquote>
+</figure>
+<script async src="https://platform.x.com/dummy-widgets.js" charset="utf-8"></script>
 ```
 
 ```md {test id="docs-modern-bluesky" setup="captionless-social"}
-<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:example/app.bsky.feed.post/1" data-bluesky-cid="cid" data-bluesky-embed-color-mode="system"><p lang="en">First line
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id" data-bluesky-cid="dummy-content-id" data-bluesky-embed-color-mode="system"><p lang="en">Dummy first paragraph.
 
-Second line</p>&mdash; Bluesky</blockquote><script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
+
+Dummy second paragraph.
+
+Dummy third paragraph. You&#x27;ll see dummy content.</p>&mdash; Dummy User</blockquote><script async src="https://embed.bsky.app/dummy-embed.js" charset="utf-8"></script>
 ```
 
 ```html {test id="docs-modern-bluesky"}
 <figure class="f-img">
-<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:example/app.bsky.feed.post/1" data-bluesky-cid="cid" data-bluesky-embed-color-mode="system"><p lang="en">First line
+<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:dummy-user-id/app.bsky.feed.post/dummy-post-id" data-bluesky-cid="dummy-content-id" data-bluesky-embed-color-mode="system"><p lang="en">Dummy first paragraph.
 
-Second line</p>&mdash; Bluesky</blockquote><script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
+
+Dummy second paragraph.
+
+Dummy third paragraph. You&#x27;ll see dummy content.</p>&mdash; Dummy User</blockquote>
+</figure>
+<script async src="https://embed.bsky.app/dummy-embed.js" charset="utf-8"></script>
+```
+
+### Embed script collection
+
+The default places each distinct social loader after the current render's
+content. X tweet and video snippets with identical loader URLs and attributes
+share one script. The final paragraph also precedes it, so all embed elements
+are present before an async loader can execute.
+
+```md {test id="docs-collected-social-scripts" setup="captionless-social"}
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+
+<blockquote class="twitter-video"><p>Dummy second post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+
+Dummy last paragraph.
+```
+
+```html {test id="docs-collected-social-scripts"}
+<figure class="f-img">
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+</figure>
+<figure class="f-img">
+<blockquote class="twitter-video"><p>Dummy second post.</p></blockquote>
+</figure>
+<p>Dummy last paragraph.</p>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+```
+
+Set `keepEmbedScriptsInPlace: true` to preserve individual loaders instead.
+This is useful when the generated figures will be copied or used independently.
+The following pair uses that option with captionless social wrapping enabled.
+
+```md {test id="docs-preserved-social-scripts" setup="captionless-social-in-place"}
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+
+<blockquote class="twitter-tweet"><p>Dummy second post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+```
+
+```html {test id="docs-preserved-social-scripts"}
+<figure class="f-img">
+<blockquote class="twitter-tweet"><p>Dummy first post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
+</figure>
+<figure class="f-img">
+<blockquote class="twitter-tweet"><p>Dummy second post.</p></blockquote>
+<script async src="https://platform.x.com/dummy-widgets.js"></script>
 </figure>
 ```
 
@@ -499,14 +594,15 @@ Set `figureClassThatWrapsIframeTypeBlockquote: 'f-social'` (or any class you pre
 ```md {test id="docs-social-class" setup="social-class"}
 Figure. Twitter embed.
 
-<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet"><p>Dummy content.</p></blockquote> <script async src="https://platform.twitter.com/dummy-widgets.js" charset="utf-8"></script>
 ```
 
 ```html {test id="docs-social-class"}
 <figure class="f-social">
 <figcaption><span class="f-img-label">Figure<span class="f-img-label-joint">.</span></span> Twitter embed.</figcaption>
-<blockquote class="twitter-tweet"><p>Embed content</p></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet"><p>Dummy content.</p></blockquote>
 </figure>
+<script async src="https://platform.twitter.com/dummy-widgets.js" charset="utf-8"></script>
 ```
 
 ### All iframe/embed class override

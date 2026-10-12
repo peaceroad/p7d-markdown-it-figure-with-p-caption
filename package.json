@@ -1,13 +1,14 @@
 {
   "name": "@peaceroad/markdown-it-figure-with-p-caption",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "A markdown-it plugin that wraps captioned media in semantic figures with optional annotations and target-local figure/table notes.",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "npm run test:suites && node -e \"console.log('\\nAll tests passed.')\"",
-    "test:suites": "npm run test:core && npm run test:numbering && npm run test:numbering-api && npm run test:notes && npm run test:docs",
+    "test:suites": "npm run test:core && npm run test:embeds && npm run test:numbering && npm run test:numbering-api && npm run test:notes && npm run test:docs",
     "test:core": "node test/test.js",
+    "test:embeds": "node test/test-embeds.js",
     "test:numbering": "node test/test-caption-numbering.js",
     "test:numbering-api": "node test/test-caption-numbering-api.js",
     "test:notes": "node test/test-notes.js",

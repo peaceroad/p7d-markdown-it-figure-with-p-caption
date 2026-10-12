@@ -48,6 +48,10 @@ const setups = Object.freeze({
   'captionless-social': () => createMarkdownIt({
     iframeTypeBlockquoteWithoutCaption: true,
   }),
+  'captionless-social-in-place': () => createMarkdownIt({
+    iframeTypeBlockquoteWithoutCaption: true,
+    keepEmbedScriptsInPlace: true,
+  }),
   'social-class': () => createMarkdownIt({
     figureClassThatWrapsIframeTypeBlockquote: 'f-social',
   }),

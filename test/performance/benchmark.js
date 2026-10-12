@@ -83,6 +83,16 @@ const runCoreTransformBench = (label, md, source, rounds = 7, warmup = 2) => {
   return result
 }
 
+const timeFigureCore = (md) => {
+  md.core.ruler.before('figure_with_caption', 'figure_perf_start', (state) => {
+    state.env.figureCoreStarted = performance.now()
+  })
+  md.core.ruler.after('figure_with_caption', 'figure_perf_end', (state) => {
+    state.env.figureCoreElapsed = performance.now() - state.env.figureCoreStarted
+  })
+  return md
+}
+
 const getBlockquoteStats = (tokens) => {
   let openCount = 0
   let maxLevel = 0
@@ -243,6 +253,7 @@ const runSiblingProbe = (md, counts) => {
 }
 
 const markdownSections = loadMarkdownSections(fixturePath)
+const embedSections = loadMarkdownSections(path.join(rootDir, 'examples-embeds.txt'))
 const corpusSmall = markdownSections.slice(0, 8).join('\n\n')
 const corpusFull = markdownSections.join('\n\n')
 
@@ -251,6 +262,14 @@ const pluginMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption)
   .use(mditAttrs)
   .use(mditRendererFence)
+const embedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, { iframeTypeBlockquoteWithoutCaption: true, videoWithoutCaption: true })
+const inPlaceEmbedMd = markdownIt({ html: true })
+  .use(mdFigureWithPCaption, {
+    iframeTypeBlockquoteWithoutCaption: true,
+    videoWithoutCaption: true,
+    keepEmbedScriptsInPlace: true,
+  })
 const numberedMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption, { autoLabelNumber: true })
 const captionlessImageMd = markdownIt({ html: true })
@@ -273,13 +292,9 @@ const notesDisabledMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption)
 const notesMd = markdownIt({ html: true })
   .use(mdFigureWithPCaption, { notes: { enabled: true } })
-const coreTimedMd = markdownIt({ html: true }).use(mdFigureWithPCaption)
-coreTimedMd.core.ruler.before('figure_with_caption', 'figure_perf_start', (state) => {
-  state.env.figureCoreStarted = performance.now()
-})
-coreTimedMd.core.ruler.after('figure_with_caption', 'figure_perf_end', (state) => {
-  state.env.figureCoreElapsed = performance.now() - state.env.figureCoreStarted
-})
+const coreTimedMd = timeFigureCore(markdownIt({ html: true }).use(mdFigureWithPCaption))
+timeFigureCore(embedMd)
+timeFigureCore(inPlaceEmbedMd)
 
 console.log(`markdown-it maxNesting=${pluginMd.options.maxNesting}`)
 console.log('=== Render benchmark ===')
@@ -291,6 +306,21 @@ runRenderBench('notes-disabled/no-candidates', notesDisabledMd, corpusFull)
 runRenderBench('notes-enabled/no-candidates', notesMd, corpusFull)
 runRenderBench('notes/annotations/500', notesMd, buildAnnotatedImageDocument(500), 7, 2)
 runRenderBench('notes/post-caption-annotations/500', notesMd, buildPostCaptionAnnotatedImageDocument(500), 7, 2)
+
+console.log('\nEmbed probes (split paragraphs, SVG wrappers, and video iframes):')
+for (const count of [500, 1000]) {
+  const source = Array.from({ length: count }, (_, index) => embedSections[index % embedSections.length]).join('\n\n')
+  runRenderBench(`embeds/${count}`, embedMd, source, 7, 2)
+  runRenderBench(`embeds/in-place/${count}`, inPlaceEmbedMd, source, 7, 2)
+  runCoreTransformBench(`embeds/core/${count}`, embedMd, source, 9, 3)
+  runCoreTransformBench(`embeds/in-place/core/${count}`, inPlaceEmbedMd, source, 9, 3)
+}
+console.log('\nEmbed collection in one HTML block:')
+const compactEmbed = '<blockquote class="twitter-tweet"><p>Dummy post.</p></blockquote><script async src="https://platform.x.com/dummy-widgets.js"></script>\n'
+for (const count of [1000, 2000]) {
+  runRenderBench(`embeds/one-block/${count}`, embedMd, compactEmbed.repeat(count), 7, 2)
+  runCoreTransformBench(`embeds/one-block/core/${count}`, embedMd, compactEmbed.repeat(count), 9, 3)
+}
 
 console.log('\nNumbering/scope probes:')
 runRenderBench('numbered/siblings/500', numberedMd, buildSiblingFigureDocument(500), 9, 3)
