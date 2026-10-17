@@ -244,6 +244,36 @@ const embed = (htmlScript = script, className = 'twitter-tweet', extra = '') => 
 )
 const embedBody = '<blockquote class="twitter-tweet"><p>Dummy post.</p></blockquote>\n'
 const figureBody = '<figure class="f-img">\n' + embedBody + '</figure>\n'
+
+// X display/privacy options belong to each blockquote, not the shared loader.
+// Preserve their values and raw post HTML while deduplicating only scripts.
+const xAttributeVariants = [
+  ' data-conversation="none"',
+  ' data-conversation="none" data-dnt="true"',
+  ' data-dnt="true"',
+  ' data-media-max-width="560" data-dnt="true"',
+]
+for (const host of ['platform.x.com', 'platform.twitter.com']) {
+  const loader = script.replace('platform.x.com', host)
+  for (const paragraphBreak of ['<br><br>', '\n\n']) {
+    const bodies = xAttributeVariants.map(attributes => (
+      `<blockquote class="twitter-tweet"${attributes}><p lang="en" dir="ltr">Dummy&#39;s post with <a href="https://x.com/dummy-user?dummy=value">@dummy-user</a>.${paragraphBreak}Dummy continuation. <a href="https://t.co/dummy-link">pic.twitter.com/dummy-link</a></p>&mdash; Dummy author (@dummy-user) <a href="https://x.com/dummy-user/status/dummy-post-id?dummy=value">Dummy date</a></blockquote>`
+    ))
+    const snippets = bodies.map(body => body + ' ' + loader)
+    for (let index = 0; index < snippets.length; index++) {
+      const source = snippets[index]
+      const body = bodies[index] + '\n'
+      assert.equal(defaultMd.render(source), source + '\n')
+      assert.equal(captionlessMd.render(source), '<figure class="f-img">\n' + source + '\n</figure>\n')
+      assert.equal(collectingMd.render(source), '<figure class="f-img">\n' + body + '</figure>\n' + loader + '\n')
+    }
+    const source = snippets.join('\n\n') + '\n\nDummy end.'
+    const expectedBodies = bodies.map(body => '<figure class="f-img">\n' + body + '\n</figure>\n').join('')
+    assert.equal(collectingMd.render(source), expectedBodies + '<p>Dummy end.</p>\n' + loader + '\n')
+    assert.equal(captionlessMd.render(source).match(/<script\b/g).length, snippets.length)
+  }
+}
+
 const repeatedSource = [embed(), embed(script, 'twitter-video'), embed(), 'Dummy last paragraph.'].join('\n\n')
 const repeatedOutput = collectingMd.render(repeatedSource)
 assert.equal(repeatedOutput.match(/<script\b/g).length, 1)
